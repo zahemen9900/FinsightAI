@@ -1,0 +1,12 @@
+2025-01-20 11:11:45,703 - INFO - Starting dataset preparation...
+2025-01-20 11:11:46,162 - INFO - Loaded 14731 posts from JSONL file
+2025-01-20 11:11:46,328 - INFO - Successfully converted 14731 posts to SFT format
+2025-01-20 11:11:46,921 - INFO - Saved converted data to: /home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl
+2025-01-20 11:29:34,515 - INFO - Starting dataset preparation...
+2025-01-20 11:29:34,908 - INFO - Loaded 14731 posts from JSONL file
+2025-01-20 11:29:35,011 - INFO - Successfully converted 14731 posts to SFT format
+2025-01-20 11:29:35,371 - INFO - Saved converted data to: /home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl
+2025-01-20 11:31:25,752 - INFO - Starting dataset preparation...
+2025-01-20 11:31:26,209 - INFO - Loaded 14731 posts from JSONL file
+2025-01-20 11:31:26,459 - INFO - Successfully converted 14731 posts to SFT format
+2025-01-20 11:31:27,290 - INFO - Saved converted data to: /home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl
