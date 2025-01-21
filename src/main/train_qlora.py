@@ -51,22 +51,23 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
+    logging_steps: int = 50
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 100
+    eval_steps: int = 360
     save_strategy: str = "steps"
-    save_steps: int = 100
+    save_steps: int = 360
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
-    logging_steps: int = 50
 
     # DeepSpeed configs
     deepspeed = {
         "zero_optimization": {
-            "stage": 2,
+            "stage": 2, #ZeRO Stage 2 is often the best performance / memory configuration
             "offload_optimizer": {
                 "device": "cpu",
-                "pin_memory": True
+                "pin_memory": True,
+                "gradient_checkpointing": False
             },
             "offload_param": {
                 "device": "cpu",
@@ -92,7 +93,7 @@ class QLoRAConfig(SFTConfig):
     double_quant: bool = True
     quant_type: str = "nf4"
     dataset_num_proc: int = 1
-    use_cache: bool = False
+    use_cache: bool = False # Set to false to avoid gradient checkpointing warning
 
 def setup_quantized_model(model_args, training_args):
     """Set up quantized model with LoRA configuration"""
@@ -114,6 +115,10 @@ def setup_quantized_model(model_args, training_args):
         trust_remote_code=model_args.trust_remote_code
     )
     
+    # Set static graph for DDP
+    if hasattr(model, "_set_static_graph"):
+        model._set_static_graph()
+        
     # Prepare model for k-bit training
     model = prepare_model_for_kbit_training(model)
     
