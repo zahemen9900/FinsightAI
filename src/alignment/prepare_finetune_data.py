@@ -28,10 +28,13 @@ nltk.download('punkt')
 nlp = spacy.load('en_core_web_sm')
 
 class DatasetCleaner:
-    def __init__(self, input_file: str, output_file: str):
+    def __init__(self, input_file: str, output_file: str, conv_starters_file: str, silent_warnings: bool = True):
         self.input_file = input_file
         self.output_file = output_file
+        self.conv_starters_file = conv_starters_file
+        self.silent_warnings = silent_warnings
         self.quality_threshold = 0.7
+        self.max_prompt_length = 1200  # Set a maximum length for prompts
         
         # Common profanity patterns
         self.profanity_patterns = [
@@ -54,7 +57,24 @@ class DatasetCleaner:
             r'\b(kill yourself|die in a fire|shut the fuck up|piece of shit|you suck|go to hell)\b',
             r'\b(loser|idiot|stupid|dumbass|jackass|scumbag|prick|twat)\b'
         ]
+        
+        # Load conversational starters
+        self.conv_starters = self.load_conv_starters()
 
+    def load_conv_starters(self) -> List[Dict[str, str]]:
+        """Load conversational starters from a text file."""
+        starters = []
+        with open(self.conv_starters_file, 'r') as f:
+            lines = f.readlines()
+            for i in range(0, len(lines), 2):
+                user_line = lines[i].strip()
+                assistant_line = lines[i + 1].strip()
+                if user_line.startswith("User:") and assistant_line.startswith("Assistant:"):
+                    starters.append({
+                        "user": user_line.replace("User:", "").strip(),
+                        "assistant": assistant_line.replace("Assistant:", "").strip()
+                    })
+        return starters
 
     def contains_profanity(self, text: str) -> bool:
         """Check if text contains profanity using regex patterns."""
@@ -104,6 +124,7 @@ class DatasetCleaner:
         text = re.sub(r'edit\s*\d*\s*:', '', text, flags=re.IGNORECASE)
         text = re.sub(r'update\s*\d*\s*:', '', text, flags=re.IGNORECASE)
         text = re.sub(r'thanks? for (?:the)? (?:gold|silver|platinum|award).*', '', text, flags=re.IGNORECASE)
+        text = text.replace('fucking', 'fricking')
         
         return ' '.join(text.split()).strip()
 
@@ -152,6 +173,10 @@ class DatasetCleaner:
         score = sum(bool(re.search(pattern, text, re.IGNORECASE)) for pattern in indicators)
         return score >= 2
 
+    def filter_lengthy_prompts(self, text: str) -> bool:
+        """Filter out very lengthy prompts."""
+        return len(text) <= self.max_prompt_length
+
     def convert_to_sft_format(self, row: pd.Series) -> Dict:
         """Convert a single record to SFT chat format with proper ID hashing."""
         try:
@@ -163,19 +188,26 @@ class DatasetCleaner:
             cleaned_body = self.clean_text(row["body"])
             
             prompt = f"{cleaned_title}\n\n{cleaned_selftext}".strip()
-
-            content_variations = [
-                "You are FinSight, an AI financial advisor skilled in multiple domains, not limited to finance. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional.",
-                "You are FinSight, an AI financial advisor with expertise in multiple domains. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional.",
-                "You are FinSight, trained on a diverse range of financial topics. Provide helpful, accurate financial guidance while being clear that you're not a licensed expert.",
-            ]
             
-            return {
-                "prompt": prompt,
-                "messages": [
+            # Check if the prompt is too lengthy
+            if not self.filter_lengthy_prompts(prompt):
+                raise ValueError("Prompt is too lengthy")
+            
+            # Create multi-turn conversation starters for selected prompts
+            if np.random.rand() < 0.5:  # 50% chance to add multi-turn starters
+                starter = np.random.choice(self.conv_starters)
+                messages = [
                     {
                         "role": "system",
-                        "content": np.random.choice(content_variations)
+                        "content": "You are FinSight, an AI financial advisor skilled in multiple domains. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional."
+                    },
+                    {
+                        "role": "user",
+                        "content": starter["user"]
+                    },
+                    {
+                        "role": "assistant",
+                        "content": starter["assistant"]
                     },
                     {
                         "role": "user",
@@ -185,11 +217,31 @@ class DatasetCleaner:
                         "role": "assistant",
                         "content": cleaned_body
                     }
-                ],
+                ]
+            else:
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "You are FinSight, an AI financial advisor skilled in multiple domains, not limited to finance. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    },
+                    {
+                        "role": "assistant",
+                        "content": cleaned_body
+                    }
+                ]
+            
+            return {
+                "prompt": prompt,
+                "messages": messages,
                 "prompt_id": prompt_id
             }
         except Exception as e:
-            logger.error(f"Error converting to SFT format: {e}")
+            if not self.silent_warnings:
+                logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
             raise
 
     def process_dataset(self):
@@ -226,7 +278,8 @@ class DatasetCleaner:
                     formatted_data = self.convert_to_sft_format(row)
                     training_data.append(formatted_data)
                 except Exception as e:
-                    logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
+                    if not self.silent_warnings:
+                        logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
             
             # Save processed data
             with open(self.output_file, 'w') as f:
@@ -243,7 +296,9 @@ if __name__ == "__main__":
     try:
         cleaner = DatasetCleaner(
             input_file='/home/zahemen/datasets/reddit-finance-250k/Data.jsonl',
-            output_file='/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl'
+            output_file='/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl',
+            conv_starters_file='/home/zahemen/datasets/reddit-finance-250k/conv_starter_pairs.txt',
+            silent_warnings=True  # Set to True to silence warnings
         )
         cleaner.process_dataset()
     except Exception as e:

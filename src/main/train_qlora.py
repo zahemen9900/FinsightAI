@@ -51,12 +51,12 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
-    logging_steps: int = 50
+    logging_steps: int = 60
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 360
+    eval_steps: int = 180
     save_strategy: str = "steps"
-    save_steps: int = 360
+    save_steps: int = 180
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
 
@@ -169,8 +169,8 @@ def train():
 
     # Load and prepare dataset
     try:
-        dataset_path = Path("/home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl")
-        dataset = prepare_dataset("/home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl", tokenizer)
+        dataset_path = Path("/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl")
+        dataset = prepare_dataset("/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl", tokenizer)
     except FileNotFoundError:
         logger.error(f"Dataset file not found: {dataset_path}")
         sys.exit(1)
