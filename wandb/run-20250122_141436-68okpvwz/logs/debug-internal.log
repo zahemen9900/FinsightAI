@@ -1,0 +1,18 @@
+{"time":"2025-01-22T14:14:36.708872546Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-22T14:14:36.70890328Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250122_141436-68okpvwz/logs/debug-core.log"}
+{"time":"2025-01-22T14:14:36.857798983Z","level":"INFO","msg":"created new stream","id":"68okpvwz"}
+{"time":"2025-01-22T14:14:36.857840752Z","level":"INFO","msg":"stream: started","id":"68okpvwz"}
+{"time":"2025-01-22T14:14:36.85794231Z","level":"INFO","msg":"handler: started","stream_id":"68okpvwz"}
+{"time":"2025-01-22T14:14:36.858312981Z","level":"INFO","msg":"writer: Do: started","stream_id":"68okpvwz"}
+{"time":"2025-01-22T14:14:36.858394023Z","level":"INFO","msg":"sender: started","stream_id":"68okpvwz"}
+{"time":"2025-01-22T14:14:37.796934561Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-22T14:15:03.933297947Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/68okpvwz/file_stream\": dial tcp: lookup api.wandb.ai on 10.255.255.254:53: read udp 10.255.255.254:49785->10.255.255.254:53: i/o timeout"}
+{"time":"2025-01-22T14:15:16.319251927Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/68okpvwz/file_stream\": dial tcp: lookup api.wandb.ai on 10.255.255.254:53: read udp 10.255.255.254:35743->10.255.255.254:53: i/o timeout"}
+{"time":"2025-01-22T14:15:23.008960619Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-01-22T14:15:30.971796149Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/68okpvwz/file_stream\": dial tcp: lookup api.wandb.ai on 10.255.255.254:53: read udp 10.255.255.254:51998->10.255.255.254:53: i/o timeout"}
+{"time":"2025-01-22T14:15:41.467368517Z","level":"INFO","msg":"stream: closing","id":"68okpvwz"}
+{"time":"2025-01-22T14:15:41.467444034Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-22T14:15:41.468043069Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-22T14:15:49.558708153Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/68okpvwz/file_stream\": dial tcp: lookup api.wandb.ai on 10.255.255.254:53: read udp 10.255.255.254:41657->10.255.255.254:53: i/o timeout"}
+{"time":"2025-01-22T14:15:55.15280079Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": net/http: request canceled (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-01-22T14:16:17.922618081Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/68okpvwz/file_stream\": dial tcp: lookup api.wandb.ai on 10.255.255.254:53: read udp 10.255.255.254:45336->10.255.255.254:53: i/o timeout"}

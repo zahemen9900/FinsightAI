@@ -124,7 +124,6 @@ class DatasetCleaner:
         text = re.sub(r'edit\s*\d*\s*:', '', text, flags=re.IGNORECASE)
         text = re.sub(r'update\s*\d*\s*:', '', text, flags=re.IGNORECASE)
         text = re.sub(r'thanks? for (?:the)? (?:gold|silver|platinum|award).*', '', text, flags=re.IGNORECASE)
-        text = text.replace('fucking', 'fricking')
         
         return ' '.join(text.split()).strip()
 

@@ -51,12 +51,12 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
-    logging_steps: int = 60
+    logging_steps: int = 50
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 180
+    eval_steps: int = 300
     save_strategy: str = "steps"
-    save_steps: int = 180
+    save_steps: int = 300
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
 
