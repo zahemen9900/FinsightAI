@@ -39,37 +39,86 @@ class ModelArguments:
     attn_implementation: str = "flash_attention_2"
 
 def apply_chat_template(example: Dict, tokenizer) -> Dict:
-    """Apply chat template to messages"""
-    messages = example["messages"]
-    example["text"] = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=False
-    )
-    return example
+    """Apply chat template to messages and preserve metadata"""
+    try:
+        messages = example.get("messages", [])
+        # Ensure all message contents are strings
+        for msg in messages:
+            if msg.get("content") is None:
+                msg["content"] = ""
+            
+        # Apply template
+        example["text"] = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=False
+        )
+        
+        # Preserve metadata in the processed example
+        if "metadata" in example:
+            example["source"] = example["metadata"].get("source", "")
+            example["score"] = example["metadata"].get("score", 0.0)
+            example["prompt_id"] = example["metadata"].get("prompt_id", "")
+            example["has_context"] = example["metadata"].get("has_context", False)
+            example["ticker"] = example["metadata"].get("ticker", "")
+            example["filing_year"] = example["metadata"].get("filing_year", "")
+            
+        return example
+    except Exception as e:
+        logger.warning(f"Error applying chat template: {e}")
+        # Provide fallback with metadata
+        return {
+            "text": "Error processing conversation",
+            "source": "error",
+            "score": 0.0,
+            "prompt_id": "",
+            "has_context": False,
+            "ticker": "",
+            "filing_year": ""
+        }
 
 def prepare_dataset(dataset_path: str, tokenizer) -> Dataset:
-    """Load and prepare dataset for training"""
+    """Load and prepare dataset for training with metadata handling"""
     logger.info(f"Loading dataset from {dataset_path}")
     try:
+        # Load dataset
         dataset = datasets.load_dataset('json', data_files=dataset_path)['train']
+        
+        # Apply chat template and preserve metadata
+        logger.info("Applying chat template and processing metadata")
+        
+        # Keep metadata fields when mapping
+        keep_columns = ['source', 'score', 'prompt_id', 'has_context', 'ticker', 'filing_year']
+        
+        dataset = dataset.map(
+            lambda x: apply_chat_template(x, tokenizer),
+            remove_columns=[col for col in dataset.column_names if col not in keep_columns],
+            desc="Applying chat template"
+        )
+        
+        # Log metadata statistics
+        if 'source' in dataset.column_names:
+            sources = dataset.unique('source')
+            logger.info(f"Dataset sources: {sources}")
+        
+        if 'has_context' in dataset.column_names:
+            context_ratio = sum(dataset['has_context']) / len(dataset)
+            logger.info(f"Samples with context: {context_ratio:.2%}")
+            
+        # Split into train/test preserving metadata distribution
+        dataset = dataset.train_test_split(
+            test_size=0.3,
+            seed=42,
+            # Stratify by source if available to maintain distribution
+            stratify_by_column='source' if 'source' in dataset.column_names else None
+        )
+        
+        logger.info(f"Final dataset sizes - Train: {len(dataset['train'])}, Test: {len(dataset['test'])}")
+        return dataset
+        
     except Exception as e:
-        logger.error(f"Failed to load dataset: {e}")
+        logger.error(f"Failed to load or process dataset: {e}")
         raise
-
-    # Apply chat template
-    logger.info("Applying chat template to dataset")
-    dataset = dataset.map(
-        lambda x: apply_chat_template(x, tokenizer),
-        remove_columns=dataset.column_names,
-        desc="Applying chat template"
-    )
-
-    # Split into train/test 
-    dataset = dataset.train_test_split(test_size=0.3)
-    
-    logger.info("Dataset preparation complete")
-    return dataset
 
 def train():
     # Initialize arguments

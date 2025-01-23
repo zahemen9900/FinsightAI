@@ -4,7 +4,7 @@ import random
 import sys
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 
 import torch
 import datasets
@@ -52,12 +52,12 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
-    logging_steps: int = 50
+    logging_steps: int = 20
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 150
+    eval_steps: int = 90
     save_strategy: str = "steps"
-    save_steps: int = 150
+    save_steps: int = 90
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
     metric_for_best_model: str = "eval_loss"  # Added for early stopping
@@ -98,6 +98,15 @@ class QLoRAConfig(SFTConfig):
     dataset_num_proc: int = 1
     use_cache: bool = False # Set to false to avoid gradient checkpointing warning
 
+    # Add gradient checkpointing settings
+    gradient_checkpointing_kwargs: dict = None
+    
+    def __post_init__(self):
+        super().__post_init__()
+        # Set default gradient checkpointing kwargs if not provided
+        if self.gradient_checkpointing_kwargs is None:
+            self.gradient_checkpointing_kwargs = {"use_reentrant": False}
+
 def setup_quantized_model(model_args, training_args):
     """Set up quantized model with LoRA configuration"""
     
@@ -115,7 +124,7 @@ def setup_quantized_model(model_args, training_args):
         model_args.model_name_or_path,
         quantization_config=bnb_config,
         device_map="auto",
-        trust_remote_code=model_args.trust_remote_code
+        trust_remote_code=model_args.trust_remote_code,
     )
     
     # Set static graph for DDP
@@ -148,10 +157,51 @@ def setup_quantized_model(model_args, training_args):
     
     return model
 
+def merge_datasets(dataset_paths: List[str], tokenizer) -> Dataset:
+    """
+    Load and merge multiple datasets that share the same structure.
+    """
+    logger.info("Loading and merging datasets...")
+    
+    all_datasets = []
+    for path in dataset_paths:
+        try:
+            dataset = prepare_dataset(path, tokenizer)
+            all_datasets.append(dataset)
+            logger.info(f"Successfully loaded dataset from: {path}")
+        except Exception as e:
+            logger.warning(f"Failed to load dataset from {path}: {e}")
+            continue
+    
+    if not all_datasets:
+        raise ValueError("No datasets were successfully loaded")
+    
+    # Merge train splits
+    merged_train = datasets.concatenate_datasets([d["train"] for d in all_datasets])
+    # Merge test splits
+    merged_test = datasets.concatenate_datasets([d["test"] for d in all_datasets])
+    
+    # Shuffle the merged datasets
+    merged_train = merged_train.shuffle(seed=42)
+    merged_test = merged_test.shuffle(seed=42)
+    
+    logger.info(f"Final merged dataset sizes - Train: {len(merged_train)}, Test: {len(merged_test)}")
+    
+    return datasets.DatasetDict({
+        "train": merged_train,
+        "test": merged_test
+    })
+
 def train():
     # Initialize arguments
     model_args = ModelArguments()
     training_args = QLoRAConfig()
+    
+    # Add support for multiple dataset paths
+    dataset_paths = [
+        "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
+        "/home/zahemen/datasets/finance_qa_conversations.json"
+    ]
 
     # Set seed for reproducibility 
     set_seed(training_args.seed)
@@ -170,18 +220,17 @@ def train():
         trust_remote_code=model_args.trust_remote_code
     )
 
-    # Load and prepare dataset
+    # Load and merge datasets
     try:
-        dataset_path = Path("/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl")
-        dataset = prepare_dataset("/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl", tokenizer)
-    except FileNotFoundError:
-        logger.error(f"Dataset file not found: {dataset_path}")
+        dataset = merge_datasets(dataset_paths, tokenizer)
+    except Exception as e:
+        logger.error(f"Failed to load and merge datasets: {e}")
         sys.exit(1)
 
-    # Log samples
-    with training_args.main_process_first(desc="Log samples from training set"):
+    # Log samples from merged dataset
+    with training_args.main_process_first(desc="Log samples from merged training set"):
         for index in random.sample(range(len(dataset["train"])), 3):
-            logger.info(f"Sample {index} of the training set: \n\n{dataset['train'][index]['text']}")
+            logger.info(f"Sample {index} of the merged training set: \n\n{dataset['train'][index]['text']}")
 
     # Initialize model with QLoRA
     model = setup_quantized_model(model_args, training_args)

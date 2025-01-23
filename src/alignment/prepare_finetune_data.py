@@ -177,7 +177,7 @@ class DatasetCleaner:
         return len(text) <= self.max_prompt_length
 
     def convert_to_sft_format(self, row: pd.Series) -> Dict:
-        """Convert a single record to SFT chat format with proper ID hashing."""
+        """Convert a single record to SFT chat format with proper ID hashing and metadata"""
         try:
             # Create 64-char hash from the original ID
             prompt_id = hashlib.sha256(row["id"].encode()).hexdigest()
@@ -191,6 +191,13 @@ class DatasetCleaner:
             # Check if the prompt is too lengthy
             if not self.filter_lengthy_prompts(prompt):
                 raise ValueError("Prompt is too lengthy")
+            
+            # Create metadata
+            metadata = {
+                "source": f"reddit: {row['subreddit']}",
+                "score": row['z_score'],
+                "prompt_id": prompt_id
+            }
             
             # Create multi-turn conversation starters for selected prompts
             if np.random.rand() < 0.5:  # 50% chance to add multi-turn starters
@@ -236,8 +243,9 @@ class DatasetCleaner:
             return {
                 "prompt": prompt,
                 "messages": messages,
-                "prompt_id": prompt_id
+                "metadata": metadata  # Add metadata to the output
             }
+            
         except Exception as e:
             if not self.silent_warnings:
                 logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")

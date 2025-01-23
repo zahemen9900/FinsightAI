@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass, asdict
 import logging
 from rich.logging import RichHandler
+import hashlib
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +54,16 @@ class FinanceQAProcessor:
             "You are a financial advisor bot trained to answer questions about company financials.",
             "You are an AI assistant specialized in financial analysis and company information."
         ]
+        self.conversation_counter = 0  # Add counter for unique IDs
+        
+    def generate_prompt_id(self) -> str:
+        """Generate a unique 64-character prompt ID"""
+        # Combine counter with some random bytes for uniqueness
+        unique_string = f"{self.conversation_counter}_{random.getrandbits(32)}"
+        # Create SHA-256 hash (64 characters)
+        prompt_id = hashlib.sha256(unique_string.encode()).hexdigest()
+        self.conversation_counter += 1
+        return prompt_id
         
     def format_with_context(self, question: str, context: str) -> str:
         """Format a question with its context"""
@@ -63,17 +74,17 @@ class FinanceQAProcessor:
         return template.format(context=context.strip()) + question.strip()
 
     def combine_qa_pairs(self, row1, row2) -> Tuple[str, str]:
-        """Combine two Q&A pairs into a single question and answer with context"""
-        # Combine contexts if they're different
-        combined_context = row1['context']
-        if row1['context'] != row2['context']:
-            combined_context = f"{row1['context']} Additionally: {row2['context']}"
-        
-        combined_q = self.format_with_context(
-            f"{row1['question']} Additionally, {row2['question']}", 
-            combined_context
-        )
+        """Combine two Q&A pairs into a single question and answer without context in question"""
+        # Combine questions without context
+        combined_q = f"{row1['question']} Additionally, {row2['question']}"
         combined_a = f"{row1['answer']} Furthermore, {row2['answer']}"
+        
+        # Combine contexts if they're different (for system prompt)
+        if row1['context'] != row2['context']:
+            self.combined_context = f"{row1['context']} Additionally: {row2['context']}"
+        else:
+            self.combined_context = row1['context']
+            
         return combined_q, combined_a
     
     def create_greetings(self) -> Dict[str, str]:
@@ -128,7 +139,7 @@ class FinanceQAProcessor:
             content = template.format(context=context.strip())
         else:
             content = random.choice(self.system_prompt_no_context)
-        return {"role": "system", "content": content}
+        return {"role": "system", "content": content or ""}  # Ensure content is never None
 
     def create_multi_turn_conversation(self, company_data: pd.DataFrame, num_turns: int) -> Conversation:
         """Create a multi-turn conversation for a specific company"""
@@ -156,8 +167,8 @@ class FinanceQAProcessor:
             row = company_data.loc[idx]
             self.used_samples.add(idx)
             messages.extend([
-                {"role": "user", "content": row['question']},
-                {"role": "assistant", "content": row['answer']}
+                {"role": "user", "content": str(row['question'] or "")},  # Convert to string and handle None
+                {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
             ])
         
         # Get the first actual question as the prompt
@@ -169,7 +180,8 @@ class FinanceQAProcessor:
             metadata={
                 "ticker": company_data['ticker'].iloc[0],
                 "filing_year": company_data['filing'].iloc[0],
-                "has_context": use_context
+                "has_context": use_context,
+                "prompt_id": self.generate_prompt_id()  # Add prompt ID
             }
         )
 
@@ -199,7 +211,7 @@ class FinanceQAProcessor:
         messages.append(self.create_system_message(context, use_context))
         messages.extend([greeting, response, usr, ast])
         
-        # Alternate between companies for questions
+        # Rest of conversation without context in questions
         company1_indices = company1_data.index[~company1_data.index.isin(self.used_samples)].tolist()
         company2_indices = company2_data.index[~company2_data.index.isin(self.used_samples)].tolist()
         
@@ -213,10 +225,9 @@ class FinanceQAProcessor:
             idx = random.choice(current_indices)
             row = current_data.loc[idx]
             
-            # Format question with context
-            contextualized_question = self.format_with_context(row['question'], row['context'])
+            # Add question without context
             messages.extend([
-                {"role": "user", "content": contextualized_question},
+                {"role": "user", "content": row['question']},
                 {"role": "assistant", "content": row['answer']}
             ])
             self.used_samples.add(idx)
@@ -227,19 +238,19 @@ class FinanceQAProcessor:
             else:
                 company2_indices.remove(idx)
         
-        # Get first question from first company as prompt
+        # Get first question as prompt (without context)
         first_row = company1_data.loc[random.choice(company1_data.index[~company1_data.index.isin(self.used_samples)])]
-        first_question = self.format_with_context(first_row['question'], first_row['context'])
         
         return Conversation(
-            prompt=first_question,  # Add the first question as prompt
+            prompt=first_row['question'],  # Just the question without context
             messages=messages,
             metadata={
                 "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
                 "combined": False,
                 "cross_company": True,
-                "has_context": True,
-                "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}"
+                "has_context": use_context,
+                "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}",
+                "prompt_id": self.generate_prompt_id()  # Add prompt ID
             }
         )
 
@@ -271,17 +282,25 @@ class FinanceQAProcessor:
                             company_data.loc[idx1],
                             company_data.loc[idx2]
                         )
+                        
+                        # Decide whether to use context
+                        use_context = random.random() < 0.5
+                        system_msg = self.create_system_message(
+                            self.combined_context if use_context else None,
+                            use_context
+                        )
+                        
                         greeting, response = self.create_greetings()
                         usr, ast = self.create_conversation_starter()
                         
                         messages = [
-                            {"role": "system", "content": random.choice(self.system_prompts)},
+                            system_msg,
                             greeting, response,
                             usr, ast,
                             {"role": "user", "content": q},
                             {"role": "assistant", "content": a}
                         ] if np.random.rand() < 0.5 else [
-                            {"role": "system", "content": random.choice(self.system_prompts)},
+                            system_msg,
                             usr, ast,
                             {"role": "user", "content": q},
                             {"role": "assistant", "content": a}
@@ -293,7 +312,8 @@ class FinanceQAProcessor:
                             metadata={
                                 "ticker": ticker,
                                 "combined": True,
-                                "filing_year": company_data['filing'].iloc[0]
+                                "filing_year": company_data['filing'].iloc[0],
+                                "prompt_id": self.generate_prompt_id()  # Add prompt ID
                             }
                         ))
                         
