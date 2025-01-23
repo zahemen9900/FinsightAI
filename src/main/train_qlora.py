@@ -25,6 +25,7 @@ from trl import SFTTrainer, SFTConfig
 from train import ModelArguments, prepare_dataset
 from rich.logging import RichHandler
 import wandb
+from transformers.trainer_callback import EarlyStoppingCallback
 
 # Configure logging
 logging.basicConfig(
@@ -54,11 +55,13 @@ class QLoRAConfig(SFTConfig):
     logging_steps: int = 50
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 300
+    eval_steps: int = 150
     save_strategy: str = "steps"
-    save_steps: int = 300
+    save_steps: int = 150
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
+    metric_for_best_model: str = "eval_loss"  # Added for early stopping
+    greater_is_better: bool = False  # Added for early stopping - we want loss to decrease
 
     # DeepSpeed configs
     deepspeed = {
@@ -184,13 +187,19 @@ def train():
     model = setup_quantized_model(model_args, training_args)
     model.print_trainable_parameters()  # Log trainable parameters
 
-    # Initialize trainer with DeepSpeed-enabled args
+    # Initialize trainer with early stopping callback
     trainer = SFTTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
         processing_class=tokenizer,
+        callbacks=[
+            EarlyStoppingCallback(
+                early_stopping_patience=3,
+                early_stopping_threshold=0.1
+            )
+        ]
     )
 
     # Train

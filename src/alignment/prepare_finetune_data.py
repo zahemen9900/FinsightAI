@@ -108,7 +108,7 @@ class DatasetCleaner:
             return ""
             
         # Remove URLs
-        text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+        # text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
         
         # Remove Reddit markdown and formatting
         text = re.sub(r'\[.*?\]\(.*?\)', '', text)
@@ -252,7 +252,7 @@ class DatasetCleaner:
             
             # Apply score-based filtering
             for col in ['z_score', 'combined_score', 'comment_normalized_score']:
-                threshold = df[col].quantile(0.5)
+                threshold = df[col].quantile(0.6)
                 df = df[df[col] > threshold]
             logger.info(f"After score filtering: {len(df)}")
             

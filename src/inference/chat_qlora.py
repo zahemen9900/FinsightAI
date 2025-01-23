@@ -23,7 +23,7 @@ class FinanceAdvisor:
     def __init__(
         self,
         base_model: str = "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        adapter_path: str = "qlora_output",
+        adapter_path: str = "qlora_output/checkpoint-300",
         device: str = None,
         max_length: int = 512,
         num_beams: int = 1
@@ -91,7 +91,7 @@ class FinanceAdvisor:
     def generate_response(
         self,
         prompt: str,
-        temperature: float = 0.7,
+        temperature: float = 0.3,
         top_p: float = 0.9,
         max_new_tokens: int = 150,  # Reduce max_new_tokens for more concise responses
     ) -> str:
@@ -151,7 +151,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-300")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_length", type=int, default=2048)
     args = parser.parse_args()

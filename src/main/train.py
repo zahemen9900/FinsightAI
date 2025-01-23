@@ -66,7 +66,7 @@ def prepare_dataset(dataset_path: str, tokenizer) -> Dataset:
     )
 
     # Split into train/test 
-    dataset = dataset.train_test_split(test_size=0.2)
+    dataset = dataset.train_test_split(test_size=0.3)
     
     logger.info("Dataset preparation complete")
     return dataset
