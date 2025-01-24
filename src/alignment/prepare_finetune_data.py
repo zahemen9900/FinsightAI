@@ -4,12 +4,22 @@ import re
 import numpy as np
 import logging
 import hashlib
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from pathlib import Path
 import nltk
 from nltk.tokenize import sent_tokenize
 import spacy
 from rich.logging import RichHandler
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import lru_cache
+from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy.spatial.distance import cosine
+from textblob import TextBlob
+import joblib
+from torch import cosine_similarity
+from tqdm import tqdm
+from scipy.sparse import csr_matrix
+from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine_similarity
 
 # Configure logging
 logging.basicConfig(
@@ -20,12 +30,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger('rich')
 
-
-
 # Download required NLTK data
-nltk.download('punkt')
+nltk.download(['punkt', 'averaged_perceptron_tagger', 'wordnet'])
+from nltk.corpus import wordnet
+
 # Load spaCy model for text quality analysis
 nlp = spacy.load('en_core_web_sm')
+# Load financial domain specific model if available
+try:
+    nlp_financial = spacy.load('en_core_financial_web_sm')
+except:
+    nlp_financial = nlp
 
 class DatasetCleaner:
     def __init__(self, input_file: str, output_file: str, conv_starters_file: str, silent_warnings: bool = True):
@@ -33,8 +48,8 @@ class DatasetCleaner:
         self.output_file = output_file
         self.conv_starters_file = conv_starters_file
         self.silent_warnings = silent_warnings
-        self.quality_threshold = 0.7
-        self.max_prompt_length = 1500  # Set a maximum length for prompts
+        self.quality_threshold = 0.6  # Lowered from 0.75
+        self.max_prompt_length = 1000  # Reduced from 1500 to ensure more focused responses
         
         # Common profanity patterns
         self.profanity_patterns = [
@@ -60,6 +75,30 @@ class DatasetCleaner:
         
         # Load conversational starters
         self.conv_starters = self.load_conv_starters()
+
+        # Add new parameters
+        self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
+        self.cache_dir.mkdir(exist_ok=True)
+        self.min_financial_relevance = 0.6  # Lowered from 0.7
+        self.max_similarity_threshold = 0.85  # For deduplication
+        self.complexity_threshold = 0.3  # Lowered from 0.4
+        self.min_words = 5
+        self.max_words = 150  # Limit response length
+        
+        # Initialize vectorizer for similarity checking
+        self.vectorizer = TfidfVectorizer(
+            max_features=5000,
+            stop_words='english',
+            ngram_range=(1, 2)
+        )
+        
+        # Financial domain keywords
+        self.financial_keywords = set([
+            'investment', 'stock', 'bond', 'market', 'fund', 'dividend',
+            'portfolio', 'asset', 'equity', 'risk', 'return', 'trading',
+            'finance', 'bank', 'capital', 'debt', 'credit', 'interest',
+            'inflation', 'economy', 'security', 'hedge', 'option', 'future'
+        ])
 
     def load_conv_starters(self) -> List[Dict[str, str]]:
         """Load conversational starters from a text file."""
@@ -103,29 +142,46 @@ class DatasetCleaner:
 
     @staticmethod
     def clean_text(text: str) -> str:
-        """Clean text by removing Reddit-specific formatting and noise."""
+        """Enhanced text cleaning"""
         if not isinstance(text, str):
             return ""
             
-        # Remove URLs
-        # text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+        # Remove chat artifacts
+        text = re.sub(r'###\s*(Human|Assistant):', '', text)
+        text = re.sub(r'(AI|User):', '', text)
         
-        # Remove Reddit markdown and formatting
-        # text = re.sub(r'\[.*?\]\(.*?\)', '', text)
-        # text = re.sub(r'&amp;', '&', text)
-        # text = re.sub(r'&lt;', '<', text)
-        # text = re.sub(r'&gt;', '>', text)
-        # text = re.sub(r'[━┃┏┓┗┛│└┘╭╮╯╰▀▄█▌▐░▒▓]', '', text)
-        # text = re.sub(r'\*{1,3}', '', text)
-        # text = re.sub(r'~{2}.*?~{2}', '', text)
-        # text = re.sub(r'_{1,2}.*?_{1,2}', '', text)
+        # Remove multiple line breaks and extra spaces
+        text = re.sub(r'\n+', ' ', text)
+        text = ' '.join(text.split())
         
-        # Remove edit notices and award speech
-        text = re.sub(r'edit\s*\d*\s*:', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'update\s*\d*\s*:', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'thanks? for (?:the)? (?:gold|silver|platinum|award).*', '', text, flags=re.IGNORECASE)
-        
-        return ' '.join(text.split()).strip()
+        # Ensure proper sentence structure
+        text = '. '.join(s.strip().capitalize() for s in text.split('.') if s.strip())
+        if text and text[-1] not in '.!?':
+            text += '.'
+            
+        return text.strip()
+
+    def is_quality_response(self, text: str) -> bool:
+        """Additional quality checks for responses"""
+        if not text:
+            return False
+            
+        words = text.split()
+        if len(words) < self.min_words or len(words) > self.max_words:
+            return False
+            
+        # Check for coherent sentence structure
+        sentences = sent_tokenize(text)
+        if len(sentences) < 1:
+            return False
+            
+        # Check for repeated phrases
+        text_lower = text.lower()
+        for phrase in ["is there anything", "yes thank you", "please specify"]:
+            if text_lower.count(phrase) > 1:
+                return False
+                
+        return True
 
     def assess_text_quality(self, text: str) -> float:
         """Assess the quality of text based on multiple factors."""
@@ -177,73 +233,48 @@ class DatasetCleaner:
         return len(text) <= self.max_prompt_length
 
     def convert_to_sft_format(self, row: pd.Series) -> Dict:
-        """Convert a single record to SFT chat format with proper ID hashing and metadata"""
+        """Convert a single record to chat format for fine-tuning"""
         try:
-            # Create 64-char hash from the original ID
-            prompt_id = hashlib.sha256(row["id"].encode()).hexdigest()
+            # Generate unique conversation ID
+            conversation_id = hashlib.sha256(row["id"].encode()).hexdigest()
             
+            # Clean texts
+            cleaned_body = self.clean_text(row["body"])
             cleaned_title = self.clean_text(row["title"])
             cleaned_selftext = self.clean_text(row["selftext"] if pd.notna(row["selftext"]) else "")
-            cleaned_body = self.clean_text(row["body"])
             
-            prompt = f"{cleaned_title}\n\n{cleaned_selftext}".strip()
+            # Skip if response quality check fails
+            if not self.is_quality_response(cleaned_body):
+                raise ValueError("Response quality check failed")
             
-            # Check if the prompt is too lengthy
-            if not self.filter_lengthy_prompts(prompt):
-                raise ValueError("Prompt is too lengthy")
+            # Format the question/prompt
+            question = cleaned_title
+            if cleaned_selftext:
+                question += f"\n\n{cleaned_selftext}"
             
-            # Create metadata
-            metadata = {
-                "source": f"reddit: {row['subreddit']}",
-                "z-score": row['z_score'],
-                "prompt_id": prompt_id
-            }
+            # Create the messages list directly (no prompt field)
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
+                },
+                {
+                    "role": "user",
+                    "content": question
+                },
+                {
+                    "role": "assistant",
+                    "content": cleaned_body
+                }
+            ]
             
-            # Create multi-turn conversation starters for selected prompts
-            if np.random.rand() < 0.5:  # 50% chance to add multi-turn starters
-                starter = np.random.choice(self.conv_starters)
-                messages = [
-                    {
-                        "role": "system",
-                        "content": "You are FinSight, an AI financial advisor skilled in multiple domains. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional."
-                    },
-                    {
-                        "role": "user",
-                        "content": starter["user"]
-                    },
-                    {
-                        "role": "assistant",
-                        "content": starter["assistant"]
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    },
-                    {
-                        "role": "assistant",
-                        "content": cleaned_body
-                    }
-                ]
-            else:
-                messages = [
-                    {
-                        "role": "system",
-                        "content": "You are FinSight, an AI financial advisor skilled in multiple domains, not limited to finance. Provide helpful, accurate financial guidance while being clear that you're not a licensed professional."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    },
-                    {
-                        "role": "assistant",
-                        "content": cleaned_body
-                    }
-                ]
-            
+            # Only return messages and metadata
             return {
-                "prompt": prompt,
                 "messages": messages,
-                "metadata": metadata  # Add metadata to the output
+                "metadata": {
+                    "source": f"reddit: {row['subreddit']}",
+                    "conversation_id": conversation_id
+                }
             }
             
         except Exception as e:
@@ -251,36 +282,184 @@ class DatasetCleaner:
                 logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
             raise
 
-    def process_dataset(self):
-        """Main processing pipeline."""
+    @lru_cache(maxsize=10000)
+    def calculate_text_complexity(self, text: str) -> float:
+        """Calculate text complexity using multiple metrics"""
+        if not isinstance(text, str) or len(text.strip()) < 10:
+            return 0.0
+            
         try:
-            # Load data
-            df = self.load_data()
-            logger.info(f"Initial dataset size: {len(df)}")
+            # Get TextBlob metrics
+            blob = TextBlob(text)
             
-            # Apply score-based filtering
-            for col in ['z_score', 'combined_score', 'comment_normalized_score']:
-                threshold = df[col].quantile(0.7)
-                df = df[df[col] > threshold]
-            logger.info(f"After score filtering: {len(df)}")
+            # Calculate various complexity metrics
+            avg_word_length = np.mean([len(word) for word in blob.words])
+            avg_sentence_length = np.mean([len(sent.words) for sent in blob.sentences])
             
-            # Clean and assess text quality
-            df['cleaned_body'] = df['body'].apply(self.clean_text)
-            df['body_quality'] = df['cleaned_body'].apply(self.assess_text_quality)
+            # Calculate lexical diversity
+            words = blob.words
+            unique_words = set(words)
+            lexical_diversity = len(unique_words) / len(words) if words else 0
             
-            # Apply quality filters
-            df = df[
-                (df['body_quality'] > self.quality_threshold) &
-                (df['cleaned_body'].apply(self.is_conversational)) &
-                (~df['cleaned_body'].apply(self.contains_profanity)) &
-                (df['cleaned_body'].str.len() > 50) &
-                (df['cleaned_body'].str.len() < 2000)
-            ]
-            logger.info(f"After quality filtering: {len(df)}")
+            # Get percentage of complex words (3+ syllables)
+            complex_words = sum(1 for word in unique_words if len(TextBlob(word).words[0]) >= 8)
+            complex_ratio = complex_words / len(unique_words) if unique_words else 0
+            
+            # Calculate final complexity score
+            complexity_score = np.mean([
+                min(avg_word_length / 10, 1.0),
+                min(avg_sentence_length / 20, 1.0),
+                lexical_diversity,
+                complex_ratio
+            ])
+            
+            return complexity_score
+        except Exception as e:
+            logger.warning(f"Error calculating complexity: {e}")
+            return 0.0
+
+    def assess_financial_relevance(self, text: str) -> float:
+        """Assess how relevant the text is to financial topics"""
+        if not isinstance(text, str):
+            return 0.0
+            
+        try:
+            # Use spaCy's financial model for entity recognition
+            doc = nlp_financial(text)
+            
+            # Count financial entities
+            financial_entities = sum(1 for ent in doc.ents if ent.label_ in {
+                'ORG', 'MONEY', 'PERCENT', 'QUANTITY'
+            })
+            
+            # Count financial keywords
+            words = set(text.lower().split())
+            keyword_matches = len(words.intersection(self.financial_keywords))
+            
+            # Calculate combined score
+            relevance_score = (
+                0.6 * (financial_entities / max(len(doc.ents), 1)) +
+                0.4 * (keyword_matches / max(len(words), 1))
+            )
+            
+            return min(relevance_score, 1.0)
+        except Exception as e:
+            logger.warning(f"Error assessing financial relevance: {e}")
+            return 0.0
+
+    def parallel_process_text(self, texts: List[str], func) -> List[float]:
+        """Process texts in parallel using ProcessPoolExecutor"""
+        with ProcessPoolExecutor() as executor:
+            futures = [executor.submit(func, text) for text in texts]
+            return [future.result() for future in as_completed(futures)]
+
+    def find_similar_texts(self, texts: List[str], threshold: float = 0.85) -> List[int]:
+        """Find and return indices of similar texts using TF-IDF and cosine similarity"""
+        try:
+            # Convert texts to TF-IDF vectors
+            vectors = self.vectorizer.fit_transform(texts)
+            
+            # Calculate pairwise similarities using sklearn's cosine_similarity
+            duplicate_indices = set()
+            batch_size = 1000  # Process in batches to save memory
+            
+            for i in range(0, len(texts), batch_size):
+                batch_end = min(i + batch_size, len(texts))
+                current_vectors = vectors[i:batch_end]
+                
+                # Calculate similarities for current batch
+                similarities = sklearn_cosine_similarity(current_vectors, vectors)
+                
+                # Find similar texts
+                for j in range(similarities.shape[0]):
+                    # Get indices of similar texts (excluding self-similarity)
+                    similar = np.where(similarities[j] > threshold)[0]
+                    similar = similar[similar > (i + j)]  # Only keep indices after current text
+                    duplicate_indices.update(similar)
+            
+            return list(duplicate_indices)
+            
+        except Exception as e:
+            logger.warning(f"Error finding similar texts: {e}")
+            return []
+
+    def process_dataset(self):
+        """Enhanced main processing pipeline with safe filtering"""
+        try:
+            # Try to load from cache first
+            cache_file = self.cache_dir / "processed_data.joblib"
+            if cache_file.exists():
+                df = joblib.load(cache_file)
+                logger.info("Loaded processed data from cache")
+            else:
+                df = self.load_data()
+                initial_size = len(df)
+                logger.info(f"Initial dataset size: {initial_size:,} records")
+                
+                # Initial filtering based on scores (Group 1: Score-based filtering)
+                # logger.info("\n=== Score-based Filtering ===")
+                score_cols = ['z_score', 'combined_score', 'comment_normalized_score']
+                df = df[np.all([df[col] > df[col].quantile(0.2) for col in score_cols], axis=0)]
+                score_filtered_size = len(df)
+                logger.info(f"After score filtering: {score_filtered_size:,} records ({(score_filtered_size/initial_size)*100:.1f}% retained)")
+                
+                # Text cleaning and quality metrics (Group 2: Text processing)
+                # logger.info("\n=== Text Processing and Quality Assessment ===")
+                with ProcessPoolExecutor() as executor:
+                    df['cleaned_body'] = list(executor.map(self.clean_text, df['body']))
+                df = df[df['cleaned_body'].str.len() > 0]  # Remove empty texts
+                text_cleaned_size = len(df)
+                logger.info(f"After text cleaning: {text_cleaned_size:,} records ({(text_cleaned_size/score_filtered_size)*100:.1f}% retained)")
+                
+                # Calculate all quality metrics in parallel (Group 3: Quality metrics)
+                # logger.info("\n=== Quality Metrics Calculation ===")
+                df['body_quality'] = self.parallel_process_text(df['cleaned_body'], self.assess_text_quality)
+                df['complexity'] = self.parallel_process_text(df['cleaned_body'], self.calculate_text_complexity)
+                df['financial_relevance'] = self.parallel_process_text(df['cleaned_body'], self.assess_financial_relevance)
+                
+                # Apply all quality filters together (Group 4: Quality filtering)
+                # logger.info("\n=== Quality Filtering ===")
+                quality_filters = [
+                    ('Quality threshold', df['body_quality'] > self.quality_threshold),
+                    ('Complexity threshold', df['complexity'] > self.complexity_threshold),
+                    ('Financial relevance', df['financial_relevance'] > self.min_financial_relevance),
+                    ('Conversational style', df['cleaned_body'].apply(self.is_conversational)),
+                    ('No profanity', ~df['cleaned_body'].apply(self.contains_profanity)),
+                    ('Length constraints', df['cleaned_body'].str.len().between(50, 2000))
+                ]
+                
+                # Log individual filter impacts
+                for filter_name, condition in quality_filters:
+                    passing = len(df[condition])
+                    logger.info(f"{filter_name}: {passing:,} records pass ({(passing/len(df))*100:.1f}% pass rate)")
+                
+                # Apply all filters
+                for _, condition in quality_filters:
+                    df = df[condition]
+                quality_filtered_size = len(df)
+                logger.info(f"After all quality filters: {quality_filtered_size:,} records ({(quality_filtered_size/text_cleaned_size)*100:.1f}% retained)")
+                
+                # Deduplication (Group 5: Similarity filtering)
+                logger.info("\n=== Deduplication ===")
+                duplicate_indices = self.find_similar_texts(df['cleaned_body'].tolist())
+                df = df.drop(index=df.index[duplicate_indices])
+                final_size = len(df)
+                logger.info(f"After deduplication: {final_size:,} records ({(final_size/quality_filtered_size)*100:.1f}% retained)")
+                
+                # Overall statistics
+                logger.info("\n=== Final Statistics ===")
+                logger.info(f"Initial dataset size: {initial_size:,}")
+                logger.info(f"Final dataset size: {final_size:,}")
+                logger.info(f"Overall retention rate: {(final_size/initial_size)*100:.1f}%")
+                
+                # Cache the processed DataFrame
+                joblib.dump(df, cache_file)
+                logger.info("\nProcessed data cached successfully")
             
             # Convert to SFT format
+            logger.info("\n=== Converting to SFT Format ===")
             training_data = []
-            for _, row in df.iterrows():
+            for _, row in tqdm(df.iterrows(), total=len(df)):
                 try:
                     formatted_data = self.convert_to_sft_format(row)
                     training_data.append(formatted_data)
@@ -288,12 +467,12 @@ class DatasetCleaner:
                     if not self.silent_warnings:
                         logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
             
-            # Save processed data
+            # Save final output
             with open(self.output_file, 'w') as f:
                 for item in training_data:
                     f.write(json.dumps(item) + '\n')
             
-            logger.info(f"Successfully saved {len(training_data)} examples to {self.output_file}")
+            logger.info(f"Successfully saved {len(training_data):,} examples to {self.output_file}")
             
         except Exception as e:
             logger.error(f"Error in dataset processing: {e}")

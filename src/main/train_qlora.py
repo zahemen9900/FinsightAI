@@ -46,18 +46,18 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.1
     
     # Training specific parameters 
-    num_train_epochs: int = 1
+    num_train_epochs: int = 2
     learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
-    logging_steps: int = 20
+    logging_steps: int = 30
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 70
+    eval_steps: int = 100
     save_strategy: str = "steps"
-    save_steps: int = 70
+    save_steps: int = 100
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
     metric_for_best_model: str = "eval_loss"  # Added for early stopping
@@ -200,7 +200,8 @@ def train():
     # Add support for multiple dataset paths
     dataset_paths = [
         "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
-        "/home/zahemen/datasets/finance_qa_conversations.json"
+        "/home/zahemen/datasets/finance_qa_conversations.json",
+        "/home/zahemen/datasets/intro_conversations.jsonl"
     ]
 
     # Set seed for reproducibility 

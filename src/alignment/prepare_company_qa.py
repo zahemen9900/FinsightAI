@@ -19,8 +19,7 @@ logger = logging.getLogger("rich")
 
 @dataclass
 class Conversation:
-    prompt: str  # Add prompt field
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]]  # Remove prompt field
     metadata: Dict
 
 class FinanceQAProcessor:
@@ -170,24 +169,17 @@ class FinanceQAProcessor:
             row = company_data.loc[idx]
             self.mark_sample_used(idx)
             messages.extend([
-                {"role": "user", "content": str(row['question'] or "")},  # Convert to string and handle None
-                {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
+                {"role": "user", "content": str(row['question'] or "")},
+                {"role": "assistant", "content": str(row['answer'] or "")}
             ])
         
-        # Get the first actual question as the prompt
-        available_for_prompt = [idx for idx in company_data.index if self.can_use_sample(idx)]
-        if not available_for_prompt:
-            available_for_prompt = company_data.index.tolist()  # Fallback to all samples
-        row = company_data.loc[random.choice(available_for_prompt)]
-        
         return Conversation(
-            prompt=row['question'],
             messages=messages,
             metadata={
                 "ticker": company_data['ticker'].iloc[0],
                 "filing_year": company_data['filing'].iloc[0],
                 "has_context": use_context,
-                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                "prompt_id": self.generate_prompt_id()
             }
         )
 
@@ -247,11 +239,7 @@ class FinanceQAProcessor:
             else:
                 company2_indices.remove(idx)
         
-        # Get first question as prompt (without context)
-        first_row = company1_data.loc[random.choice(company1_data.index[~company1_data.index.isin(self.used_samples)])]
-        
         return Conversation(
-            prompt=first_row['question'],  # Just the question without context
             messages=messages,
             metadata={
                 "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
@@ -259,7 +247,7 @@ class FinanceQAProcessor:
                 "cross_company": True,
                 "has_context": use_context,
                 "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}",
-                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                "prompt_id": self.generate_prompt_id()
             }
         )
 
@@ -317,13 +305,12 @@ class FinanceQAProcessor:
                         ]
                         
                         processed_conversations.append(Conversation(
-                            prompt=q,  # Use the combined question as prompt
                             messages=messages,
                             metadata={
                                 "ticker": ticker,
                                 "combined": True,
                                 "filing_year": company_data['filing'].iloc[0],
-                                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                                "prompt_id": self.generate_prompt_id()
                             }
                         ))
                         
@@ -377,7 +364,11 @@ class FinanceQAProcessor:
         """Save processed conversations to JSON file"""
         output_data = [asdict(conv) for conv in conversations]
         with open(output_path, 'w') as f:
-            json.dump(output_data, f, indent=2)
+            for item in output_data:
+                f.write(json.dumps({
+                    "messages": item['messages'],
+                    "metadata": item['metadata']
+                }) + '\n')
         logger.info(f"Saved processed dataset to {output_path}")
 
     def can_use_sample(self, idx: int) -> bool:

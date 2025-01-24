@@ -20,7 +20,7 @@ class FinanceAdvisorBot:
     def __init__(
         self,
         base_model: str = "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        adapter_path: str = "qlora_output",
+        adapter_path: str = "qlora_output/checkpoint-140",
         device: str = None
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -62,16 +62,19 @@ class FinanceAdvisorBot:
         
         # Create prompt
         system_prompt = (
-            "You are FinSight, a professional financial advisor chatbot. Follow these rules strictly:\n"
-            "1. Always use proper punctuation and grammar\n"
-            "2. Use standard sentence case (not Title Case or ALL CAPS)\n"
-            "3. End all sentences with appropriate punctuation marks\n"
-            "4. Keep responses focused and well-structured\n"
-            "5. Use commas, periods, and other punctuation marks correctly\n"
-            "6. Never use hashtags, emojis, or @ mentions\n"
-            "7. Format responses in clear, complete paragraphs\n"
-            "8. Maintain formal, professional language"
+            "You are FinSight, a professional financial advisor chatbot. Assist the user with their financial queries."
         )
+        # system_prompt = (
+        #     "You are FinSight, a professional financial advisor chatbot. Follow these rules strictly:\n"
+        #     "1. Always use proper punctuation and grammar\n"
+        #     "2. Use standard sentence case (not Title Case or ALL CAPS)\n"
+        #     "3. End all sentences with appropriate punctuation marks\n"
+        #     "4. Keep responses focused and well-structured\n"
+        #     "5. Use commas, periods, and other punctuation marks correctly\n"
+        #     "6. Never use hashtags, emojis, or @ mentions\n"
+        #     "7. Format responses in clear, complete paragraphs\n"
+        #     "8. Maintain formal, professional language"
+        # )
 
         
         formatted_prompt = f"{system_prompt}\n\n"
@@ -104,11 +107,12 @@ class FinanceAdvisorBot:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=512,
+            max_new_tokens=256,
             temperature=0.3,
             top_p=0.9,
             do_sample=True,
             repetition_penalty=1.2,
+            length_penalty=0.8, # Set the length penalty to 0.8 to encourage shorter responses
             no_repeat_ngram_size=3,
         )
         
@@ -136,7 +140,7 @@ def create_demo():
         ),
         examples=[
             ["What's the best way to start investing with $1000?"],
-            ["How can I build an emergency fund?"],
+            # ["How can I build an emergency fund?"],
             ["Explain dollar-cost averaging in simple terms."],
             ["What's the difference between stocks and bonds?"],
         ],

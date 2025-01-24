@@ -1,0 +1,16 @@
+{"time":"2025-01-24T13:39:22.682893707Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-24T13:39:22.682903631Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250124_133922-webxbust/logs/debug-core.log"}
+{"time":"2025-01-24T13:39:22.831858807Z","level":"INFO","msg":"created new stream","id":"webxbust"}
+{"time":"2025-01-24T13:39:22.831897655Z","level":"INFO","msg":"stream: started","id":"webxbust"}
+{"time":"2025-01-24T13:39:22.831939853Z","level":"INFO","msg":"writer: Do: started","stream_id":"webxbust"}
+{"time":"2025-01-24T13:39:22.831977765Z","level":"INFO","msg":"sender: started","stream_id":"webxbust"}
+{"time":"2025-01-24T13:39:22.831951622Z","level":"INFO","msg":"handler: started","stream_id":"webxbust"}
+{"time":"2025-01-24T13:39:23.502114037Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-24T14:03:44.067513668Z","level":"INFO","msg":"stream: closing","id":"webxbust"}
+{"time":"2025-01-24T14:03:44.067535173Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-24T14:03:44.067996858Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-24T14:03:46.296264553Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-24T14:03:48.182774383Z","level":"INFO","msg":"handler: closed","stream_id":"webxbust"}
+{"time":"2025-01-24T14:03:48.182811342Z","level":"INFO","msg":"writer: Close: closed","stream_id":"webxbust"}
+{"time":"2025-01-24T14:03:48.182848092Z","level":"INFO","msg":"sender: closed","stream_id":"webxbust"}
+{"time":"2025-01-24T14:03:48.18286645Z","level":"INFO","msg":"stream: closed","id":"webxbust"}
