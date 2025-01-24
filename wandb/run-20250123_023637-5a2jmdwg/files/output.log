@@ -1,0 +1,40 @@
+  0%|                                                                                                                                            | 0/193 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+ 47%|█████████████████████████████████████████████████████████████                                                                      | 90/193 [36:58<34:13, 19.94s/it]/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/peft/utils/other.py:716: UserWarning: Unable to fetch remote file due to the following error (ReadTimeoutError("HTTPSConnectionPool(host='huggingface.co', port=443): Read timed out. (read timeout=10)"), '(Request ID: db8874e6-3371-4f9a-b183-84c3195da2b6)') - silently ignoring the lookup for the file config.json in HuggingFaceTB/SmolLM2-1.7B-Instruct.
+{'loss': 22.0362, 'grad_norm': 0.5321054458618164, 'learning_rate': 0.00018502673796791445, 'epoch': 0.1}
+{'loss': 18.9878, 'grad_norm': 0.4634339511394501, 'learning_rate': 0.00016363636363636366, 'epoch': 0.21}
+{'loss': 17.9781, 'grad_norm': 0.3443639874458313, 'learning_rate': 0.00014224598930481284, 'epoch': 0.31}
+{'loss': 17.9501, 'grad_norm': 0.3934817910194397, 'learning_rate': 0.00012085561497326203, 'epoch': 0.41}
+  warnings.warn(                                                                                                                                                         
+{'eval_loss': 2.1881399154663086, 'eval_runtime': 446.1089, 'eval_samples_per_second': 2.972, 'eval_steps_per_second': 1.486, 'epoch': 0.47}
+/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/peft/utils/save_and_load.py:246: UserWarning: Could not find a config file in HuggingFaceTB/SmolLM2-1.7B-Instruct - will assume that the vocabulary was not modified.
+  warnings.warn(
+/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+ 66%|██████████████████████████████████████████████████████████████████████████████████████████████████████▏                                                   | 128/193 [49:29<20:47, 19.19s/it]Traceback (most recent call last):
+{'loss': 17.5917, 'grad_norm': 0.3946031928062439, 'learning_rate': 9.946524064171123e-05, 'epoch': 0.52}
+{'loss': 17.4784, 'grad_norm': 0.42686963081359863, 'learning_rate': 7.807486631016043e-05, 'epoch': 0.62}
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 282, in <module>
+    train()
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 257, in train
+    train_result = trainer.train()
+                   ^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2171, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2531, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 3715, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/accelerate/accelerator.py", line 2248, in backward
+    loss.backward(**kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_tensor.py", line 581, in backward
+    torch.autograd.backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/__init__.py", line 347, in backward
+    _engine_run_backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

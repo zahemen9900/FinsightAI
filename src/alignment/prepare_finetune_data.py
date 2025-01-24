@@ -34,7 +34,7 @@ class DatasetCleaner:
         self.conv_starters_file = conv_starters_file
         self.silent_warnings = silent_warnings
         self.quality_threshold = 0.7
-        self.max_prompt_length = 1200  # Set a maximum length for prompts
+        self.max_prompt_length = 1500  # Set a maximum length for prompts
         
         # Common profanity patterns
         self.profanity_patterns = [
@@ -111,14 +111,14 @@ class DatasetCleaner:
         # text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
         
         # Remove Reddit markdown and formatting
-        text = re.sub(r'\[.*?\]\(.*?\)', '', text)
-        text = re.sub(r'&amp;', '&', text)
-        text = re.sub(r'&lt;', '<', text)
-        text = re.sub(r'&gt;', '>', text)
-        text = re.sub(r'[━┃┏┓┗┛│└┘╭╮╯╰▀▄█▌▐░▒▓]', '', text)
-        text = re.sub(r'\*{1,3}', '', text)
-        text = re.sub(r'~{2}.*?~{2}', '', text)
-        text = re.sub(r'_{1,2}.*?_{1,2}', '', text)
+        # text = re.sub(r'\[.*?\]\(.*?\)', '', text)
+        # text = re.sub(r'&amp;', '&', text)
+        # text = re.sub(r'&lt;', '<', text)
+        # text = re.sub(r'&gt;', '>', text)
+        # text = re.sub(r'[━┃┏┓┗┛│└┘╭╮╯╰▀▄█▌▐░▒▓]', '', text)
+        # text = re.sub(r'\*{1,3}', '', text)
+        # text = re.sub(r'~{2}.*?~{2}', '', text)
+        # text = re.sub(r'_{1,2}.*?_{1,2}', '', text)
         
         # Remove edit notices and award speech
         text = re.sub(r'edit\s*\d*\s*:', '', text, flags=re.IGNORECASE)
@@ -195,7 +195,7 @@ class DatasetCleaner:
             # Create metadata
             metadata = {
                 "source": f"reddit: {row['subreddit']}",
-                "score": row['z_score'],
+                "z-score": row['z_score'],
                 "prompt_id": prompt_id
             }
             
@@ -260,7 +260,7 @@ class DatasetCleaner:
             
             # Apply score-based filtering
             for col in ['z_score', 'combined_score', 'comment_normalized_score']:
-                threshold = df[col].quantile(0.6)
+                threshold = df[col].quantile(0.7)
                 df = df[df[col] > threshold]
             logger.info(f"After score filtering: {len(df)}")
             

@@ -3,7 +3,7 @@ import torch
 import logging
 from pathlib import Path
 from typing import List, Dict
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 from peft import PeftModel 
 from rich.logging import RichHandler
 from rich.console import Console
@@ -23,14 +23,16 @@ class FinanceAdvisor:
     def __init__(
         self,
         base_model: str = "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        adapter_path: str = "qlora_output/checkpoint-300",
+        adapter_path: str = "qlora_output",
         device: str = None,
         max_length: int = 512,
-        num_beams: int = 1
+        num_beams: int = 1,
+        stream: bool = True  # Add streaming parameter
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
         self.num_beams = num_beams
+        self.stream = stream
         
         # Load tokenizer with specific settings and move to device
         logger.info(f"Loading tokenizer from {base_model}")
@@ -62,10 +64,40 @@ class FinanceAdvisor:
 
         self.model.eval()
         self.conversation_history: List[Dict] = []
+        # self.system_prompt = (
+        #     "You are FinSight, a professional finance advisor chatbot. Respond to the user's queries with professional advice and guidance."
+        # )
         self.system_prompt = (
-            "You are a financial advisor chatbot trained to provide helpful advice about finance and investing. "
-            "Please keep your responses concise, relevant to the user's questions, and avoid adding unrelated information."
+            "You are FinSight, a professional financial advisor chatbot. Follow these rules strictly:\n"
+            "1. Always use proper punctuation and grammar\n"
+            "2. Use standard sentence case (not Title Case or ALL CAPS)\n"
+            "3. End all sentences with appropriate punctuation marks\n"
+            "4. Keep responses focused and well-structured\n"
+            "5. Use commas, periods, and other punctuation marks correctly\n"
+            "6. Never use hashtags, emojis, or @ mentions\n"
+            "7. Format responses in clear, complete paragraphs\n"
+            "8. Maintain formal, professional language"
         )
+
+    def clean_response(self, text: str) -> str:
+        """Clean and format the response text"""
+        # Fix capitalization issues
+        text = '. '.join(s.strip().capitalize() for s in text.split('.') if s.strip())
+        
+        # Ensure proper spacing after punctuation
+        text = text.replace('.', '. ').replace('?', '? ').replace('!', '! ')
+        
+        # Remove multiple spaces
+        text = ' '.join(text.split())
+        
+        # Remove social media elements
+        text = text.replace('#', '').replace('@', '')
+        
+        # Fix missing periods at end
+        if text and text[-1] not in '.!?':
+            text += '.'
+            
+        return text
 
     def format_prompt(self, message: str) -> str:
         """Format a message into the expected chat format"""
@@ -91,11 +123,11 @@ class FinanceAdvisor:
     def generate_response(
         self,
         prompt: str,
-        temperature: float = 0.3,
+        temperature: float = 0.3,  # Lower temperature for more focused responses
         top_p: float = 0.9,
-        max_new_tokens: int = 150,  # Reduce max_new_tokens for more concise responses
+        max_new_tokens: int = 256,  # Shorter responses to stay focused
     ) -> str:
-        """Generate a response for the given prompt"""
+        """Generate a response for the given prompt with optional streaming"""
         formatted_prompt = self.format_prompt(prompt)
         
         # Prepare inputs and explicitly move to device
@@ -110,48 +142,73 @@ class FinanceAdvisor:
         )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}  # Move all tensors to device
 
-        with torch.no_grad():
+        # Set up streamer if streaming is enabled
+        streamer = TextStreamer(
+            self.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+        ) if self.stream else None
+
+        # Add temperature control for more focused responses
+        temperature = min(temperature, 0.5)  # Cap temperature even lower
+
+        with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                temperature=temperature,
+                temperature=min(temperature, 0.4),  # Lower temperature
                 top_p=top_p,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
-                repetition_penalty=1.2,
-                no_repeat_ngram_size=3,
-                num_beams=self.num_beams,  # Add num_beams parameter
-                early_stopping=False  # Disable early stopping since num_beams=1
+                repetition_penalty=1.5,  # Increased
+                no_repeat_ngram_size=5,  # Increased
+                num_beams=self.num_beams,
+                streamer=streamer
             )
             
-            # Move outputs to CPU for decoding
+        # Only decode if not streaming
+        if not self.stream:
             outputs = outputs.cpu()
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
-        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
-        # Clean up response
-        try:
-            response = response.split("### Assistant:")[-1]
-            if "### Human:" in response:
-                response = response.split("### Human:")[0]
-            response = response.strip()
-        except:
-            response = "I apologize, but I couldn't generate a proper response."
-        
-        # Add response to conversation history
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": response
-        })
-        
-        return response
+            # Clean up response
+            try:
+                response = response.split("### Assistant:")[-1]
+                if "### Human:" in response:
+                    response = response.split("### Human:")[0]
+                response = self.clean_response(response.strip())
+            except:
+                response = "I apologize, but I couldn't generate a proper response."
+            
+            # Add response to conversation history
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response
+            })
+            
+            return response
+        else:
+            # When streaming, we still need to track the conversation
+            # Get the full response for conversation history
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            try:
+                response = response.split("### Assistant:")[-1].split("### Human:")[0].strip()
+                response = self.clean_response(response)
+            except:
+                response = "I apologize, but I couldn't generate a proper response."
+            
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response
+            })
+            return ""  # Return empty string since output was already streamed
 
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-300")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-90")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_length", type=int, default=2048)
     args = parser.parse_args()
@@ -178,15 +235,16 @@ def main():
                 console.print("[dim]Conversation history cleared[/dim]")
                 continue
                 
-            # Generate and print response
-            response = advisor.generate_response(
+            # Print assistant prefix for streaming
+            console.print("\n[bold blue]Assistant:[/bold blue] ", style="bold", end="")
+            
+            # Generate response (will stream automatically)
+            advisor.generate_response(
                 user_input,
                 temperature=args.temperature
             )
             
-            console.print("\n[bold blue]Assistant:[/bold blue]", style="bold")
-            console.print(Markdown(response))
-            console.print()  # Empty line for readability
+            console.print()  # Add newline after streamed response
             
         except KeyboardInterrupt:
             break

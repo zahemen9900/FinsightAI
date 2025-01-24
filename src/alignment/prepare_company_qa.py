@@ -32,7 +32,8 @@ class FinanceQAProcessor:
                 "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings.",
                 "You are FinSight, a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the filings in a professional and concise manner.",
                 "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings in an accurate and concise manner.",
-                "You are FinSight, a finance Bot trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
+                "You are FinSight (Financial Insight), a finance Bot trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
+                "You are a finance Bot trained on 10-K filings of various S&P500 Companies. Your Name is FinSight - Finacial Insights Bot.",
             ]
         self.context_prompt_templates = [
             "Based on this context: {context}\n",
@@ -45,7 +46,7 @@ class FinanceQAProcessor:
             "You are a finance Bot trained on 10-K filings. Here's relevant information from the company's filing: {context}",
             "You are FinSight, an AI trained on financial documents. According to the company's 10-K: {context}",
             "You are a financial advisor with access to company filings. Based on their 10-K: {context}",
-            "You are an AI assistant specialized in financial analysis. From the company's filing: {context}"
+            "You are FinSight, an AI assistant specialized in financial analysis. From the company's filing: {context}"
         ]
         
         self.system_prompt_no_context = [
@@ -55,6 +56,8 @@ class FinanceQAProcessor:
             "You are an AI assistant specialized in financial analysis and company information."
         ]
         self.conversation_counter = 0  # Add counter for unique IDs
+        self.sample_usage_counter = {}  # Track how many times each sample is used
+        self.max_sample_usage = 3  # Maximum times a sample can be used
         
     def generate_prompt_id(self) -> str:
         """Generate a unique 64-character prompt ID"""
@@ -157,7 +160,7 @@ class FinanceQAProcessor:
         messages.extend([greeting, response, usr, ast])
         
         # Rest of conversation without context in questions
-        available_indices = company_data.index[~company_data.index.isin(self.used_samples)].tolist()
+        available_indices = [idx for idx in company_data.index if self.can_use_sample(idx)]
         if len(available_indices) < num_turns:
             num_turns = len(available_indices)
             
@@ -165,14 +168,17 @@ class FinanceQAProcessor:
         
         for idx in selected_indices:
             row = company_data.loc[idx]
-            self.used_samples.add(idx)
+            self.mark_sample_used(idx)
             messages.extend([
                 {"role": "user", "content": str(row['question'] or "")},  # Convert to string and handle None
                 {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
             ])
         
         # Get the first actual question as the prompt
-        row = company_data.loc[random.choice(company_data.index[~company_data.index.isin(self.used_samples)])]
+        available_for_prompt = [idx for idx in company_data.index if self.can_use_sample(idx)]
+        if not available_for_prompt:
+            available_for_prompt = company_data.index.tolist()  # Fallback to all samples
+        row = company_data.loc[random.choice(available_for_prompt)]
         
         return Conversation(
             prompt=row['question'],
@@ -212,17 +218,20 @@ class FinanceQAProcessor:
         messages.extend([greeting, response, usr, ast])
         
         # Rest of conversation without context in questions
-        company1_indices = company1_data.index[~company1_data.index.isin(self.used_samples)].tolist()
-        company2_indices = company2_data.index[~company2_data.index.isin(self.used_samples)].tolist()
+        company1_indices = [idx for idx in company1_data.index if self.can_use_sample(idx)]
+        company2_indices = [idx for idx in company2_data.index if self.can_use_sample(idx)]
         
         num_turns = min(num_turns, len(company1_indices), len(company2_indices))
         
         for i in range(num_turns):
             # Alternate between companies
             current_data = company1_data if i % 2 == 0 else company2_data
-            current_indices = company1_indices if i % 2 == 0 else company2_indices
+            available = [idx for idx in current_data.index if self.can_use_sample(idx)]
             
-            idx = random.choice(current_indices)
+            if not available:
+                continue
+                
+            idx = random.choice(available)
             row = current_data.loc[idx]
             
             # Add question without context
@@ -230,7 +239,7 @@ class FinanceQAProcessor:
                 {"role": "user", "content": row['question']},
                 {"role": "assistant", "content": row['answer']}
             ])
-            self.used_samples.add(idx)
+            self.mark_sample_used(idx)
             
             # Remove used index from available indices
             if i % 2 == 0:
@@ -254,7 +263,7 @@ class FinanceQAProcessor:
             }
         )
 
-    def process_dataset(self, output_path: Path, max_samples_per_company: int = 4):
+    def process_dataset(self, output_path: Path, max_samples_per_company: int = 5):
         """Process the entire dataset and create variations"""
         processed_conversations = []
         
@@ -267,17 +276,18 @@ class FinanceQAProcessor:
             
             # Create some combined Q&A pairs
             system_prompts = [
-                "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings.",
+                "You are a Finsight, a finance AI trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings.",
                 "You are FinSight, a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the filings in a professional and concise manner.",
-                "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings in an accurate and concise manner.",
-                "You are FinSight, a finance Bot trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
+                "You are a finance AI trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings in an accurate and concise manner.",
+                "You are FinSight, a finance AI model trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
             ]
 
             if len(company_data) >= 2:
-                for _ in range(min(2, len(company_data) // 2)):
-                    available = company_data.index[~company_data.index.isin(self.used_samples)]
+                num_combinations = random.randint(2, 5)
+                for _ in range(min(num_combinations, len(company_data) // 2)):
+                    available = [idx for idx in company_data.index if self.can_use_sample(idx)]
                     if len(available) >= 2:
-                        idx1, idx2 = random.sample(list(available), 2)
+                        idx1, idx2 = random.sample(available, 2)
                         q, a = self.combine_qa_pairs(
                             company_data.loc[idx1],
                             company_data.loc[idx2]
@@ -317,20 +327,23 @@ class FinanceQAProcessor:
                             }
                         ))
                         
-                        self.used_samples.update([idx1, idx2])
+                        self.mark_sample_used(idx1)
+                        self.mark_sample_used(idx2)
             # Create multi-turn conversations
             num_conversations = random.randint(3, max_samples_per_company)
             for _ in range(num_conversations):
                 num_turns = random.randint(3, 5)
                 try:
-                    conv = self.create_multi_turn_conversation(company_data, num_turns)
-                    processed_conversations.append(conv)
+                    available = [idx for idx in company_data.index if self.can_use_sample(idx)]
+                    if len(available) >= num_turns:
+                        conv = self.create_multi_turn_conversation(company_data, num_turns)
+                        processed_conversations.append(conv)
                 except ValueError:
                     continue  # Skip if not enough samples left
                     
         # Now create cross-company conversations
         logger.info("Generating cross-company conversations...")
-        num_cross_company = 300  # Number of cross-company conversations to generate
+        num_cross_company = 400  # Number of cross-company conversations to generate
         
         for _ in range(num_cross_company):
             # Select two random companies
@@ -339,14 +352,17 @@ class FinanceQAProcessor:
             company2_data = self.data[self.data['ticker'] == company2_ticker]
             
             # Generate a conversation with 3-5 turns
-            num_turns = random.randint(3, 5)
+            num_turns = random.randint(3, 6)
             try:
-                conv = self.create_cross_company_conversation(
-                    company1_data,
-                    company2_data,
-                    num_turns
-                )
-                processed_conversations.append(conv)
+                available1 = [idx for idx in company1_data.index if self.can_use_sample(idx)]
+                available2 = [idx for idx in company2_data.index if self.can_use_sample(idx)]
+                if len(available1) >= num_turns//2 and len(available2) >= num_turns//2:
+                    conv = self.create_cross_company_conversation(
+                        company1_data,
+                        company2_data,
+                        num_turns
+                    )
+                    processed_conversations.append(conv)
             except (ValueError, IndexError):
                 continue
                 
@@ -363,6 +379,16 @@ class FinanceQAProcessor:
         with open(output_path, 'w') as f:
             json.dump(output_data, f, indent=2)
         logger.info(f"Saved processed dataset to {output_path}")
+
+    def can_use_sample(self, idx: int) -> bool:
+        """Check if a sample can still be used"""
+        return self.sample_usage_counter.get(idx, 0) < self.max_sample_usage
+        
+    def mark_sample_used(self, idx: int):
+        """Mark a sample as used"""
+        self.sample_usage_counter[idx] = self.sample_usage_counter.get(idx, 0) + 1
+        if self.sample_usage_counter[idx] >= self.max_sample_usage:
+            self.used_samples.add(idx)
 
 def main():
     dataset_path = Path('/home/zahemen/datasets/Financial-QA-10k.csv')

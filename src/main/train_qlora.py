@@ -55,9 +55,9 @@ class QLoRAConfig(SFTConfig):
     logging_steps: int = 20
     warmup_ratio: float = 0.03
     eval_strategy: str = "steps"
-    eval_steps: int = 90
+    eval_steps: int = 70
     save_strategy: str = "steps"
-    save_steps: int = 90
+    save_steps: int = 70
     save_total_limit: int = 3
     load_best_model_at_end: bool = True
     metric_for_best_model: str = "eval_loss"  # Added for early stopping

@@ -1,0 +1,11 @@
+{"time":"2025-01-23T12:13:27.70313198Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-23T12:13:27.703140379Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250123_121327-6jfpbk3x/logs/debug-core.log"}
+{"time":"2025-01-23T12:13:27.853889004Z","level":"INFO","msg":"created new stream","id":"6jfpbk3x"}
+{"time":"2025-01-23T12:13:27.853940519Z","level":"INFO","msg":"stream: started","id":"6jfpbk3x"}
+{"time":"2025-01-23T12:13:27.854006954Z","level":"INFO","msg":"handler: started","stream_id":"6jfpbk3x"}
+{"time":"2025-01-23T12:13:27.854314926Z","level":"INFO","msg":"sender: started","stream_id":"6jfpbk3x"}
+{"time":"2025-01-23T12:13:27.854309224Z","level":"INFO","msg":"writer: Do: started","stream_id":"6jfpbk3x"}
+{"time":"2025-01-23T12:13:28.568741725Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-23T12:14:07.365225881Z","level":"INFO","msg":"stream: closing","id":"6jfpbk3x"}
+{"time":"2025-01-23T12:14:07.365258039Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-23T12:14:07.365721634Z","level":"INFO","msg":"Stopped system monitor"}

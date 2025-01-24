@@ -102,15 +102,18 @@ def prepare_dataset(dataset_path: str, tokenizer) -> Dataset:
             logger.info(f"Dataset sources: {sources}")
         
         if 'has_context' in dataset.column_names:
-            context_ratio = sum(dataset['has_context']) / len(dataset)
+            # Convert None values to False and ensure boolean type
+            dataset = dataset.map(
+                lambda x: {'has_context': bool(x.get('has_context', False))}
+            )
+            context_ratio = sum(1 for x in dataset['has_context'] if x) / len(dataset)
             logger.info(f"Samples with context: {context_ratio:.2%}")
             
-        # Split into train/test preserving metadata distribution
+        # Split into train/test without stratification
         dataset = dataset.train_test_split(
             test_size=0.3,
             seed=42,
-            # Stratify by source if available to maintain distribution
-            stratify_by_column='source' if 'source' in dataset.column_names else None
+            shuffle=True
         )
         
         logger.info(f"Final dataset sizes - Train: {len(dataset['train'])}, Test: {len(dataset['test'])}")
