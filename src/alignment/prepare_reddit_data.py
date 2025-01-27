@@ -1,4 +1,5 @@
 import json
+import random
 import pandas as pd
 import re
 import numpy as np
@@ -39,7 +40,8 @@ nlp = spacy.load('en_core_web_sm')
 # Load financial domain specific model if available
 try:
     nlp_financial = spacy.load('en_core_financial_web_sm')
-except:
+except OSError:
+    logger.warning("Financial model not found. Falling back to general model.")
     nlp_financial = nlp
 
 class DatasetCleaner:
@@ -79,7 +81,7 @@ class DatasetCleaner:
         # Add new parameters
         self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.min_financial_relevance = 0.6  # Lowered from 0.7
+        self.min_financial_relevance = 0.5  # Lowered from 0.7
         self.max_similarity_threshold = 0.85  # For deduplication
         self.complexity_threshold = 0.3  # Lowered from 0.4
         self.min_words = 5
@@ -97,8 +99,32 @@ class DatasetCleaner:
             'investment', 'stock', 'bond', 'market', 'fund', 'dividend',
             'portfolio', 'asset', 'equity', 'risk', 'return', 'trading',
             'finance', 'bank', 'capital', 'debt', 'credit', 'interest',
-            'inflation', 'economy', 'security', 'hedge', 'option', 'future'
+            'inflation', 'economy', 'security', 'hedge', 'option', 'future',
+            'liquidity', 'valuation', 'yield', 'income', 'tax', 'audit',
+            'accounting', 'budget', 'loan', 'mortgage', 'retirement', 'pension',
+            'savings', 'wealth', 'insurance', 'policy', 'regulation', 'compliance',
+            'audit', 'fraud', 'scam', 'money', 'payment', 'transaction', 'currency',
+            'exchange', 'crypto', 'blockchain', 'token', 'coin', 'wallet', 'mining',
+            'staking', 'defi', 'nft', 'yield farming', 'staking', 'staking pool',
+            'liquidity pool', 'impermanent loss', 'rug pull', 'pump and dump',
+            'bear market', 'bull market', 'short selling', 'long position',
+            'margin trading', 'leverage', 'volatility', 'correlation', 'beta',
+            'alpha', 'sharpe ratio', 'sortino ratio', 'treynor ratio', 'jensen alpha',
+            'efficient market hypothesis', 'random walk', 'technical analysis',
+            'fundamental analysis', 'quantitative analysis', 'quantitative easing',
+            'monetary policy', 'fiscal policy', 'central bank', 'interest rate',
+            'inflation rate', 'deflation', 'stagflation', 'recession', 'depression',
+            'recovery', 'growth', 'expansion', 'peak', 'trough', 'cycle', 'bubble',
+            'crash', 'black swan', 'tail risk', 'systemic risk', 'counterparty risk',
+            'credit risk', 'liquidity risk', 'market risk', 'operational risk',
+            'regulatory risk', 'political risk', 'economic risk', 'geopolitical risk',
+            'environmental risk', 'social risk', 'ESG', 'sustainable investing',
+            'impact investing', 'green finance', 'carbon footprint', 'carbon offset',
+            'carbon credit', 'sustainability', 'climate change', 'global warming',
+            'renewable energy', 'clean energy', 'green energy', 'solar power',
         ])
+        self.sample_usage_counter = {}  # Track how many times each sample is used
+        self.max_sample_usage = 5  # Maximum times a sample can be used
 
     def load_conv_starters(self) -> List[Dict[str, str]]:
         """Load conversational starters from a text file."""
@@ -142,30 +168,82 @@ class DatasetCleaner:
 
     @staticmethod
     def clean_text(text: str) -> str:
-        """Enhanced text cleaning"""
+        """Enhanced text cleaning for Reddit-style content"""
         if not isinstance(text, str):
             return ""
-            
-        # Remove chat artifacts
-        text = re.sub(r'###\s*(Human|Assistant):', '', text)
-        text = re.sub(r'(AI|User):', '', text)
         
-        # Remove multiple line breaks and extra spaces
-        text = re.sub(r'\n+', ' ', text)
-        text = ' '.join(text.split())
+        # Remove markdown-style links with their text
+        text = re.sub(r'\[([^\]]+)\]\([^)]+\)', '', text)
+        
+        # Remove plain URLs
+        text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+        
+        # Remove Reddit-style formatting
+        replacements = [
+            # Remove markdown formatting
+            (r'\*\*(.+?)\*\*', r'\1'),  # Bold
+            (r'\*(.+?)\*', r'\1'),      # Italic
+            (r'\_(.+?)\_', r'\1'),      # Underscore emphasis
+            (r'\~\~(.+?)\~\~', r'\1'),  # Strikethrough
+            (r'\^(.+?)(?:\s|$)', r'\1'), # Superscript
+            
+            # Remove Reddit quote blocks and lists
+            (r'^\s*>\s*(.+?)$', r'\1'),  # Quote blocks
+            # (r'^\s*\*\s+(.+?)$', r'\1'), # Unordered lists
+            # (r'^\s*\d+\.\s+(.+?)$', r'\1'), # Ordered lists
+            
+            # Remove special characters and emojis
+            (r'&amp;', '&'),
+            (r'&lt;', '<'),
+            (r'&gt;', '>'),
+            (r'[━┃┏┓┗┛│└┘╭╮╯╰▀▄█▌▐░▒▓]', ''),
+            
+            # Remove hashtags and their text completely
+            (r'#\w+', ''),
+            
+            # Remove Reddit-style headers
+            (r'^#+\s*(.+?)$', r'\1'),
+            
+            # Remove common Reddit artifacts
+            (r'(?i)edit\s*\d*\s*:', ''),
+            (r'(?i)update\s*\d*\s*:', ''),
+            (r'(?i)tldr[:,]*', ''),
+            (r'(?i)thanks? for (?:the)? (?:gold|silver|platinum|award).*', ''),
+        ]
+        
+        # Apply all replacements
+        for pattern, replacement in replacements:
+            text = re.sub(pattern, replacement, text, flags=re.MULTILINE)
+        
+        # Clean up whitespace
+        text = re.sub(r'\n+', ' ', text)  # Replace multiple newlines with single space
+        text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with single space
+        text = text.strip()
         
         # Ensure proper sentence structure
-        text = '. '.join(s.strip().capitalize() for s in text.split('.') if s.strip())
+        sentences = []
+        for sent in text.split('.'):
+            sent = sent.strip()
+            if sent:
+                # Capitalize first letter if it's not already
+                if sent[0].islower():
+                    sent = sent[0].upper() + sent[1:]
+                sentences.append(sent)
+        
+        text = '. '.join(sentences)
+        
+        # Ensure proper ending punctuation
         if text and text[-1] not in '.!?':
             text += '.'
             
-        return text.strip()
+        return text
 
     def is_quality_response(self, text: str) -> bool:
-        """Additional quality checks for responses"""
+        """Additional quality checks for responses with enhanced filtering"""
         if not text:
             return False
             
+        # Basic length checks
         words = text.split()
         if len(words) < self.min_words or len(words) > self.max_words:
             return False
@@ -175,13 +253,64 @@ class DatasetCleaner:
         if len(sentences) < 1:
             return False
             
-        # Check for repeated phrases
-        text_lower = text.lower()
-        for phrase in ["is there anything", "yes thank you", "please specify"]:
-            if text_lower.count(phrase) > 1:
-                return False
-                
-        return True
+        # Additional quality checks
+        content_flags = [
+            # URL and markdown checks
+            len(re.findall(r'http[s]?://', text)) > 0,
+            any(marker in text for marker in ['[', ']', '*', '#', '~~', '>', '`']),
+            
+            # Repetitive phrases and low-effort content
+            any(text.lower().count(phrase) > 1 for phrase in [
+            "is there anything",
+            "yes thank you",
+            "please specify",
+            "let me know",
+            "hope this helps",
+            "not financial advice",
+            "just my opinion",
+            "do your own research",
+            "this is not advice"
+            ]),
+            
+            # Style and formatting checks
+            text.count('?') > 3,  # Excessive questions
+            text.count('!') > 3,  # Excessive exclamations
+            text.count('...') > 2,  # Too many ellipses
+            len(re.findall(r'[A-Z]{3,}', text)) > 3,  # Too many all-caps words
+            
+            # Low-quality indicators
+            any(ending in text.lower() for ending in [
+            "edit:",
+            "update:",
+            "source:",
+            "tldr",
+            "tl;dr",
+            "thanks for reading",
+            "thanks for coming to my ted talk",
+            "obligatory",
+            "disclaimer:",
+            "not financial advice",
+            "this is the way",
+            "to the moon"
+            ]),
+            
+            # Structure checks
+            len(text.split()) < 10,  # Too short
+            text.count('\n') > 5,    # Too many line breaks
+            sum(1 for c in text if c.isupper()) / len(text) > 0.3,  # Too many caps
+            len(re.findall(r'(\w)\1{2,}', text)) > 0,  # Repeated characters (e.g., "yesss")
+            
+            # Boilerplate checks
+            any(phrase in text.lower() for phrase in [
+            "not investment advice",
+            "this is just my opinion",
+            "don't sue me",
+            "do your dd",
+            "for entertainment only"
+            ])
+        ]
+        
+        return not any(content_flags)
 
     def assess_text_quality(self, text: str) -> float:
         """Assess the quality of text based on multiple factors."""
@@ -219,11 +348,29 @@ class DatasetCleaner:
             return False
             
         indicators = [
-            r'\b(hi|hello|hey|thanks|thank you)\b',
+            # Greetings and courtesy
+            r'\b(hi|hello|hey|thanks|thank you|please|welcome)\b',
+            
+            # Questions
             r'\?',
+            
+            # Personal pronouns
             r'\b(you|your|yours)\b',
-            r'\b(I|me|my|mine)\b'
+            r'\b(I|me|my|mine)\b',
+            r'\b(we|us|our|ours)\b',
+            
+            # Conversational phrases
+            r'\b(understand|hope|suggest|recommend|advice|help)\b',
+            r'\b(let me|here\'s|take a look|consider)\b',
+            
+            # Engagement markers
+            r'\b(actually|basically|essentially|specifically)\b',
+            r'\b(sure|definitely|absolutely|certainly)\b',
+            
+            # Opinion indicators
+            r'\b(think|believe|feel|assume|suppose)\b'
         ]
+
         
         score = sum(bool(re.search(pattern, text, re.IGNORECASE)) for pattern in indicators)
         return score >= 2
@@ -232,57 +379,172 @@ class DatasetCleaner:
         """Filter out very lengthy prompts."""
         return len(text) <= self.max_prompt_length
 
-    def convert_to_sft_format(self, row: pd.Series) -> Dict:
-        """Convert a single record to chat format for fine-tuning"""
-        try:
-            # Generate unique conversation ID
-            conversation_id = hashlib.sha256(row["id"].encode()).hexdigest()
-            
-            # Clean texts
-            cleaned_body = self.clean_text(row["body"])
-            cleaned_title = self.clean_text(row["title"])
-            cleaned_selftext = self.clean_text(row["selftext"] if pd.notna(row["selftext"]) else "")
-            
-            # Skip if response quality check fails
-            if not self.is_quality_response(cleaned_body):
-                raise ValueError("Response quality check failed")
-            
-            # Format the question/prompt
-            question = cleaned_title
-            if cleaned_selftext:
-                question += f"\n\n{cleaned_selftext}"
-            
-            # Create the messages list directly (no prompt field)
-            messages = [
-                {
-                    "role": "system",
-                    "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
-                },
-                {
-                    "role": "user",
-                    "content": question
-                },
-                {
-                    "role": "assistant",
-                    "content": cleaned_body
-                }
-            ]
-            
-            # Only return messages and metadata
-            return {
-                "messages": messages,
-                "metadata": {
-                    "source": f"reddit: {row['subreddit']}",
-                    "conversation_id": conversation_id
-                }
-            }
-            
-        except Exception as e:
-            if not self.silent_warnings:
-                logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
-            raise
+    def can_use_sample(self, idx: int) -> bool:
+        """Check if a sample can still be used"""
+        return self.sample_usage_counter.get(idx, 0) < self.max_sample_usage
+        
+    def mark_sample_used(self, idx: int):
+        """Mark a sample as used"""
+        self.sample_usage_counter[idx] = self.sample_usage_counter.get(idx, 0) + 1
 
-    @lru_cache(maxsize=10000)
+    def convert_to_sft_format(self, df: pd.DataFrame) -> List[Dict]:
+        """Convert records to chat format for fine-tuning with conversational pairs"""
+        formatted_data = []
+        total_samples = len(df)
+        num_conversational_samples = int(total_samples * 0.8)
+        
+        # Shuffle the DataFrame to randomize selection
+        df = df.sample(frac=1).reset_index(drop=True)
+        
+        # Process conversational samples
+        for i in range(num_conversational_samples):
+            try:
+                row = df.iloc[i]
+                conversation_id = hashlib.sha256(row["id"].encode()).hexdigest()
+                
+                # Clean texts
+                cleaned_body = self.clean_text(row["body"])
+                cleaned_title = self.clean_text(row["title"])
+                cleaned_selftext = self.clean_text(row["selftext"] if pd.notna(row["selftext"]) else "")
+                
+                # Skip if response quality check fails
+                if not self.is_quality_response(cleaned_body):
+                    continue
+                
+                # Format the question/prompt
+                question = cleaned_title
+                if cleaned_selftext:
+                    question += f"\n\n{cleaned_selftext}"
+                
+                # Select a random conversational starter
+                starter = random.choice(self.conv_starters)
+                
+                # Create multi-turn conversation
+                sys_prompt_vars = [
+                    "You are FinSight, an AI financial advisor. Provide helpful financial guidance with a friendly and welcoming tone.",
+                    "You are FinSight, an AI financial advisor. Provide accurate guidance in a nice and friendly manner.",
+                    "You are FinSight, an AI financial advisor. Offer helpful financial advice with a friendly and welcoming tone.",
+                    "You are FinSight, an AI financial advisor. Keep responses clear, focused, and concise."                                                    
+                ]
+                messages = [
+                    {
+                        "role": "system",
+                        "content": random.choice(sys_prompt_vars[:-1]) if len(cleaned_body) > 200 else sys_prompt_vars[-1] # Use shorter prompt for concise responses
+                    },
+                    {
+                        "role": "user",
+                        "content": starter["user"]
+                    },
+                    {
+                        "role": "assistant",
+                        "content": starter["assistant"]
+                    },
+                    {
+                        "role": "user",
+                        "content": question
+                    },
+                    {
+                        "role": "assistant",
+                        "content": cleaned_body
+                    }
+                ]
+                
+                # Add additional turns
+                num_turns = random.randint(3, 7)
+                available_indices = [idx for idx in df.index if self.can_use_sample(idx)]
+                selected_indices = random.sample(available_indices, min(num_turns, len(available_indices)))
+                
+                for idx in selected_indices:
+                    turn_row = df.loc[idx]
+                    turn_question = self.clean_text(turn_row["title"])
+                    turn_answer = self.clean_text(turn_row["body"])
+                    
+                    if turn_question and turn_answer:
+                        messages.append({"role": "user", "content": turn_question})
+                        messages.append({"role": "assistant", "content": turn_answer})
+                        self.mark_sample_used(idx)
+                
+                formatted_data.append({
+                    "messages": messages,
+                    "metadata": {
+                        "source": f"reddit: {row['subreddit']}",
+                        "conversation_id": conversation_id
+                    }
+                })
+            except Exception as e:
+                if not self.silent_warnings:
+                    logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
+        
+        # Process remaining samples without conversational starters
+        for i in range(num_conversational_samples, total_samples):
+            try:
+                row = df.iloc[i]
+                conversation_id = hashlib.sha256(row["id"].encode()).hexdigest()
+                
+                # Clean texts
+                cleaned_body = self.clean_text(row["body"])
+                cleaned_title = self.clean_text(row["title"])
+                cleaned_selftext = self.clean_text(row["selftext"] if pd.notna(row["selftext"]) else "")
+                
+                # Skip if response quality check fails
+                if not self.is_quality_response(cleaned_body):
+                    continue
+                
+                # Format the question/prompt
+                question = cleaned_title
+                if cleaned_selftext:
+                    question += f"\n\n{cleaned_selftext}"
+                
+                # Create multi-turn conversation without starter
+                sys_prompt_vars = [
+                    "You are FinSight, an AI financial advisor. Provide helpful financial guidance with a friendly and welcoming tone.",
+                    "You are FinSight, an AI financial advisor. Provide accurate guidance in a nice and friendly manner.",
+                    "You are FinSight, an AI financial advisor. Offer helpful financial advice with a friendly and welcoming tone.",
+                    "You are FinSight, an AI financial advisor. Keep responses clear, focused, and concise."                                                    
+                ]
+                messages = [
+                    {
+                        "role": "system",
+                        "content": random.choice(sys_prompt_vars[:-1]) if len(cleaned_body) > 200 else sys_prompt_vars[-1]
+                    },
+                    {
+                        "role": "user",
+                        "content": question
+                    },
+                    {
+                        "role": "assistant",
+                        "content": cleaned_body
+                    }
+                ]
+                
+                # Add additional turns
+                num_turns = random.randint(3, 7)
+                available_indices = [idx for idx in df.index if self.can_use_sample(idx)]
+                selected_indices = random.sample(available_indices, min(num_turns, len(available_indices)))
+                
+                for idx in selected_indices:
+                    turn_row = df.loc[idx]
+                    turn_question = self.clean_text(turn_row["title"])
+                    turn_answer = self.clean_text(turn_row["body"])
+                    
+                    if turn_question and turn_answer:
+                        messages.append({"role": "user", "content": turn_question})
+                        messages.append({"role": "assistant", "content": turn_answer})
+                        self.mark_sample_used(idx)
+                
+                formatted_data.append({
+                    "messages": messages,
+                    "metadata": {
+                        "source": f"reddit: {row['subreddit']}",
+                        "conversation_id": conversation_id
+                    }
+                })
+            except Exception as e:
+                if not self.silent_warnings:
+                    logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
+        
+        return formatted_data
+
     def calculate_text_complexity(self, text: str) -> float:
         """Calculate text complexity using multiple metrics"""
         if not isinstance(text, str) or len(text.strip()) < 10:
@@ -326,6 +588,11 @@ class DatasetCleaner:
         try:
             # Use spaCy's financial model for entity recognition
             doc = nlp_financial(text)
+            
+            # Check if the model has word vectors
+            if not doc.has_vector:
+                logger.warning("Model does not have word vectors. Skipping financial relevance assessment.")
+                return 0.0
             
             # Count financial entities
             financial_entities = sum(1 for ent in doc.ents if ent.label_ in {
@@ -444,7 +711,7 @@ class DatasetCleaner:
                 duplicate_indices = self.find_similar_texts(df['cleaned_body'].tolist())
                 df = df.drop(index=df.index[duplicate_indices])
                 final_size = len(df)
-                logger.info(f"After deduplication: {final_size:,} records ({(final_size/quality_filtered_size)*100:.1f}% retained)")
+                logger.info(f"After deduplication: {final_size:,} recorzds ({(final_size/quality_filtered_size)*100:.1f}% retained)")
                 
                 # Overall statistics
                 logger.info("\n=== Final Statistics ===")
@@ -458,14 +725,7 @@ class DatasetCleaner:
             
             # Convert to SFT format
             logger.info("\n=== Converting to SFT Format ===")
-            training_data = []
-            for _, row in tqdm(df.iterrows(), total=len(df)):
-                try:
-                    formatted_data = self.convert_to_sft_format(row)
-                    training_data.append(formatted_data)
-                except Exception as e:
-                    if not self.silent_warnings:
-                        logger.warning(f"Failed to convert row {row.get('id', 'UNKNOWN')}: {e}")
+            training_data = self.convert_to_sft_format(df)
             
             # Save final output
             with open(self.output_file, 'w') as f:

@@ -1,25 +1,29 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 import random
 import json
 from dataclasses import dataclass, asdict
 import logging
 from rich.logging import RichHandler
 import hashlib
+import jsonlines
+from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(message)s",
-    handlers=[RichHandler(rich_tracebacks=True)]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="[%Y-%m-%d %H:%M:%S]",
+    handlers=[RichHandler()],
 )
-logger = logging.getLogger("rich")
+logger = logging.getLogger('rich')
 
 @dataclass
 class Conversation:
-    messages: List[Dict[str, str]]  # Remove prompt field
+    prompt: str  # Add prompt field
+    messages: List[Dict[str, str]]
     metadata: Dict
 
 class FinanceQAProcessor:
@@ -56,7 +60,7 @@ class FinanceQAProcessor:
         ]
         self.conversation_counter = 0  # Add counter for unique IDs
         self.sample_usage_counter = {}  # Track how many times each sample is used
-        self.max_sample_usage = 3  # Maximum times a sample can be used
+        self.max_sample_usage = 5  # Increased from 3 to 5
         
     def generate_prompt_id(self) -> str:
         """Generate a unique 64-character prompt ID"""
@@ -79,7 +83,13 @@ class FinanceQAProcessor:
         """Combine two Q&A pairs into a single question and answer without context in question"""
         # Combine questions without context
         combined_q = f"{row1['question']} Additionally, {row2['question']}"
-        combined_a = f"{row1['answer']} Furthermore, {row2['answer']}"
+
+        combined_a = np.random.choice([
+            f"{row1['answer']} Additionally, {row2['answer']}",
+            f"1. {row1['answer']} \n2. {row2['answer']}",
+            f"{row1['answer']} \nAlso, {row2['answer']}",
+            f"{row1['answer']} In addition, {row2['answer']}",
+        ])
         
         # Combine contexts if they're different (for system prompt)
         if row1['context'] != row2['context']:
@@ -169,17 +179,24 @@ class FinanceQAProcessor:
             row = company_data.loc[idx]
             self.mark_sample_used(idx)
             messages.extend([
-                {"role": "user", "content": str(row['question'] or "")},
-                {"role": "assistant", "content": str(row['answer'] or "")}
+                {"role": "user", "content": str(row['question'] or "")},  # Convert to string and handle None
+                {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
             ])
         
+        # Get the first actual question as the prompt
+        available_for_prompt = [idx for idx in company_data.index if self.can_use_sample(idx)]
+        if not available_for_prompt:
+            available_for_prompt = company_data.index.tolist()  # Fallback to all samples
+        row = company_data.loc[random.choice(available_for_prompt)]
+        
         return Conversation(
+            prompt=row['question'],
             messages=messages,
             metadata={
                 "ticker": company_data['ticker'].iloc[0],
                 "filing_year": company_data['filing'].iloc[0],
                 "has_context": use_context,
-                "prompt_id": self.generate_prompt_id()
+                "prompt_id": self.generate_prompt_id()  # Add prompt ID
             }
         )
 
@@ -239,7 +256,11 @@ class FinanceQAProcessor:
             else:
                 company2_indices.remove(idx)
         
+        # Get first question as prompt (without context)
+        first_row = company1_data.loc[random.choice(company1_data.index[~company1_data.index.isin(self.used_samples)])]
+        
         return Conversation(
+            prompt=first_row['question'],  # Just the question without context
             messages=messages,
             metadata={
                 "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
@@ -247,11 +268,11 @@ class FinanceQAProcessor:
                 "cross_company": True,
                 "has_context": use_context,
                 "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}",
-                "prompt_id": self.generate_prompt_id()
+                "prompt_id": self.generate_prompt_id()  # Add prompt ID
             }
         )
 
-    def process_dataset(self, output_path: Path, max_samples_per_company: int = 5):
+    def process_dataset(self, output_path: Path, max_samples_per_company: int = 8):  # Increased from 5
         """Process the entire dataset and create variations"""
         processed_conversations = []
         
@@ -271,7 +292,7 @@ class FinanceQAProcessor:
             ]
 
             if len(company_data) >= 2:
-                num_combinations = random.randint(2, 5)
+                num_combinations = random.randint(3, 7)  # Increased from (2, 5)
                 for _ in range(min(num_combinations, len(company_data) // 2)):
                     available = [idx for idx in company_data.index if self.can_use_sample(idx)]
                     if len(available) >= 2:
@@ -305,21 +326,22 @@ class FinanceQAProcessor:
                         ]
                         
                         processed_conversations.append(Conversation(
+                            prompt=q,  # Use the combined question as prompt
                             messages=messages,
                             metadata={
                                 "ticker": ticker,
                                 "combined": True,
                                 "filing_year": company_data['filing'].iloc[0],
-                                "prompt_id": self.generate_prompt_id()
+                                "prompt_id": self.generate_prompt_id()  # Add prompt ID
                             }
                         ))
                         
                         self.mark_sample_used(idx1)
                         self.mark_sample_used(idx2)
             # Create multi-turn conversations
-            num_conversations = random.randint(3, max_samples_per_company)
+            num_conversations = random.randint(4, max_samples_per_company)  # Increased from (3, max_samples)
             for _ in range(num_conversations):
-                num_turns = random.randint(3, 5)
+                num_turns = random.randint(3, 7)  # Increased from (3, 5)
                 try:
                     available = [idx for idx in company_data.index if self.can_use_sample(idx)]
                     if len(available) >= num_turns:
@@ -330,7 +352,7 @@ class FinanceQAProcessor:
                     
         # Now create cross-company conversations
         logger.info("Generating cross-company conversations...")
-        num_cross_company = 400  # Number of cross-company conversations to generate
+        num_cross_company = 1000  # Increased from 400
         
         for _ in range(num_cross_company):
             # Select two random companies
@@ -338,8 +360,8 @@ class FinanceQAProcessor:
             company1_data = self.data[self.data['ticker'] == company1_ticker]
             company2_data = self.data[self.data['ticker'] == company2_ticker]
             
-            # Generate a conversation with 3-5 turns
-            num_turns = random.randint(3, 6)
+            # Generate a conversation with 3-7 turns
+            num_turns = random.randint(3, 7)  # Increased from (3, 6)
             try:
                 available1 = [idx for idx in company1_data.index if self.can_use_sample(idx)]
                 available2 = [idx for idx in company2_data.index if self.can_use_sample(idx)]
@@ -353,7 +375,7 @@ class FinanceQAProcessor:
             except (ValueError, IndexError):
                 continue
                 
-            if _ % 20 == 0:  # Log progress every 20 conversations
+            if _ % 50 == 0:  # Increased logging interval from 20
                 logger.info(f"Generated {_}/{num_cross_company} cross-company conversations")
         
         # Save processed conversations
@@ -364,11 +386,7 @@ class FinanceQAProcessor:
         """Save processed conversations to JSON file"""
         output_data = [asdict(conv) for conv in conversations]
         with open(output_path, 'w') as f:
-            for item in output_data:
-                f.write(json.dumps({
-                    "messages": item['messages'],
-                    "metadata": item['metadata']
-                }) + '\n')
+            json.dump(output_data, f, indent=2)
         logger.info(f"Saved processed dataset to {output_path}")
 
     def can_use_sample(self, idx: int) -> bool:
@@ -381,9 +399,124 @@ class FinanceQAProcessor:
         if self.sample_usage_counter[idx] >= self.max_sample_usage:
             self.used_samples.add(idx)
 
+    def validate_conversation(self, messages: List[Dict[str, str]]) -> bool:
+        """Validate conversation format and content"""
+        if not isinstance(messages, list):
+            return False
+            
+        for msg in messages:
+            if not isinstance(msg, dict):
+                return False
+            if 'role' not in msg or 'content' not in msg:
+                return False
+            if not isinstance(msg['role'], str) or not isinstance(msg['content'], str):
+                return False
+            if msg['role'] not in ['system', 'user', 'assistant']:
+                return False
+            if not msg['content'].strip():
+                return False
+        return True
+
+    def clean_message(self, content: str) -> str:
+        """Clean message content"""
+        if not isinstance(content, str):
+            return ""
+        return content.strip()
+
+    def process_conversation(self, data: Dict[str, Any], source: str) -> Dict:
+        """Process a single conversation"""
+        try:
+            # Ensure messages exist and are properly formatted
+            messages = data.get('messages', [])
+            if not self.validate_conversation(messages):
+                raise ValueError("Invalid conversation format")
+            
+            # Clean message content
+            cleaned_messages = []
+            for msg in messages:
+                cleaned_msg = {
+                    "role": msg["role"],
+                    "content": self.clean_message(msg["content"])
+                }
+                if cleaned_msg["content"]:  # Only add if content is not empty
+                    cleaned_messages.append(cleaned_msg)
+            
+            if not cleaned_messages:
+                raise ValueError("No valid messages after cleaning")
+            
+            # Generate conversation ID
+            conv_id = hashlib.sha256(
+                f"{source}_{cleaned_messages[0]['content']}".encode()
+            ).hexdigest()
+            
+            return {
+                "messages": cleaned_messages,
+                "metadata": {
+                    "source": source,
+                    "conversation_id": conv_id,
+                    "type": "qa"
+                }
+            }
+        except Exception as e:
+            logger.warning(f"Error processing conversation: {e}")
+            return None
+
+    def process_files(self):
+        """Process all input files and write to output"""
+        output_path = Path(self.output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        processed_conversations = []
+        total_processed = 0
+        total_failed = 0
+        
+        try:
+            # Process each input file
+            for input_file in self.input_files:
+                logger.info(f"Processing {input_file}")
+                source = Path(input_file).stem
+                
+                try:
+                    # Read input file line by line
+                    with open(input_file, 'r', encoding='utf-8') as f:
+                        for line_num, line in enumerate(tqdm(f), 1):
+                            try:
+                                # Parse and validate each line
+                                data = json.loads(line.strip())
+                                processed = self.process_conversation(data, source)
+                                
+                                if processed:
+                                    processed_conversations.append(processed)
+                                    total_processed += 1
+                                else:
+                                    total_failed += 1
+                                    
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"Invalid JSON at line {line_num}: {e}")
+                                total_failed += 1
+                                continue
+                                
+                except Exception as e:
+                    logger.error(f"Error processing file {input_file}: {e}")
+                    continue
+            
+            # Write processed conversations
+            with jsonlines.open(output_path, mode='w') as writer:
+                for conv in processed_conversations:
+                    writer.write(conv)
+            
+            logger.info(f"Processing complete:")
+            logger.info(f"Successfully processed: {total_processed}")
+            logger.info(f"Failed to process: {total_failed}")
+            logger.info(f"Output saved to: {output_path}")
+            
+        except Exception as e:
+            logger.error(f"Error during processing: {e}")
+            raise
+
 def main():
     dataset_path = Path('/home/zahemen/datasets/Financial-QA-10k.csv')
-    output_path = Path('/home/zahemen/datasets/finance_qa_conversations.json')
+    output_path = Path('/home/zahemen/datasets/finance_qa_conversations.jsonl')
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     processor = FinanceQAProcessor(dataset_path)

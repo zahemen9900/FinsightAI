@@ -63,21 +63,15 @@ class FinanceAdvisor:
             self.model = base
 
         self.model.eval()
-        self.conversation_history: List[Dict] = []
-        # self.system_prompt = (
-        #     "You are FinSight, a professional finance advisor chatbot. Respond to the user's queries with professional advice and guidance."
-        # )
-        self.system_prompt = (
-            "You are FinSight, a professional financial advisor chatbot. Follow these rules strictly:\n"
-            "1. Always use proper punctuation and grammar\n"
-            "2. Use standard sentence case (not Title Case or ALL CAPS)\n"
-            "3. End all sentences with appropriate punctuation marks\n"
-            "4. Keep responses focused and well-structured\n"
-            "5. Use commas, periods, and other punctuation marks correctly\n"
-            "6. Never use hashtags, emojis, or @ mentions\n"
-            "7. Format responses in clear, complete paragraphs\n"
-            "8. Maintain formal, professional language"
-        )
+        self.conversation_history = []
+        self.system_prompt = {
+            "role": "system",
+            "content": (
+                "You are FinSight, a professional financial advisor. "
+                "Keep responses clear, focused, and concise. "
+                "Provide accurate guidance while maintaining transparency about being an AI."
+            )
+        }
 
     def clean_response(self, text: str) -> str:
         """Clean and format the response text"""
@@ -127,9 +121,19 @@ class FinanceAdvisor:
         top_p: float = 0.9,
         max_new_tokens: int = 256,  # Shorter responses to stay focused
     ) -> str:
-        """Generate a response for the given prompt with optional streaming"""
-        formatted_prompt = self.format_prompt(prompt)
+        """Generate a response using proper chat template"""
+        # Format messages
+        messages = [self.system_prompt]
+        messages.extend(self.conversation_history)
+        messages.append({"role": "user", "content": prompt})
         
+        # Apply chat template using tokenizer's built-in method
+        formatted_prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
         # Prepare inputs and explicitly move to device
         inputs = self.tokenizer(
             formatted_prompt,
@@ -171,38 +175,21 @@ class FinanceAdvisor:
         if not self.stream:
             outputs = outputs.cpu()
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Clean up response
-            try:
-                response = response.split("### Assistant:")[-1]
-                if "### Human:" in response:
-                    response = response.split("### Human:")[0]
-                response = self.clean_response(response.strip())
-            except:
+            response = response.split(prompt)[-1].strip()
+            if not response:
                 response = "I apologize, but I couldn't generate a proper response."
             
-            # Add response to conversation history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response
-            })
+            # Add to conversation history
+            self.conversation_history.append({"role": "user", "content": prompt})
+            self.conversation_history.append({"role": "assistant", "content": response})
+            
+            # Keep only last few turns to prevent context window overflow
+            if len(self.conversation_history) > 6:  # Keep last 3 exchanges
+                self.conversation_history = self.conversation_history[-6:]
             
             return response
-        else:
-            # When streaming, we still need to track the conversation
-            # Get the full response for conversation history
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            try:
-                response = response.split("### Assistant:")[-1].split("### Human:")[0].strip()
-                response = self.clean_response(response)
-            except:
-                response = "I apologize, but I couldn't generate a proper response."
-            
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response
-            })
-            return ""  # Return empty string since output was already streamed
+        
+        return ""  # Empty string for streaming mode
 
 def main():
     import argparse

@@ -1,104 +1,123 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer
-import sys
+from rich.console import Console
+from rich.markdown import Markdown
 
-# Initialize tokenizer and model with device handling and optimizations
+console = Console()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
 
-# Optimize tokenizer settings
+# Initialize tokenizer and model
 tokenizer = AutoTokenizer.from_pretrained(
     model_id,
     padding_side="left",
     trust_remote_code=True
 )
 
-# Load model with optimizations
+# Model initialization with dynamic dtype
+precision = torch.bfloat16 if torch.cuda.is_available() else torch.float32  # Default to bfloat16 on GPU
+
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+    torch_dtype=precision,
     trust_remote_code=True,
-    device_map="auto"  # Automatically handle model placement
-).eval()  # Set to eval mode immediately
+    device_map="auto"
+).eval()
 
 class Conversation:
     def __init__(self):
         self.history = []
     
-    def add_message(self, role, content):
+    def add_message(self, role: str, content: str):
         self.history.append({"role": role, "content": content})
-    
-    def get_formatted_context(self):
-        formatted = ""
-        for msg in self.history[-3:]:  # Only keep last 3 messages for context window
-            if msg["role"] == "human":
-                formatted += f"### Human: {msg['content']}\n"
-            else:
-                formatted += f"### Assistant: {msg['content']}\n"
-        return formatted.strip() + "\n### Assistant:"  # Add final assistant prompt
 
-def generate_response(conversation, prompt, max_length=256, temperature=0.7, stream=True):
-    conversation.add_message("human", prompt)
-    context = conversation.get_formatted_context()
+def generate_response(conversation, prompt: str, stream: bool = True, precision=precision) -> str:
+    """Generate response with better handling and mixed precision."""
+    # Format messages with system prompt
+    messages = conversation.history + [
+        {"role": "system", "content": "Keep responses concise and to the point. Avoid long-winded explanations."},
+        {"role": "user", "content": prompt}
+    ]
     
+    # Apply chat template
+    formatted_prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    
+    # Prepare inputs
     inputs = tokenizer(
-        context,
+        formatted_prompt,
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=max_length,
-        add_special_tokens=True,
-        return_attention_mask=True
+        max_length=2048
     ).to(device)
     
-    streamer = TextStreamer(
-        tokenizer,
-        skip_prompt=True,
-        skip_special_tokens=True,
-    ) if stream else None
-    
-    with torch.inference_mode():
+    # Setup streaming
+    streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True) if stream else None
+
+    # Mixed precision inference
+    with torch.inference_mode(), torch.amp.autocast(device_type='cuda', dtype=precision, cache_enabled=True):
         outputs = model.generate(
             **inputs,
-            max_new_tokens=256,
-            temperature=temperature,
+            max_new_tokens=128,
+            temperature=0.3,
+            top_p=0.9,
             do_sample=True,
+            repetition_penalty=1.5,
+            no_repeat_ngram_size=3,
             pad_token_id=tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            top_p=0.9,
-            repetition_penalty=1.1,
-            no_repeat_ngram_size=3,
-            num_beams=1,  # Set to 1 since we're not doing beam search
-            early_stopping=False,  # Disable early stopping since num_beams=1
+            early_stopping=True,
             streamer=streamer
         )
     
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    # Clean up response
-    try:
-        assistant_response = response.split("### Assistant:")[-1]
-        if "### Human:" in assistant_response:
-            assistant_response = assistant_response.split("### Human:")[0]
-        assistant_response = assistant_response.strip()
-    except:
-        assistant_response = "I apologize, but I couldn't generate a proper response."
-    
-    conversation.add_message("assistant", assistant_response)
-    return assistant_response
+    if not stream:
+        # Get response without streaming
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        response = response.split(prompt)[-1].strip()
+        print(f"\nAssistant: {response}")
+        return response
 
 def chat():
+    """Interactive chat loop with better formatting."""
     conversation = Conversation()
-    print("Chat with SMOLLM-V2! (type 'quit' to exit)")
+    console.print("\n[bold cyan]Welcome to FinSight AI - Your Financial Advisor![/bold cyan]")
+    console.print("[dim]Type 'quit' to exit, 'clear' to start fresh[/dim]\n")
     
     while True:
-        user_input = input("\nYou: ").strip()
-        if user_input.lower() in ['quit', 'exit']:
-            break
+        try:
+            user_input = console.input("[bold green]You:[/bold green] ").strip()
             
-        print("\nAssistant: ", end="")  # Start response line
-        response = generate_response(conversation, user_input, stream=True)
-        print("\n")  # Add newline after streamed response
+            if user_input.lower() == 'quit':
+                break
+            elif user_input.lower() == 'clear':
+                conversation = Conversation()
+                console.print("[dim]Conversation history cleared[/dim]")
+                continue
+            
+            # Add user message to history
+            conversation.add_message("user", user_input)
+            
+            # Generate and display response
+            console.print("\n[bold blue]Assistant:[/bold blue] ", end="")
+            response = generate_response(conversation, user_input, precision=precision)
+            
+            # Add assistant response to history
+            if response:
+                conversation.add_message("assistant", response)
+            
+            console.print()  # Add newline after response
+            
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {str(e)}")
+            continue
+    
+    console.print("\n[bold cyan]Thanks for chatting! Goodbye![/bold cyan]")
 
 if __name__ == "__main__":
     chat()

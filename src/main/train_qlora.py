@@ -9,7 +9,7 @@ from typing import Dict, Optional, List, Union
 import torch
 import datasets
 import transformers
-from datasets import load_dataset, Dataset
+from datasets import Dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -47,18 +47,19 @@ class QLoRAConfig(SFTConfig):
     
     # Training specific parameters 
     num_train_epochs: int = 2
-    learning_rate: float = 2e-4
+    learning_rate: float = 2e-5
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 8
     logging_steps: int = 30
     warmup_ratio: float = 0.03
+    lr_scheduler_type: str = 'cosine' 
     eval_strategy: str = "steps"
     eval_steps: int = 100
     save_strategy: str = "steps"
     save_steps: int = 100
-    save_total_limit: int = 3
+    save_total_limit: int = 4
     load_best_model_at_end: bool = True
     metric_for_best_model: str = "eval_loss"  # Added for early stopping
     greater_is_better: bool = False  # Added for early stopping - we want loss to decrease
@@ -157,18 +158,21 @@ def setup_quantized_model(model_args, training_args):
     
     return model
 
-def merge_datasets(dataset_paths: List[str], tokenizer) -> Dataset:
-    """
-    Load and merge multiple datasets that share the same structure.
-    """
+def merge_datasets(dataset_paths: List[str], tokenizer, num_proc: int = 4) -> Dataset:
+    """Load and merge multiple datasets with improved chat template handling"""
     logger.info("Loading and merging datasets...")
     
     all_datasets = []
     for path in dataset_paths:
         try:
-            dataset = prepare_dataset(path, tokenizer)
+            dataset = prepare_dataset(path, tokenizer, num_proc=num_proc)
             all_datasets.append(dataset)
-            logger.info(f"Successfully loaded dataset from: {path}")
+            
+            # Log sample from dataset
+            sample_idx = random.randint(0, len(dataset['train'])-1)
+            logger.info(f"\nSample from {path}:")
+            logger.info(f"{dataset['train'][sample_idx]['text'][:500]}...")
+            
         except Exception as e:
             logger.warning(f"Failed to load dataset from {path}: {e}")
             continue
@@ -176,16 +180,16 @@ def merge_datasets(dataset_paths: List[str], tokenizer) -> Dataset:
     if not all_datasets:
         raise ValueError("No datasets were successfully loaded")
     
-    # Merge train splits
+    # Merge splits
     merged_train = datasets.concatenate_datasets([d["train"] for d in all_datasets])
-    # Merge test splits
     merged_test = datasets.concatenate_datasets([d["test"] for d in all_datasets])
     
-    # Shuffle the merged datasets
+    # Shuffle
     merged_train = merged_train.shuffle(seed=42)
     merged_test = merged_test.shuffle(seed=42)
     
-    logger.info(f"Final merged dataset sizes - Train: {len(merged_train)}, Test: {len(merged_test)}")
+    logger.info(f"\nFinal merged dataset sizes:")
+    logger.info(f"Train: {len(merged_train)}, Test: {len(merged_test)}")
     
     return datasets.DatasetDict({
         "train": merged_train,
@@ -200,7 +204,7 @@ def train():
     # Add support for multiple dataset paths
     dataset_paths = [
         "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
-        "/home/zahemen/datasets/finance_qa_conversations.json",
+        "/home/zahemen/datasets/finance_qa_conversations.jsonl",
         "/home/zahemen/datasets/intro_conversations.jsonl"
     ]
 

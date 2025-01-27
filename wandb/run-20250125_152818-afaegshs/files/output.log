@@ -1,0 +1,42 @@
+  0%|                                                                                                                                                             | 0/400 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+ 25%|████████████████████████████████████▎                                                                                                            | 100/400 [34:24<1:36:25, 19.29s/it]/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+{'loss': 20.5566, 'grad_norm': 1.084975004196167, 'learning_rate': 1.9893981312363563e-05, 'epoch': 0.15}
+{'loss': 19.8144, 'grad_norm': 0.7044693827629089, 'learning_rate': 1.9254212296427043e-05, 'epoch': 0.3}
+{'loss': 18.9354, 'grad_norm': 0.6281325817108154, 'learning_rate': 1.8071090619916095e-05, 'epoch': 0.45}
+  return fn(*args, **kwargs)                                                                                                                                                              
+{'eval_loss': 2.2775044441223145, 'eval_runtime': 129.7569, 'eval_samples_per_second': 2.759, 'eval_steps_per_second': 1.38, 'epoch': 0.5}
+ 50%|███████████████████████████████████████████████████████████████████████▌                                                                       | 200/400 [1:19:03<1:18:15, 23.48s/it]/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+{'loss': 17.987, 'grad_norm': 0.6170501112937927, 'learning_rate': 1.6414082196311402e-05, 'epoch': 0.6}
+{'loss': 17.5853, 'grad_norm': 0.893014669418335, 'learning_rate': 1.4380476768566825e-05, 'epoch': 0.75}
+{'loss': 17.3172, 'grad_norm': 1.1352742910385132, 'learning_rate': 1.2089675630312755e-05, 'epoch': 0.9}
+  return fn(*args, **kwargs)                                                                                                                                                              
+{'eval_loss': 2.1726675033569336, 'eval_runtime': 135.8734, 'eval_samples_per_second': 2.635, 'eval_steps_per_second': 1.317, 'epoch': 1.0}
+ 75%|████████████████████████████████████████████████████████████████████████████████████████████████████████████▊                                    | 300/400 [1:55:29<33:42, 20.23s/it]/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:632: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+{'loss': 17.3873, 'grad_norm': 1.47901451587677, 'learning_rate': 9.676181087466444e-06, 'epoch': 1.05}
+{'loss': 17.4307, 'grad_norm': 1.7248307466506958, 'learning_rate': 7.2816992776365714e-06, 'epoch': 1.2}
+{'loss': 16.8111, 'grad_norm': 7.500550270080566, 'learning_rate': 5.046820023100129e-06, 'epoch': 1.35}
+{'loss': 16.6008, 'grad_norm': 1.012347936630249, 'learning_rate': 3.1027622272189572e-06, 'epoch': 1.5}
+  return fn(*args, **kwargs)                                                                                                                                                              
+{'eval_loss': 2.071380138397217, 'eval_runtime': 132.4417, 'eval_samples_per_second': 2.703, 'eval_steps_per_second': 1.352, 'epoch': 1.5}
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 400/400 [2:30:50<00:00, 22.63s/it]
+{'loss': 16.5694, 'grad_norm': 0.46401655673980713, 'learning_rate': 1.5636694758399563e-06, 'epoch': 1.65}
+{'loss': 16.2467, 'grad_norm': 0.5666464567184448, 'learning_rate': 5.199082004372958e-07, 'epoch': 1.8}
+{'loss': 16.1852, 'grad_norm': 1.2321542501449585, 'learning_rate': 3.2761895254306285e-08, 'epoch': 1.95}
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 179/179 [02:10<00:00,  1.37it/s]
+{'eval_loss': 2.066673994064331, 'eval_runtime': 132.4947, 'eval_samples_per_second': 2.702, 'eval_steps_per_second': 1.351, 'epoch': 2.0}
+{'train_runtime': 9053.1508, 'train_samples_per_second': 0.709, 'train_steps_per_second': 0.044, 'train_loss': 17.615833892822266, 'epoch': 2.0}
+***** train metrics *****
+  epoch                    =     1.9963
+  total_flos               = 27613113GF
+  train_loss               =    17.6158
+  train_runtime            = 2:30:53.15
+  train_samples_per_second =      0.709
+  train_steps_per_second   =      0.044
+***** eval metrics *****
+  epoch                   =     1.9963
+  eval_loss               =     2.0667
+  eval_runtime            = 0:02:11.07
+  eval_samples_per_second =      2.731
+  eval_steps_per_second   =      1.366

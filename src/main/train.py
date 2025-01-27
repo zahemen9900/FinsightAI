@@ -4,7 +4,7 @@ import random
 import sys
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Literal
 
 import torch
 import datasets
@@ -38,85 +38,96 @@ class ModelArguments:
     trust_remote_code: bool = False
     attn_implementation: str = "flash_attention_2"
 
-def apply_chat_template(example: Dict, tokenizer) -> Dict:
-    """Apply chat template to messages and preserve metadata"""
+def maybe_insert_system_message(messages, tokenizer):
+    if messages[0]["role"] == "system":
+        return
+
+    # chat template can be one of two attributes, we check in order
+    chat_template = tokenizer.chat_template
+    if chat_template is None:
+        chat_template = tokenizer.get_chat_template()
+
+    # confirm the jinja template refers to a system message before inserting
+    if "system" in chat_template or "<|im_start|>" in chat_template:
+        messages.insert(0, {"role": "system", "content": ""})
+
+def apply_chat_template(
+    example: Dict,
+    tokenizer,
+    task: Literal["sft", "generation"] = "sft",
+    auto_insert_empty_system_msg: bool = True,
+    use_metadata: bool = False,
+) -> Dict:
+    """Apply chat template following SmolLM2's implementation"""
     try:
-        messages = example.get("messages", [])
-        # Ensure all message contents are strings
-        for msg in messages:
-            if msg.get("content") is None:
-                msg["content"] = ""
+        messages = example["messages"]
+        
+        # Add empty system message if none exists
+        if auto_insert_empty_system_msg:
+            maybe_insert_system_message(messages, tokenizer)
             
         # Apply template
         example["text"] = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=False
+            add_generation_prompt=True if task == "generation" else False,
         )
         
-        # Preserve metadata in the processed example
-        if "metadata" in example:
-            example["source"] = example["metadata"].get("source", "")
-            example["score"] = example["metadata"].get("score", 0.0)
-            example["prompt_id"] = example["metadata"].get("prompt_id", "")
-            example["has_context"] = example["metadata"].get("has_context", False)
-            example["ticker"] = example["metadata"].get("ticker", "")
-            example["filing_year"] = example["metadata"].get("filing_year", "")
-            
+        if use_metadata:
+            # Preserve metadata
+            if "metadata" in example:
+                for key in ["source", "conversation_id", "type"]:
+                    if key in example["metadata"]:
+                        example[key] = example["metadata"][key]
+
         return example
     except Exception as e:
         logger.warning(f"Error applying chat template: {e}")
-        # Provide fallback with metadata
         return {
             "text": "Error processing conversation",
             "source": "error",
-            "score": 0.0,
-            "prompt_id": "",
-            "has_context": False,
-            "ticker": "",
-            "filing_year": ""
+            "conversation_id": "",
+            "type": "error"
         }
 
-def prepare_dataset(dataset_path: str, tokenizer) -> Dataset:
-    """Load and prepare dataset for training with metadata handling"""
+def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
+    """Load and prepare dataset with improved chat template handling"""
     logger.info(f"Loading dataset from {dataset_path}")
     try:
         # Load dataset
         dataset = datasets.load_dataset('json', data_files=dataset_path)['train']
         
-        # Apply chat template and preserve metadata
-        logger.info("Applying chat template and processing metadata")
+        # Get columns to preserve
+        metadata_columns = ['source', 'conversation_id', 'type']
+        columns_to_remove = [col for col in dataset.column_names if col not in metadata_columns]
         
-        # Keep metadata fields when mapping
-        keep_columns = ['source', 'score', 'prompt_id', 'has_context', 'ticker', 'filing_year']
-        
+        # Apply chat template with parallel processing
         dataset = dataset.map(
-            lambda x: apply_chat_template(x, tokenizer),
-            remove_columns=[col for col in dataset.column_names if col not in keep_columns],
+            apply_chat_template,
+            fn_kwargs={
+                "tokenizer": tokenizer,
+                "task": "sft",
+                "auto_insert_empty_system_msg": True,
+            },
+            num_proc=num_proc,
+            remove_columns=columns_to_remove,
             desc="Applying chat template"
         )
         
-        # Log metadata statistics
+        # Log dataset statistics
+        logger.info("\nDataset Statistics:")
+        logger.info(f"Total examples: {len(dataset)}")
         if 'source' in dataset.column_names:
             sources = dataset.unique('source')
-            logger.info(f"Dataset sources: {sources}")
+            source_counts = {src: len(dataset.filter(lambda x: x['source'] == src)) for src in sources}
+            logger.info("Source distribution:")
+            for src, count in source_counts.items():
+                logger.info(f"  {src}: {count} ({count/len(dataset)*100:.1f}%)")
         
-        if 'has_context' in dataset.column_names:
-            # Convert None values to False and ensure boolean type
-            dataset = dataset.map(
-                lambda x: {'has_context': bool(x.get('has_context', False))}
-            )
-            context_ratio = sum(1 for x in dataset['has_context'] if x) / len(dataset)
-            logger.info(f"Samples with context: {context_ratio:.2%}")
-            
-        # Split into train/test without stratification
-        dataset = dataset.train_test_split(
-            test_size=0.3,
-            seed=42,
-            shuffle=True
-        )
+        # Split dataset
+        dataset = dataset.train_test_split(test_size=0.1, seed=42)
+        logger.info(f"Train size: {len(dataset['train'])}, Test size: {len(dataset['test'])}")
         
-        logger.info(f"Final dataset sizes - Train: {len(dataset['train'])}, Test: {len(dataset['test'])}")
         return dataset
         
     except Exception as e:
