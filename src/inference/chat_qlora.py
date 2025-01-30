@@ -74,55 +74,149 @@ class FinanceAdvisor:
             )
         }
 
-        # Add question type patterns
+        # Enhanced question type patterns
         self.question_patterns = {
+            # Basic interactions (very concise)
             'greeting': (
-                r'\b(hi|hello|hey|greetings)\b|^[^a-zA-Z]*$',
-                32  # Very short response for greetings
+                r'\b(hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening)|yo|sup)\b|^[^a-zA-Z]*$',
+                36
             ),
-            'simple': (
+            'farewell': (
+                r'\b(bye|goodbye|thanks|thank you|exit|quit|stop)\b',
+                24
+            ),
+            'acknowledgment': (
+                r'^(ok|okay|sure|alright|i see|got it|understood)\b',
+                24
+            ),
+            
+            # Simple queries (concise)
+            'basic_question': (
                 r'^(what( is|\'s)|how|why|can you|could you|would you|do you|is|are)\b.{0,50}\?*$',
-                64  # Short response for simple questions
+                 80
             ),
+            'definition': (
+                r'\b(what (is|are|does)|define|meaning of|definition)\b.{0,50}\?*$',
+                80
+            ),
+            
+            # Comparisons (medium length)
             'comparison': (
-                r'\b(vs|versus|compare|difference|better|which|or)\b',
-                96  # Medium length for comparisons
+                r'\b(vs|versus|compare|difference|better|which|or|between|prefer)\b',
+                96
             ),
+            'pros_cons': (
+                r'\b(advantages|disadvantages|benefits|drawbacks|pros|cons|upsides|downsides)\b',
+                112
+            ),
+            
+            # Explanations (detailed)
             'explanation': (
-                r'\b(explain|describe|elaborate|tell me about|how does)\b',
-                128  # Longer for explanations
+                r'\b(explain|describe|elaborate|tell me about|how does|in what way|why does)\b',
+                128
             ),
+            'process': (
+                r'\b(how to|steps|process|procedure|method|approach|way to|guide)\b',
+                144
+            ),
+            
+            # Analysis (comprehensive)
             'analysis': (
-                r'\b(analyze|evaluate|assess|what do you think|opinion|strategy|plan)\b',
-                192  # Even longer for analysis
+                r'\b(analyze|evaluate|assess|review|examine|consider|thoughts on|opinion|strategy|plan)\b',
+                192
             ),
+            'recommendation': (
+                r'\b(recommend|suggest|advise|should i|what would you|best way|optimal|ideal)\b',
+                160
+            ),
+            
+            # Lists and enumerations
             'list': (
-                r'\b(list|what are|give me|show me|tips|steps|ways)\b.*\b(points|steps|ways|things|tips)\b',
-                160  # Good length for lists
-            )
+                r'\b(list|what are|give me|show me|tips|steps|ways)\b.*\b(points|steps|ways|things|tips|examples|factors|reasons)\b',
+                160
+            ),
+            
+            # Financial specifics (detailed)
+            'investment': (
+                r'\b(invest|stock|bond|etf|fund|portfolio|diversify|asset|allocation)\b',
+                176
+            ),
+            'risk_related': (
+                r'\b(risk|safe|secure|volatile|stability|protect|hedge|insurance)\b',
+                144
+            ),
+            'numbers_heavy': (
+                r'\b(\d+%|\$\d+|ratio|rate|return|yield|profit|loss)\b',
+                128
+            ),
+            
+            # Edge cases
+            'complex_query': (
+                r'(.*?\b(and|or)\b.*?\?)|(\?.*?\band\b.*?\?)',  # Multiple questions
+                200
+            ),
+            'scenario': (
+                r'\b(imagine|suppose|what if|scenario|case|situation)\b',
+                176
+            ),
+            'urgent': (
+                r'\b(urgent|asap|emergency|quick|fast|help|crisis)\b',
+                96  # Keep it focused for urgent queries
+            ),
+            'clarification': (
+                r'\b(clarify|understand|mean|rephrase|explain again|still don\'t get)\b',
+                80
+            ),
         }
 
     def analyze_question(self, question: str) -> int:
-        """Determine appropriate response length based on question type"""
+        """Enhanced question analysis with better fallbacks"""
         question = question.lower().strip()
         
-        # Default token length
+        # Default token length for unmatched patterns
         default_length = 96
         
         # Check for specific patterns
+        matched_tokens = []
         for _, (pattern, tokens) in self.question_patterns.items():
             if re.search(pattern, question):
-                return tokens
-                
-        # Fallback based on question length and complexity
-        if len(question.split()) <= 5:
-            return 64  # Short question, short response
-        elif '?' not in question:
-            return 48  # Not even a question, keep it brief
-        elif len(question.split()) >= 15:
-            return 160  # Complex question, longer response
-            
-        return default_length
+                matched_tokens.append(tokens)
+        
+        if matched_tokens:
+            # If multiple patterns match, use the larger token length
+            return max(matched_tokens)
+        
+        # Enhanced fallback logic
+        words = len(question.split())
+        
+        # Super short inputs
+        if words <= 3:
+            return 48
+        
+        # Very long or complex queries
+        if words >= 20:
+            return 200
+        
+        # Questions with multiple parts
+        if question.count('?') > 1:
+            return 176
+        
+        # Questions with numbers might need more detail
+        if re.search(r'\d+', question):
+            return 144
+        
+        # Questions with specific financial terms
+        financial_terms = r'\b(stock|bond|invest|market|fund|portfolio|risk|return|dividend)\b'
+        if re.search(financial_terms, question):
+            return 144
+        
+        # Default based on question length
+        if words < 8:
+            return 64
+        elif words < 15:
+            return 96
+        else:
+            return 128
 
     def generate_response(
         self,
