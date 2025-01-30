@@ -1,0 +1,17 @@
+{"time":"2025-01-28T23:04:10.097531886Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-28T23:04:10.097542612Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250128_230410-luxjd5z6/logs/debug-core.log"}
+{"time":"2025-01-28T23:04:10.254977486Z","level":"INFO","msg":"created new stream","id":"luxjd5z6"}
+{"time":"2025-01-28T23:04:10.255053384Z","level":"INFO","msg":"stream: started","id":"luxjd5z6"}
+{"time":"2025-01-28T23:04:10.255456089Z","level":"INFO","msg":"writer: Do: started","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:04:10.255471418Z","level":"INFO","msg":"sender: started","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:04:10.255548772Z","level":"INFO","msg":"handler: started","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:04:10.778873377Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-28T23:06:08.607967439Z","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/zahemen9900-ai/huggingface/luxjd5z6/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-01-28T23:46:25.661009879Z","level":"INFO","msg":"stream: closing","id":"luxjd5z6"}
+{"time":"2025-01-28T23:46:25.661065202Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-28T23:46:25.661573031Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-28T23:46:27.215090214Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-28T23:46:27.735705407Z","level":"INFO","msg":"handler: closed","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:46:27.735758533Z","level":"INFO","msg":"writer: Close: closed","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:46:27.735805583Z","level":"INFO","msg":"sender: closed","stream_id":"luxjd5z6"}
+{"time":"2025-01-28T23:46:27.735825947Z","level":"INFO","msg":"stream: closed","id":"luxjd5z6"}

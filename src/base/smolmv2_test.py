@@ -58,7 +58,6 @@ def generate_response(conversation, prompt: str, stream: bool = True, precision=
     # Setup streaming
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True) if stream else None
 
-    # Mixed precision inference
     with torch.inference_mode(), torch.amp.autocast(device_type='cuda', dtype=precision, cache_enabled=True):
         outputs = model.generate(
             **inputs,

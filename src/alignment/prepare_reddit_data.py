@@ -40,8 +40,7 @@ nlp = spacy.load('en_core_web_sm')
 # Load financial domain specific model if available
 try:
     nlp_financial = spacy.load('en_core_financial_web_sm')
-except OSError:
-    logger.warning("Financial model not found. Falling back to general model.")
+except:
     nlp_financial = nlp
 
 class DatasetCleaner:
@@ -420,16 +419,10 @@ class DatasetCleaner:
                 starter = random.choice(self.conv_starters)
                 
                 # Create multi-turn conversation
-                sys_prompt_vars = [
-                    "You are FinSight, an AI financial advisor. Provide helpful financial guidance with a friendly and welcoming tone.",
-                    "You are FinSight, an AI financial advisor. Provide accurate guidance in a nice and friendly manner.",
-                    "You are FinSight, an AI financial advisor. Offer helpful financial advice with a friendly and welcoming tone.",
-                    "You are FinSight, an AI financial advisor. Keep responses clear, focused, and concise."                                                    
-                ]
                 messages = [
                     {
                         "role": "system",
-                        "content": random.choice(sys_prompt_vars[:-1]) if len(cleaned_body) > 200 else sys_prompt_vars[-1] # Use shorter prompt for concise responses
+                        "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
                     },
                     {
                         "role": "user",
@@ -496,16 +489,10 @@ class DatasetCleaner:
                     question += f"\n\n{cleaned_selftext}"
                 
                 # Create multi-turn conversation without starter
-                sys_prompt_vars = [
-                    "You are FinSight, an AI financial advisor. Provide helpful financial guidance with a friendly and welcoming tone.",
-                    "You are FinSight, an AI financial advisor. Provide accurate guidance in a nice and friendly manner.",
-                    "You are FinSight, an AI financial advisor. Offer helpful financial advice with a friendly and welcoming tone.",
-                    "You are FinSight, an AI financial advisor. Keep responses clear, focused, and concise."                                                    
-                ]
                 messages = [
                     {
                         "role": "system",
-                        "content": random.choice(sys_prompt_vars[:-1]) if len(cleaned_body) > 200 else sys_prompt_vars[-1]
+                        "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
                     },
                     {
                         "role": "user",
@@ -581,35 +568,94 @@ class DatasetCleaner:
             return 0.0
 
     def assess_financial_relevance(self, text: str) -> float:
-        """Assess how relevant the text is to financial topics"""
+        """Assess how relevant the text is to financial topics using multiple metrics"""
         if not isinstance(text, str):
             return 0.0
             
         try:
-            # Use spaCy's financial model for entity recognition
-            doc = nlp_financial(text)
+            # Use both general and financial models
+            doc_general = nlp(text)
+            doc_financial = nlp_financial(text)
             
-            # Check if the model has word vectors
-            if not doc.has_vector:
-                logger.warning("Model does not have word vectors. Skipping financial relevance assessment.")
-                return 0.0
+            # Enhanced entity recognition with weighted categories
+            entity_weights = {
+                'ORG': 1.0,      # Organizations
+                'MONEY': 1.2,    # Monetary values
+                'PERCENT': 1.1,  # Percentages
+                'QUANTITY': 0.8, # Quantities
+                'DATE': 0.5,     # Dates (some relevance for financial context)
+                'GPE': 0.3       # Geopolitical entities
+            }
             
-            # Count financial entities
-            financial_entities = sum(1 for ent in doc.ents if ent.label_ in {
-                'ORG', 'MONEY', 'PERCENT', 'QUANTITY'
-            })
+            # Calculate weighted entity score
+            entity_score = sum(
+                entity_weights.get(ent.label_, 0)
+                for ent in doc_financial.ents
+                if ent.label_ in entity_weights
+            ) / max(len(doc_financial.ents), 1)
             
-            # Count financial keywords
-            words = set(text.lower().split())
-            keyword_matches = len(words.intersection(self.financial_keywords))
+            # Keyword analysis with context
+            words = text.lower().split()
+            word_set = set(words)
             
-            # Calculate combined score
-            relevance_score = (
-                0.6 * (financial_entities / max(len(doc.ents), 1)) +
-                0.4 * (keyword_matches / max(len(words), 1))
+            # Calculate keyword density
+            keyword_matches = len(word_set.intersection(self.financial_keywords))
+            keyword_density = keyword_matches / max(len(words), 1)
+            
+            # Check for financial bigrams and phrases
+            financial_phrases = [
+                'market analysis', 'risk management', 'asset allocation',
+                'interest rates', 'stock market', 'financial planning'
+            ]
+            phrase_matches = sum(1 for phrase in financial_phrases if phrase in text.lower())
+            phrase_score = phrase_matches / max(len(financial_phrases), 1)
+            
+            # Semantic analysis using spaCy's word vectors
+            financial_topics = [
+                'finance', 'investment', 'banking', 'trade', 'stock',
+                'market', 'economy', 'money', 'crypto', 'currency',
+                'fund', 'asset', 'portfolio', 'risk', 'return', 'dividend', 
+                'interest', 'inflation', 'tax', 'loan', 'mortgage', 'savings', 
+                'wealth', 'insurance', 'audit', 'accounting', 'budget', 'retirement',
+                'pension', 'regulation', 'compliance', 'fraud', 'scam', 'payment',
+                'transaction', 'exchange', 'blockchain', 'token', 'coin', 'wallet',
+                'mining', 'staking', 'defi', 'nft', 'yield farming', 'liquidity pool',
+                'impermanent loss', 'rug pull', 'pump and dump', 'bear market',
+                'bull market', 'short selling', 'long position', 'margin trading',
+                'leverage', 'volatility', 'correlation', 'beta', 'alpha', 'sharpe ratio',
+                'sortino ratio', 'treynor ratio', 'jensen alpha', 'efficient market hypothesis',
+                'random walk', 'technical analysis', 'fundamental analysis', 'quantitative analysis',
+                'quantitative easing', 'monetary policy', 'fiscal policy', 'central bank', 'interest rate',
+                'inflation rate', 'deflation', 'stagflation', 'recession', 'depression', 'recovery',
+                'growth', 'expansion', 'peak', 'trough', 'cycle', 'bubble', 'crash', 'black swan',
+                'tail risk', 'systemic risk', 'counterparty risk', 'credit risk', 'liquidity risk',
+                'market risk', 'operational risk', 'regulatory risk', 'political risk', 'economic risk',
+                'geopolitical risk', 'environmental risk', 'social risk', 'ESG', 'sustainable investing',
+                'impact investing', 'green finance', 'carbon footprint', 'carbon offset', 'carbon credit',
+                'sustainability', 'climate change', 'global warming', 'renewable energy', 'clean energy',
+                'green energy', 'solar power'
+            ]
+            semantic_scores = []
+            for token in doc_general:
+                if token.has_vector:
+                    topic_similarity = max(
+                        token.similarity(doc_general.vocab[topic])
+                        for topic in financial_topics
+                    )
+                    semantic_scores.append(topic_similarity)
+            
+            semantic_score = np.mean(semantic_scores) if semantic_scores else 0.0
+            
+            # Combine scores with weights
+            final_score = (
+                0.35 * entity_score +
+                0.30 * keyword_density +
+                0.20 * semantic_score +
+                0.15 * phrase_score
             )
             
-            return min(relevance_score, 1.0)
+            return min(final_score, 1.0)
+            
         except Exception as e:
             logger.warning(f"Error assessing financial relevance: {e}")
             return 0.0

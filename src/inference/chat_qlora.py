@@ -1,3 +1,4 @@
+import re
 import sys
 import torch
 import logging
@@ -69,59 +70,70 @@ class FinanceAdvisor:
             "content": (
                 "You are FinSight, a professional financial advisor. "
                 "Keep responses clear, focused, and concise. "
-                "Provide accurate guidance while maintaining transparency about being an AI."
+                # "Provide accurate guidance while maintaining transparency about being an AI."
             )
         }
 
-    def clean_response(self, text: str) -> str:
-        """Clean and format the response text"""
-        # Fix capitalization issues
-        text = '. '.join(s.strip().capitalize() for s in text.split('.') if s.strip())
-        
-        # Ensure proper spacing after punctuation
-        text = text.replace('.', '. ').replace('?', '? ').replace('!', '! ')
-        
-        # Remove multiple spaces
-        text = ' '.join(text.split())
-        
-        # Remove social media elements
-        text = text.replace('#', '').replace('@', '')
-        
-        # Fix missing periods at end
-        if text and text[-1] not in '.!?':
-            text += '.'
-            
-        return text
+        # Add question type patterns
+        self.question_patterns = {
+            'greeting': (
+                r'\b(hi|hello|hey|greetings)\b|^[^a-zA-Z]*$',
+                32  # Very short response for greetings
+            ),
+            'simple': (
+                r'^(what( is|\'s)|how|why|can you|could you|would you|do you|is|are)\b.{0,50}\?*$',
+                64  # Short response for simple questions
+            ),
+            'comparison': (
+                r'\b(vs|versus|compare|difference|better|which|or)\b',
+                96  # Medium length for comparisons
+            ),
+            'explanation': (
+                r'\b(explain|describe|elaborate|tell me about|how does)\b',
+                128  # Longer for explanations
+            ),
+            'analysis': (
+                r'\b(analyze|evaluate|assess|what do you think|opinion|strategy|plan)\b',
+                192  # Even longer for analysis
+            ),
+            'list': (
+                r'\b(list|what are|give me|show me|tips|steps|ways)\b.*\b(points|steps|ways|things|tips)\b',
+                160  # Good length for lists
+            )
+        }
 
-    def format_prompt(self, message: str) -> str:
-        """Format a message into the expected chat format"""
-        # Add the new message to conversation history
-        self.conversation_history.append({
-            "role": "user",
-            "content": message
-        })
+    def analyze_question(self, question: str) -> int:
+        """Determine appropriate response length based on question type"""
+        question = question.lower().strip()
         
-        # Keep only last 3 messages for context window
-        recent_history = self.conversation_history[-3:]
+        # Default token length
+        default_length = 96
         
-        # Format conversation history with specific prefix
-        formatted = f"{self.system_prompt}\n\n"
-        for msg in recent_history:
-            if msg["role"] == "user":
-                formatted += f"### Human: {msg['content']}\n"
-            else:
-                formatted += f"### Assistant: {msg['content']}\n"
+        # Check for specific patterns
+        for _, (pattern, tokens) in self.question_patterns.items():
+            if re.search(pattern, question):
+                return tokens
                 
-        return formatted.strip() + "\n### Assistant:"
+        # Fallback based on question length and complexity
+        if len(question.split()) <= 5:
+            return 64  # Short question, short response
+        elif '?' not in question:
+            return 48  # Not even a question, keep it brief
+        elif len(question.split()) >= 15:
+            return 160  # Complex question, longer response
+            
+        return default_length
 
     def generate_response(
         self,
         prompt: str,
         temperature: float = 0.3,  # Lower temperature for more focused responses
-        top_p: float = 0.9,
-        max_new_tokens: int = 256,  # Shorter responses to stay focused
+        top_p: float = 0.80
     ) -> str:
         """Generate a response using proper chat template"""
+        # Determine appropriate response length
+        max_new_tokens = self.analyze_question(prompt)
+
         # Format messages
         messages = [self.system_prompt]
         messages.extend(self.conversation_history)
@@ -147,20 +159,22 @@ class FinanceAdvisor:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}  # Move all tensors to device
 
         # Set up streamer if streaming is enabled
+        timeout = max(20.0, max_new_tokens // 5.0)
         streamer = TextStreamer(
             self.tokenizer,
             skip_prompt=True,
             skip_special_tokens=True,
+            timeout=timeout
         ) if self.stream else None
 
         # Add temperature control for more focused responses
-        temperature = min(temperature, 0.5)  # Cap temperature even lower
+        temperature = min(temperature, 0.7 if max_new_tokens > 128 else 0.4)
 
         with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                temperature=min(temperature, 0.4),  # Lower temperature
+                temperature=temperature,
                 top_p=top_p,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
@@ -184,8 +198,8 @@ class FinanceAdvisor:
             self.conversation_history.append({"role": "assistant", "content": response})
             
             # Keep only last few turns to prevent context window overflow
-            if len(self.conversation_history) > 6:  # Keep last 3 exchanges
-                self.conversation_history = self.conversation_history[-6:]
+            if len(self.conversation_history) > 2:  # Keep last 3 exchanges
+                self.conversation_history = self.conversation_history[-2:]
             
             return response
         
@@ -195,7 +209,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-140")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_length", type=int, default=2048)
     args = parser.parse_args()

@@ -1,42 +1,36 @@
-# FinsightAI 
+<div align="center">
 
+# ⚡ FinSight AI
 
-# [![Python 3.11](https://img.shields.io/badge/PYTHON-3.11-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PYTORCH-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-SmolLM2-orange)](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct)
-[![License](https://img.shields.io/badge/LICENSE-MIT-green.svg)](LICENSE)
+Your intelligent financial companion, powered by advanced AI.
 
-A financial advisory chatbot powered by SmolLM2-1.7B, fine-tuned on curated Reddit financial discussions using QLoRA for efficient training.
+<div align="center">
+    <img src="https://img.shields.io/badge/PyTorch-2.0.1-EE4C2C?style=for-the-badge&logo=pytorch" alt="PyTorch"/>
+    <img src="https://img.shields.io/badge/Transformers-4.34.0-409EFF?style=for-the-badge&logo=huggingface" alt="Transformers"/>
+    <img src="https://img.shields.io/badge/Gradio-3.50.2-F37626?style=for-the-badge&logo=hexo" alt="Gradio"/>
+    <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python" alt="Python"/>
+</div>
 
-## 🌟 Features
+</div>
 
-- Fine-tuned on 250k+ high-quality financial discussions from Reddit
-- Efficient training using QLoRA (4-bit quantization with LoRA)
-- Optimized for financial domain knowledge and advice
-- Memory efficient implementation for consumer hardware
+## 🚀 Features
 
-## 🛠️ Tech Stack
+- **Fast and Efficient**: Optimized QLoRA training with mixed precision and DeepSpeed integration
+- **Interactive Chat Interface**: Modern, responsive UI with Gradio
+- **Smart Dataset Processing**: Advanced filtering and cleaning of financial conversations
+- **Memory Efficient**: Optimized for both training and inference
+- **Rich Conversation History**: Support for multi-turn financial discussions
 
-- 🤗 SmolLM2-1.7B Base Model
-- 🔧 PyTorch
-- 📚 TRL (Transformer Reinforcement Learning)
-- 🎯 PEFT & BitsAndBytes for efficient fine-tuning
-- 📊 WandB for experiment tracking
+## 🛠 Recent Updates
 
-## 🚀 Getting Started
+- Added proportion-based dataset merging for better control over training data
+- Improved model response conciseness with enhanced generation parameters
+- Optimized training speed with ZeRO-2 and efficient batch sizes
+- Enhanced UI with gradient header and modern styling
+- Added flash attention support for faster inference
+- Improved memory management during both training and inference
 
-### Prerequisites
-
-```bash
-python 3.11
-pytorch 2.0+
-transformers
-peft
-trl
-bitsandbytes
-```
-
-### Installation
+## 🔧 Installation
 
 ```bash
 git clone https://github.com/yourusername/FinsightAI.git

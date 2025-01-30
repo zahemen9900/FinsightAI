@@ -56,7 +56,7 @@ def apply_chat_template(
     tokenizer,
     task: Literal["sft", "generation"] = "sft",
     auto_insert_empty_system_msg: bool = True,
-    use_metadata: bool = False,
+    use_metadata: bool = True,
 ) -> Dict:
     """Apply chat template following SmolLM2's implementation"""
     try:
@@ -107,7 +107,7 @@ def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
             fn_kwargs={
                 "tokenizer": tokenizer,
                 "task": "sft",
-                "auto_insert_empty_system_msg": True,
+                "auto_insert_empty_system_msg": False,
             },
             num_proc=num_proc,
             remove_columns=columns_to_remove,
@@ -125,7 +125,7 @@ def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
                 logger.info(f"  {src}: {count} ({count/len(dataset)*100:.1f}%)")
         
         # Split dataset
-        dataset = dataset.train_test_split(test_size=0.1, seed=42)
+        dataset = dataset.train_test_split(test_size=0.25, seed=42)
         logger.info(f"Train size: {len(dataset['train'])}, Test size: {len(dataset['test'])}")
         
         return dataset

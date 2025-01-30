@@ -1,0 +1,16 @@
+{"time":"2025-01-27T15:00:24.108460596Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-27T15:00:24.108476509Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250127_150024-tkhxaces/logs/debug-core.log"}
+{"time":"2025-01-27T15:00:24.427088371Z","level":"INFO","msg":"created new stream","id":"tkhxaces"}
+{"time":"2025-01-27T15:00:24.427147206Z","level":"INFO","msg":"stream: started","id":"tkhxaces"}
+{"time":"2025-01-27T15:00:24.427323777Z","level":"INFO","msg":"handler: started","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:00:24.427838912Z","level":"INFO","msg":"writer: Do: started","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:00:24.427949925Z","level":"INFO","msg":"sender: started","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:00:26.478635342Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-27T15:02:33.142804217Z","level":"INFO","msg":"stream: closing","id":"tkhxaces"}
+{"time":"2025-01-27T15:02:33.14294109Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-27T15:02:33.144507859Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-27T15:02:37.524776689Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-27T15:02:40.428191508Z","level":"INFO","msg":"handler: closed","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:02:40.42822897Z","level":"INFO","msg":"writer: Close: closed","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:02:40.428291397Z","level":"INFO","msg":"sender: closed","stream_id":"tkhxaces"}
+{"time":"2025-01-27T15:02:40.428363627Z","level":"INFO","msg":"stream: closed","id":"tkhxaces"}

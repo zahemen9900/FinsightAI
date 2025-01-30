@@ -60,7 +60,7 @@ class FinanceQAProcessor:
         ]
         self.conversation_counter = 0  # Add counter for unique IDs
         self.sample_usage_counter = {}  # Track how many times each sample is used
-        self.max_sample_usage = 5  # Increased from 3 to 5
+        self.max_sample_usage = 3  # Maximum times a sample can be used
         
     def generate_prompt_id(self) -> str:
         """Generate a unique 64-character prompt ID"""
@@ -113,14 +113,14 @@ class FinanceQAProcessor:
         ]
 
         bot_greetings = [
-            "Hello! How can I help you today?",
-            "Hi there! What can I assist you with?",
-            "Greetings! How may I assist you?",
-            "Hey there! How can I help you today?",
-            "Good day! What can I assist you with?",
-            "Hello there! How may I assist you?",
-            "Hi there! How can I help you today?",
-            "Howdy! What can I assist you with?",
+            "Hello! I'm your financial analysis assistant. I specialize in analyzing company filings and financial data. How can I help you today?",
+            "Hi there! I'm a financial analysis bot ready to help you understand company data and financial statements. What would you like to explore?",
+            "Greetings! I'm specialized in analyzing financial reports and company performance metrics. How may I assist you with your financial inquiries?",
+            "Hello there! As your financial analysis assistant, I can help you understand company filings, financial metrics, and business performance. What would you like to know?",
+            "Good day! I'm here to help you navigate through financial data and company information. How can I assist you with your analysis today?",
+            "Hi! I'm your financial insights assistant, trained to analyze company filings and financial statements. What aspects would you like to explore?",
+            "Greetings! As your financial analysis companion, I can help you understand complex financial data and company performance. What can I help you with?",
+            "Hello! I specialize in analyzing financial reports and company metrics. I'm here to help you understand the data better. What would you like to know?",
         ]
         return {"role": "user", "content": random.choice(usr_greetings)}, {"role": "assistant", "content": random.choice(bot_greetings)}
 
@@ -135,12 +135,11 @@ class FinanceQAProcessor:
         ]
 
         bot_responses = [
-            "Sure, I can help with that.",
-            "Of course, I'd be happy to assist.",
-            "Absolutely, I'm here to help.WHat's your question?",
-            "Yes, I can provide information on that.What would you like to know?",
-            "Certainly, I'm ready to assist with your queries",
-
+            "I'd be happy to help you understand company financials. Please feel free to ask any specific questions about financial statements, performance metrics, or business operations.",
+            "Of course! I specialize in analyzing financial information and can help you understand company data. What specific aspects would you like to explore?",
+            "I'll be glad to assist with your financial analysis. I can help with interpreting financial statements, understanding key metrics, or analyzing business performance. What would you like to know?",
+            "Absolutely! I'm well-versed in corporate financial analysis and can help explain company data in detail. What particular aspects would you like to understand better?",
+            "Certainly! I can help you analyze and understand company financial information. Whether it's about financial statements, business metrics, or company performance, I'm here to assist."
         ]
         return {"role": "user", "content": random.choice(starters)}, {"role": "assistant", "content": random.choice(bot_responses)}
 
@@ -160,7 +159,7 @@ class FinanceQAProcessor:
         usr, ast = self.create_conversation_starter()
         
         # Decide whether to use context (50% chance)
-        use_context = random.random() < 0.5
+        use_context = random.random() < 0.8
         
         # Add system prompt with/without context
         context = company_data['context'].iloc[0] if use_context else None
@@ -212,7 +211,7 @@ class FinanceQAProcessor:
         usr, ast = self.create_conversation_starter()
         
         # Decide whether to use context and validate context exists
-        use_context = random.random() < 0.5
+        use_context = random.random() < 0.8
         context1 = company1_data['context'].iloc[0]
         context2 = company2_data['context'].iloc[0]
         
@@ -267,12 +266,12 @@ class FinanceQAProcessor:
                 "combined": False,
                 "cross_company": True,
                 "has_context": use_context,
-                "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}",
+                "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}" if str(company1_data['filing'].iloc[0]) != str(company2_data['filing'].iloc[0]) else company1_data['filing'].iloc[0],
                 "prompt_id": self.generate_prompt_id()  # Add prompt ID
             }
         )
 
-    def process_dataset(self, output_path: Path, max_samples_per_company: int = 8):  # Increased from 5
+    def process_dataset(self, output_path: Path, max_samples_per_company: int = 10):
         """Process the entire dataset and create variations"""
         processed_conversations = []
         
@@ -292,7 +291,7 @@ class FinanceQAProcessor:
             ]
 
             if len(company_data) >= 2:
-                num_combinations = random.randint(3, 7)  # Increased from (2, 5)
+                num_combinations = random.randint(3, 7)
                 for _ in range(min(num_combinations, len(company_data) // 2)):
                     available = [idx for idx in company_data.index if self.can_use_sample(idx)]
                     if len(available) >= 2:
@@ -303,7 +302,7 @@ class FinanceQAProcessor:
                         )
                         
                         # Decide whether to use context
-                        use_context = random.random() < 0.5
+                        use_context = random.random() < 0.8
                         system_msg = self.create_system_message(
                             self.combined_context if use_context else None,
                             use_context
@@ -318,7 +317,7 @@ class FinanceQAProcessor:
                             usr, ast,
                             {"role": "user", "content": q},
                             {"role": "assistant", "content": a}
-                        ] if np.random.rand() < 0.5 else [
+                        ] if np.random.rand() < 0.8 else [
                             system_msg,
                             usr, ast,
                             {"role": "user", "content": q},
@@ -339,9 +338,9 @@ class FinanceQAProcessor:
                         self.mark_sample_used(idx1)
                         self.mark_sample_used(idx2)
             # Create multi-turn conversations
-            num_conversations = random.randint(4, max_samples_per_company)  # Increased from (3, max_samples)
+            num_conversations = random.randint(3, max_samples_per_company)
             for _ in range(num_conversations):
-                num_turns = random.randint(3, 7)  # Increased from (3, 5)
+                num_turns = random.randint(3, 7)
                 try:
                     available = [idx for idx in company_data.index if self.can_use_sample(idx)]
                     if len(available) >= num_turns:
@@ -352,7 +351,7 @@ class FinanceQAProcessor:
                     
         # Now create cross-company conversations
         logger.info("Generating cross-company conversations...")
-        num_cross_company = 1000  # Increased from 400
+        num_cross_company = 2000  # Number of cross-company conversations to generate
         
         for _ in range(num_cross_company):
             # Select two random companies
@@ -361,7 +360,7 @@ class FinanceQAProcessor:
             company2_data = self.data[self.data['ticker'] == company2_ticker]
             
             # Generate a conversation with 3-7 turns
-            num_turns = random.randint(3, 7)  # Increased from (3, 6)
+            num_turns = random.randint(3, 7)
             try:
                 available1 = [idx for idx in company1_data.index if self.can_use_sample(idx)]
                 available2 = [idx for idx in company2_data.index if self.can_use_sample(idx)]
@@ -375,7 +374,7 @@ class FinanceQAProcessor:
             except (ValueError, IndexError):
                 continue
                 
-            if _ % 50 == 0:  # Increased logging interval from 20
+            if _ % 20 == 0:  # Log progress every 20 conversations
                 logger.info(f"Generated {_}/{num_cross_company} cross-company conversations")
         
         # Save processed conversations

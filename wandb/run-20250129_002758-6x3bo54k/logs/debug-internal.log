@@ -1,0 +1,16 @@
+{"time":"2025-01-29T00:27:58.548959735Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-29T00:27:58.548976535Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250129_002758-6x3bo54k/logs/debug-core.log"}
+{"time":"2025-01-29T00:27:58.701349883Z","level":"INFO","msg":"created new stream","id":"6x3bo54k"}
+{"time":"2025-01-29T00:27:58.701438856Z","level":"INFO","msg":"stream: started","id":"6x3bo54k"}
+{"time":"2025-01-29T00:27:58.70148332Z","level":"INFO","msg":"writer: Do: started","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:27:58.701489133Z","level":"INFO","msg":"handler: started","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:27:58.701868969Z","level":"INFO","msg":"sender: started","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:27:59.249810804Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-29T00:44:26.707268732Z","level":"INFO","msg":"stream: closing","id":"6x3bo54k"}
+{"time":"2025-01-29T00:44:26.707293274Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-29T00:44:26.707821592Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-29T00:44:27.960562965Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-29T00:44:28.760232537Z","level":"INFO","msg":"handler: closed","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:44:28.760271113Z","level":"INFO","msg":"writer: Close: closed","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:44:28.760295272Z","level":"INFO","msg":"sender: closed","stream_id":"6x3bo54k"}
+{"time":"2025-01-29T00:44:28.7603455Z","level":"INFO","msg":"stream: closed","id":"6x3bo54k"}
