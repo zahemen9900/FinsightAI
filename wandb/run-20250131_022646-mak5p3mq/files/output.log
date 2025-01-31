@@ -1,0 +1,21 @@
+  0%|                                                                                                                                            | 0/458 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 350, in <module>
+    train()
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 325, in train
+    train_result = trainer.train()
+                   ^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2171, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2480, in _inner_training_loop
+    batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 5167, in get_batch_samples
+    num_items_in_batch = sum([(batch["labels"].ne(-100)).sum() for batch in batch_samples])
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 5167, in <listcomp>
+    num_items_in_batch = sum([(batch["labels"].ne(-100)).sum() for batch in batch_samples])
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Exception in thread KeyboardInterrupt
+Thread-11 (_pin_memory_loop):
+Traceback (most recent call last):

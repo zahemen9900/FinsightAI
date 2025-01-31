@@ -98,7 +98,7 @@ class QLoRAConfig(SFTConfig):
     double_quant: bool = True
     quant_type: str = "nf4"
     dataset_num_proc: int = 2    # Reduced to prevent memory issues
-    use_cache: bool = True
+    use_cache: bool = False
     
     # Memory optimizations
     max_grad_norm: float = 1.0
@@ -108,7 +108,8 @@ class QLoRAConfig(SFTConfig):
     def __post_init__(self):
         super().__post_init__()
         self.gradient_checkpointing_kwargs = {
-            "use_reentrant": False
+            "use_reentrant": False,
+            'use_cache': self.use_cache,
         }
 
 def setup_quantized_model(model_args, training_args):
@@ -249,7 +250,7 @@ def train():
         {
             "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
             "name": "reddit_finance",
-            "proportion": 0.3  # Use 30% of this dataset
+            "proportion": 1.0  # Use 50% of this dataset
         },
         {
             "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
@@ -259,7 +260,7 @@ def train():
         {
             "path": "/home/zahemen/datasets/intro_conversations.jsonl",
             "name": "intro_conversations",
-            "proportion": 0.5  # Use 50% of this dataset
+            "proportion": 1.0  # Use 50% of this dataset
         }
     ]
 

@@ -228,7 +228,11 @@ class FinanceAdvisor:
         # Determine appropriate response length
         max_new_tokens = self.analyze_question(prompt)
 
-        # Format messages
+        # Keep only last two exchanges before adding new message
+        if len(self.conversation_history) > 4:  # 4 messages = 2 exchanges (user + assistant)
+            self.conversation_history = self.conversation_history[-4:]
+
+        # Format messages with limited history
         messages = [self.system_prompt]
         messages.extend(self.conversation_history)
         messages.append({"role": "user", "content": prompt})
@@ -279,7 +283,9 @@ class FinanceAdvisor:
                 streamer=streamer
             )
             
-        # Only decode if not streaming
+        # Update conversation history consistently for both streaming and non-streaming
+        self.conversation_history.append({"role": "user", "content": prompt})
+        
         if not self.stream:
             outputs = outputs.cpu()
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -287,13 +293,12 @@ class FinanceAdvisor:
             if not response:
                 response = "I apologize, but I couldn't generate a proper response."
             
-            # Add to conversation history
-            self.conversation_history.append({"role": "user", "content": prompt})
+            # Add assistant response to history
             self.conversation_history.append({"role": "assistant", "content": response})
             
-            # Keep only last few turns to prevent context window overflow
-            if len(self.conversation_history) > 2:  # Keep last 3 exchanges
-                self.conversation_history = self.conversation_history[-2:]
+            # Ensure only last two exchanges are kept
+            if len(self.conversation_history) > 4:
+                self.conversation_history = self.conversation_history[-4:]
             
             return response
         

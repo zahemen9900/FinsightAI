@@ -22,8 +22,7 @@ logger = logging.getLogger('rich')
 
 @dataclass
 class Conversation:
-    prompt: str  # Add prompt field
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]]  # Remove prompt field
     metadata: Dict
 
 class FinanceQAProcessor:
@@ -182,20 +181,13 @@ class FinanceQAProcessor:
                 {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
             ])
         
-        # Get the first actual question as the prompt
-        available_for_prompt = [idx for idx in company_data.index if self.can_use_sample(idx)]
-        if not available_for_prompt:
-            available_for_prompt = company_data.index.tolist()  # Fallback to all samples
-        row = company_data.loc[random.choice(available_for_prompt)]
-        
         return Conversation(
-            prompt=row['question'],
             messages=messages,
             metadata={
                 "ticker": company_data['ticker'].iloc[0],
                 "filing_year": company_data['filing'].iloc[0],
                 "has_context": use_context,
-                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                "conversation_id": self.generate_prompt_id()  # Renamed from prompt_id
             }
         )
 
@@ -255,11 +247,7 @@ class FinanceQAProcessor:
             else:
                 company2_indices.remove(idx)
         
-        # Get first question as prompt (without context)
-        first_row = company1_data.loc[random.choice(company1_data.index[~company1_data.index.isin(self.used_samples)])]
-        
         return Conversation(
-            prompt=first_row['question'],  # Just the question without context
             messages=messages,
             metadata={
                 "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
@@ -267,7 +255,7 @@ class FinanceQAProcessor:
                 "cross_company": True,
                 "has_context": use_context,
                 "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}" if str(company1_data['filing'].iloc[0]) != str(company2_data['filing'].iloc[0]) else company1_data['filing'].iloc[0],
-                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                "conversation_id": self.generate_prompt_id()
             }
         )
 
@@ -325,13 +313,12 @@ class FinanceQAProcessor:
                         ]
                         
                         processed_conversations.append(Conversation(
-                            prompt=q,  # Use the combined question as prompt
                             messages=messages,
                             metadata={
                                 "ticker": ticker,
                                 "combined": True,
                                 "filing_year": company_data['filing'].iloc[0],
-                                "prompt_id": self.generate_prompt_id()  # Add prompt ID
+                                "conversation_id": self.generate_prompt_id()  # Add prompt ID
                             }
                         ))
                         
@@ -382,11 +369,41 @@ class FinanceQAProcessor:
         self.save_conversations(processed_conversations, output_path)
 
     def save_conversations(self, conversations: List[Conversation], output_path: Path):
-        """Save processed conversations to JSON file"""
-        output_data = [asdict(conv) for conv in conversations]
-        with open(output_path, 'w') as f:
-            json.dump(output_data, f, indent=2)
-        logger.info(f"Saved processed dataset to {output_path}")
+        """Save processed conversations to JSONL file with proper string handling"""
+        def ensure_string_content(message):
+            """Ensure message content is always a string"""
+            if not isinstance(message.get('content', ''), str):
+                message['content'] = str(message['content'])
+            return message
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            for conv in conversations:
+                # Convert messages and ensure content is string
+                conv_dict = {
+                    "messages": [ensure_string_content(msg.copy()) for msg in conv.messages],
+                    "metadata": conv.metadata
+                }
+                # Validate before writing
+                if all(isinstance(msg['content'], str) for msg in conv_dict['messages']):
+                    f.write(json.dumps(conv_dict, ensure_ascii=False) + '\n')
+                else:
+                    logger.warning(f"Skipping conversation with invalid content types: {conv.metadata.get('conversation_id', 'unknown')}")
+
+        logger.info(f"Saved {len(conversations)} conversations to {output_path}")
+        
+        # Validate the saved file
+        try:
+            # Test load first few lines
+            with open(output_path, 'r', encoding='utf-8') as f:
+                for i, line in enumerate(f):
+                    if i >= 10:  # Check first 10 lines
+                        break
+                    data = json.loads(line)
+                    assert all(isinstance(msg['content'], str) for msg in data['messages']), "Content validation failed"
+            logger.info("Output file validation successful")
+        except Exception as e:
+            logger.error(f"Output file validation failed: {e}")
+            raise
 
     def can_use_sample(self, idx: int) -> bool:
         """Check if a sample can still be used"""
