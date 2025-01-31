@@ -43,7 +43,7 @@ class QLoRAConfig(SFTConfig):
     # LoRA specific parameters - optimized for speed
     lora_r: int = 32            # Reduced from 64
     lora_alpha: int = 16
-    lora_dropout: float = 0.05  # Reduced dropout
+    lora_dropout: float = 0.1  
     
     # Training parameters optimized for speed
     num_train_epochs: int = 1
@@ -55,13 +55,13 @@ class QLoRAConfig(SFTConfig):
     logging_steps: int = 5
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
-    logging_steps: int = 20
+    logging_steps: int = 25
     lr_scheduler_type: str = 'linear'  # Changed for faster training
-    eval_steps: int = 150       # Reduced evaluation frequency
-    save_steps: int = 150
+    eval_steps: int = 300       # Reduced evaluation frequency
+    save_steps: int = 300
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
-    save_total_limit: int = 2   # Keep fewer checkpoints
+    save_total_limit: int = 3   # Keep fewer checkpoints
     load_best_model_at_end: bool = True
     
     # Optimized DeepSpeed config for faster training
