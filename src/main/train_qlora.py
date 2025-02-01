@@ -56,13 +56,14 @@ class QLoRAConfig(SFTConfig):
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     logging_steps: int = 25
-    lr_scheduler_type: str = 'linear'  # Changed for faster training
+    lr_scheduler_type: str = 'cosine'  # Changed for faster training
     eval_steps: int = 300       # Reduced evaluation frequency
     save_steps: int = 300
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 3   # Keep fewer checkpoints
     load_best_model_at_end: bool = True
+    lower_is_better: bool = True # we want to minimize loss
     
     # Optimized DeepSpeed config for faster training
     deepspeed = {
@@ -109,7 +110,7 @@ class QLoRAConfig(SFTConfig):
         super().__post_init__()
         self.gradient_checkpointing_kwargs = {
             "use_reentrant": False,
-            'use_cache': self.use_cache,
+            'use_cache': False,
         }
 
 def setup_quantized_model(model_args, training_args):
