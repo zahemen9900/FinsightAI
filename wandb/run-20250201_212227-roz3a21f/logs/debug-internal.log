@@ -1,0 +1,17 @@
+{"time":"2025-02-01T21:22:27.976790419Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-01T21:22:27.976803136Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250201_212227-roz3a21f/logs/debug-core.log"}
+{"time":"2025-02-01T21:22:28.158520295Z","level":"INFO","msg":"created new stream","id":"roz3a21f"}
+{"time":"2025-02-01T21:22:28.158568799Z","level":"INFO","msg":"stream: started","id":"roz3a21f"}
+{"time":"2025-02-01T21:22:28.158603444Z","level":"INFO","msg":"writer: Do: started","stream_id":"roz3a21f"}
+{"time":"2025-02-01T21:22:28.158626298Z","level":"INFO","msg":"sender: started","stream_id":"roz3a21f"}
+{"time":"2025-02-01T21:22:28.1586576Z","level":"INFO","msg":"handler: started","stream_id":"roz3a21f"}
+{"time":"2025-02-01T21:22:28.800059311Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-01T21:30:53.085387315Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/zahemen9900-ai/huggingface/roz3a21f/file_stream\": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-02-01T22:11:02.151091604Z","level":"INFO","msg":"stream: closing","id":"roz3a21f"}
+{"time":"2025-02-01T22:11:02.151196774Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-01T22:11:02.151716477Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-01T22:11:03.597093942Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-01T22:11:04.159305119Z","level":"INFO","msg":"handler: closed","stream_id":"roz3a21f"}
+{"time":"2025-02-01T22:11:04.159332544Z","level":"INFO","msg":"writer: Close: closed","stream_id":"roz3a21f"}
+{"time":"2025-02-01T22:11:04.159352501Z","level":"INFO","msg":"sender: closed","stream_id":"roz3a21f"}
+{"time":"2025-02-01T22:11:04.159419652Z","level":"INFO","msg":"stream: closed","id":"roz3a21f"}

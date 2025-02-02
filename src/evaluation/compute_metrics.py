@@ -1,10 +1,11 @@
+import argparse
 import json
 import os
 import torch
 import logging
 import numpy as np
 from pathlib import Path
-from typing import List, Dict
+from typing import Any, List, Dict
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from rouge_score import rouge_scorer
@@ -13,6 +14,7 @@ import nltk
 from tqdm import tqdm
 from rich.logging import RichHandler
 from rich.progress import track
+from datetime import datetime
 
 # Download required NLTK data
 try:
@@ -33,26 +35,45 @@ class ModelEvaluator:
     def __init__(
         self, 
         model_name: str = 'HuggingFaceTB/SmolLM2-1.7B-Instruct',
-        test_data_path: str = "/home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl",
+        dataset_paths: List[Dict[str, str]] = None,  # New parameter for multiple datasets
         device: str = None,
         max_length: int = 512
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
+        self.dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
         
         # Load model and tokenizer
         logger.info(f"Loading model and tokenizer from {model_name}")
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=self.dtype,
+            trust_remote_code=True
+        ).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name).to(self.device)
         
-        # Load test dataset
-        logger.info(f"Loading test dataset from {test_data_path}")
-        dataset = load_dataset('json', data_files=test_data_path)['train']
-        self.test_data = dataset.train_test_split(test_size=0.2)['test']
+        # Load test datasets
+        self.datasets = {}
+        if dataset_paths:
+            for dataset_info in dataset_paths:
+                path = dataset_info['path']
+                name = dataset_info['name']
+                logger.info(f"Loading dataset from {path}")
+                try:
+                    dataset = load_dataset('json', data_files=path)['train']
+                    self.datasets[name] = dataset.train_test_split(test_size=0.2)['test']
+                except Exception as e:
+                    logger.warning(f"Failed to load dataset {name}: {e}")
         
         # Initialize scorers
         self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
         self.smooth = SmoothingFunction().method1
+        
+        # Add financial terms set
+        self.financial_terms = set([
+            'investment', 'stock', 'bond', 'market', 'fund', 'dividend',
+            # ...rest of financial terms...
+        ])
 
     def generate_response(self, prompt: str) -> str:
         """Generate response from model for given prompt"""
@@ -89,69 +110,151 @@ class ModelEvaluator:
         reference_tokens = [nltk.word_tokenize(reference.lower())]
         return sentence_bleu(reference_tokens, prediction_tokens, smoothing_function=self.smooth)
 
-    def evaluate(self, num_samples: int = None) -> Dict[str, float]:
-        """Evaluate model on test dataset"""
-        if num_samples:
-            eval_data = self.test_data.select(range(min(num_samples, len(self.test_data))))
-        else:
-            eval_data = self.test_data
+    def evaluate_single_response(self, prompt: str, reference: str) -> Dict[str, float]:
+        """Evaluate a single response"""
+        prediction = self.generate_response(prompt)
+        rouge = self.compute_rouge_scores(prediction, reference)
+        bleu = self.compute_bleu_score(prediction, reference)
+        return {**rouge, 'bleu': bleu}
 
-        rouge_scores = []
-        bleu_scores = []
+    def evaluate_dataset(self, dataset, name: str, num_samples: int = 100) -> Dict[str, Dict[str, float]]:
+        """Evaluate model on a specific dataset"""
+        if num_samples:
+            eval_data = dataset.select(range(min(num_samples, len(dataset))))
+        else:
+            eval_data = dataset
+
+        all_metrics = []
         
-        logger.info(f"Evaluating model on {len(eval_data)} samples")
-        for item in track(eval_data, description="Evaluating"):
+        logger.info(f"\nEvaluating base model on {len(eval_data)} samples from {name}")
+        for item in track(eval_data, description=f"Evaluating {name}"):
             try:
-                # Get prompt and reference
-                prompt = item['messages'][0]['content']
-                reference = item['messages'][1]['content']
+                messages = item['messages']
+                last_exchange = None
                 
-                # Generate prediction
-                prediction = self.generate_response(prompt)
+                for i in range(len(messages)-1):
+                    if messages[i]['role'] == 'user' and messages[i+1]['role'] == 'assistant':
+                        last_exchange = (messages[i]['content'], messages[i+1]['content'])
                 
-                # Compute metrics
-                rouge = self.compute_rouge_scores(prediction, reference)
-                bleu = self.compute_bleu_score(prediction, reference)
+                if not last_exchange:
+                    continue
                 
-                rouge_scores.append(rouge)
-                bleu_scores.append(bleu)
+                prompt, reference = last_exchange
+                metrics = self.evaluate_single_response(prompt, reference)
+                all_metrics.append(metrics)
                 
             except Exception as e:
-                logger.warning(f"Failed to evaluate sample: {e}")
+                logger.warning(f"Failed to evaluate sample from {name}: {e}")
                 continue
+
+        # Calculate statistics for this dataset
+        dataset_scores = {}
+        for metric in all_metrics[0].keys():
+            values = [m[metric] for m in all_metrics if metric in m]
+            dataset_scores[metric] = {
+                'mean': np.mean(values),
+                'std': np.std(values),
+                'min': np.min(values),
+                'max': np.max(values)
+            }
+
+        return dataset_scores
+
+    def evaluate(self, num_samples: int = 100) -> Dict[str, Dict[str, Dict[str, float]]]:
+        """Evaluate model on all datasets"""
+        all_results = {}
         
-        # Calculate average scores
-        avg_scores = {
-            'rouge1': np.mean([s['rouge1'] for s in rouge_scores]),
-            'rouge2': np.mean([s['rouge2'] for s in rouge_scores]),
-            'rougeL': np.mean([s['rougeL'] for s in rouge_scores]),
-            'bleu': np.mean(bleu_scores)
+        # Evaluate each dataset separately
+        for name, dataset in self.datasets.items():
+            dataset_scores = self.evaluate_dataset(dataset, name, num_samples)
+            all_results[name] = dataset_scores
+        
+        # Calculate overall averages
+        overall_averages = {}
+        for metric in next(iter(all_results.values())).keys():
+            means = [scores[metric]['mean'] for scores in all_results.values()]
+            overall_averages[metric] = {
+                'mean': np.mean(means),
+                'std': np.std(means),
+                'min': np.min(means),
+                'max': np.max(means)
+            }
+        
+        all_results['overall'] = overall_averages
+        
+        # Log detailed results
+        logger.info("\n=== Base Model Evaluation Results ===")
+        # ...logging code...
+
+        return all_results
+
+    def convert_to_serializable(self, obj: Any) -> Any:
+        """Convert numpy types to Python native types for JSON serialization"""
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: self.convert_to_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self.convert_to_serializable(item) for item in obj]
+        return obj
+
+    def save_results(self, results: Dict[str, Dict[str, Dict[str, float]]], output_path: str = "metrics/base_model_evaluation_results.json"):
+        """Save evaluation results with additional metadata"""
+        output_dir = Path(output_path).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Convert all numpy types to native Python types
+        serializable_results = self.convert_to_serializable(results)
+        
+        # Add metadata to results
+        final_results = {
+            "metrics_by_dataset": serializable_results,
+            "metadata": {
+                "evaluation_time": datetime.now().isoformat(),
+                "model_name": self.model.config._name_or_path,
+                "datasets": list(self.datasets.keys()),
+                "device": self.device,
+            }
         }
         
-        logger.info("Evaluation Results:")
-        for metric, score in avg_scores.items():
-            logger.info(f"{metric}: {score:.4f}")
-            
-        return avg_scores
-
-    def save_results(self, results: Dict[str, float], output_path: str = "evaluation_results.json"):
-        """Save evaluation results to file"""
-        os.makedirs('metrics', exist_ok=True)
         with open(output_path, 'w') as f:
-            json.dump(results, f, indent=2)
-        logger.info(f"Results saved to {output_path}")
+            json.dump(final_results, f, indent=2)
+        logger.info(f"\nResults saved to {output_path}")
 
 def main():
     # Parse arguments
-    import argparse
+    os.makedirs('metrics', exist_ok=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, required=True, help="Name or path of model to evaluate")
-    parser.add_argument("--num_samples", type=int, default=100, help="Number of test samples to evaluate")
-    parser.add_argument("--output_path", type=str, default="evaluation_results.json", help="Path to save results")
+    parser.add_argument("--model_name", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
+    parser.add_argument("--num_samples", type=int, default=100)
+    parser.add_argument("--output_path", type=str, default="metrics/base_model_evaluation_results.json")
     args = parser.parse_args()
 
+    # Define datasets to evaluate (same as in compute_qlora_metrics.py)
+    dataset_paths = [
+        {
+            "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
+            "name": "reddit_finance"
+        },
+        {
+            "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
+            "name": "finance_qa"
+        },
+        {
+            "path": "/home/zahemen/datasets/intro_conversations.jsonl",
+            "name": "intro_conversations"
+        }
+    ]
+
     # Run evaluation
-    evaluator = ModelEvaluator(args.model_name)
+    evaluator = ModelEvaluator(
+        model_name=args.model_name,
+        dataset_paths=dataset_paths
+    )
     results = evaluator.evaluate(num_samples=args.num_samples)
     evaluator.save_results(results, args.output_path)
 

@@ -1,0 +1,8 @@
+{"time":"2025-02-02T02:23:55.436135521Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-02T02:23:55.436151034Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250202_022355-h8e7296c/logs/debug-core.log"}
+{"time":"2025-02-02T02:23:55.614583552Z","level":"INFO","msg":"created new stream","id":"h8e7296c"}
+{"time":"2025-02-02T02:23:55.614647067Z","level":"INFO","msg":"stream: started","id":"h8e7296c"}
+{"time":"2025-02-02T02:23:55.614710839Z","level":"INFO","msg":"handler: started","stream_id":"h8e7296c"}
+{"time":"2025-02-02T02:23:55.614955747Z","level":"INFO","msg":"sender: started","stream_id":"h8e7296c"}
+{"time":"2025-02-02T02:23:55.614951533Z","level":"INFO","msg":"writer: Do: started","stream_id":"h8e7296c"}
+{"time":"2025-02-02T02:23:56.387386937Z","level":"INFO","msg":"Starting system monitor"}

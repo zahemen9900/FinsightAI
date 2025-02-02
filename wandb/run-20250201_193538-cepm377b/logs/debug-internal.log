@@ -1,0 +1,16 @@
+{"time":"2025-02-01T19:35:38.888093189Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-01T19:35:38.888102865Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250201_193538-cepm377b/logs/debug-core.log"}
+{"time":"2025-02-01T19:35:39.067128717Z","level":"INFO","msg":"created new stream","id":"cepm377b"}
+{"time":"2025-02-01T19:35:39.067172174Z","level":"INFO","msg":"stream: started","id":"cepm377b"}
+{"time":"2025-02-01T19:35:39.067239957Z","level":"INFO","msg":"handler: started","stream_id":"cepm377b"}
+{"time":"2025-02-01T19:35:39.067500662Z","level":"INFO","msg":"sender: started","stream_id":"cepm377b"}
+{"time":"2025-02-01T19:35:39.067496872Z","level":"INFO","msg":"writer: Do: started","stream_id":"cepm377b"}
+{"time":"2025-02-01T19:35:39.69165671Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-01T20:42:56.30558327Z","level":"INFO","msg":"stream: closing","id":"cepm377b"}
+{"time":"2025-02-01T20:42:56.305605806Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-01T20:42:56.306051442Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-01T20:42:57.522462412Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-01T20:42:58.570307089Z","level":"INFO","msg":"handler: closed","stream_id":"cepm377b"}
+{"time":"2025-02-01T20:42:58.570355568Z","level":"INFO","msg":"sender: closed","stream_id":"cepm377b"}
+{"time":"2025-02-01T20:42:58.570344044Z","level":"INFO","msg":"writer: Close: closed","stream_id":"cepm377b"}
+{"time":"2025-02-01T20:42:58.570427553Z","level":"INFO","msg":"stream: closed","id":"cepm377b"}

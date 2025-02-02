@@ -1,0 +1,8 @@
+  0%|                                                                                                                                            | 0/987 [00:00<?, ?it/s]
+{'train_runtime': 2.6894, 'train_samples_per_second': 2935.62, 'train_steps_per_second': 366.999, 'train_loss': 0.0, 'epoch': 1.0}
+  0%|                                                                                                                                            | 0/987 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+ 11%|█████████████▉                                                                                                                  | 107/987 [38:18<5:56:38, 24.32s/it]
+{'loss': 3.9943, 'grad_norm': 0.25358378887176514, 'learning_rate': 0.0001666666666666667, 'epoch': 0.03}
+{'loss': 4.0894, 'grad_norm': 0.24474291503429413, 'learning_rate': 0.00019582027168234064, 'epoch': 0.05}
+{'loss': 4.0472, 'grad_norm': 0.3442499339580536, 'learning_rate': 0.00019059561128526647, 'epoch': 0.08}
+{'loss': 4.197, 'grad_norm': 0.27436238527297974, 'learning_rate': 0.00018537095088819226, 'epoch': 0.1}

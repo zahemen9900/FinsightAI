@@ -26,6 +26,7 @@ from train import ModelArguments, prepare_dataset
 from rich.logging import RichHandler
 import wandb
 from transformers.trainer_callback import EarlyStoppingCallback
+import argparse
 
 # Configure logging
 logging.basicConfig(
@@ -41,13 +42,13 @@ logger = logging.getLogger('rich')
 @dataclass 
 class QLoRAConfig(SFTConfig):
     # LoRA specific parameters - optimized for speed
-    lora_r: int = 32            # Reduced from 64
+    lora_r: int = 64
     lora_alpha: int = 16
     lora_dropout: float = 0.1  
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 1
-    learning_rate: float = 2e-4
+    num_train_epochs: int = 2
+    learning_rate: float = 3e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
@@ -56,41 +57,41 @@ class QLoRAConfig(SFTConfig):
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     logging_steps: int = 25
-    lr_scheduler_type: str = 'cosine'  # Changed for faster training
+    lr_scheduler_type: str = 'linear' # Linear scheduler for faster training
     eval_steps: int = 300       # Reduced evaluation frequency
     save_steps: int = 300
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
-    save_total_limit: int = 3   # Keep fewer checkpoints
+    save_total_limit: int = 5   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # we want to minimize loss
     
     # Optimized DeepSpeed config for faster training
+    # DeepSpeed configs
     deepspeed = {
         "zero_optimization": {
-            "stage": 2,         # Changed to ZeRO-2 for better speed
+            "stage": 2, #ZeRO Stage 2 is often the best performance / memory configuration
             "offload_optimizer": {
+                "device": "cpu",
+                "pin_memory": True,
+                "gradient_checkpointing": False
+            },
+            "offload_param": {
                 "device": "cpu",
                 "pin_memory": True
             },
-            "allgather_partitions": True,
-            "allgather_bucket_size": 2e8,
             "overlap_comm": True,
             "contiguous_gradients": True,
-            "reduce_bucket_size": 2e8,
+            "reduce_bucket_size": "auto",
+            "stage3_prefetch_bucket_size": "auto",
+            "stage3_param_persistence_threshold": "auto"
         },
-        "train_micro_batch_size_per_gpu": 4,
-        "gradient_accumulation_steps": 2,
+        "train_batch_size": "auto",
+        "train_micro_batch_size_per_gpu": "auto",
+        "gradient_accumulation_steps": "auto",
         "gradient_clipping": 1.0,
-        "steps_per_print": 5,
-        "wall_clock_breakdown": False,
-        "fp16": {
-            "enabled": True,
-            "loss_scale": 0,
-            "loss_scale_window": 100,
-            "hysteresis": 2,
-            "min_loss_scale": 1
-        }
+        "steps_per_print": 50,
+        "wall_clock_breakdown": False
     }
 
     # Model settings optimized for speed
@@ -106,12 +107,19 @@ class QLoRAConfig(SFTConfig):
     dataloader_num_workers: int = 2
     dataloader_pin_memory: bool = True
     
+    # Add resume training parameters
+    resume_from_checkpoint: Optional[str] = None  # Path to checkpoint directory
+    save_safetensors: bool = True  # Better format for saving checkpoints
+    
     def __post_init__(self):
         super().__post_init__()
         self.gradient_checkpointing_kwargs = {
             "use_reentrant": False,
             'use_cache': False,
         }
+        # If resuming, ensure we load the best model
+        if self.resume_from_checkpoint:
+            self.load_best_model_at_end = True
 
 def setup_quantized_model(model_args, training_args):
     """Set up quantized model with LoRA configuration"""
@@ -246,6 +254,18 @@ def train():
     model_args = ModelArguments()
     training_args = QLoRAConfig()
     
+    # Add argument parsing for resume training
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--resume_from_checkpoint", type=str, default=None,
+        help="Path to checkpoint directory to resume training from"
+    )
+    args, _ = parser.parse_known_args()
+    
+    if args.resume_from_checkpoint:
+        training_args.resume_from_checkpoint = args.resume_from_checkpoint
+        logger.info(f"Resuming training from checkpoint: {args.resume_from_checkpoint}")
+    
     # Updated dataset paths with names and proportions
     dataset_paths = [
         {
@@ -320,6 +340,12 @@ def train():
         ],
         data_collator=None  # Let the trainer handle collation
     )
+
+    # Load optimizer and scheduler states if resuming
+    if training_args.resume_from_checkpoint:
+        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+    else:
+        trainer.train()
 
     # Train
     logger.info("Starting training")

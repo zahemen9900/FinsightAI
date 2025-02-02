@@ -222,7 +222,7 @@ class FinanceAdvisor:
         self,
         prompt: str,
         temperature: float = 0.3,  # Lower temperature for more focused responses
-        top_p: float = 0.80
+        top_p: float = 0.9
     ) -> str:
         """Generate a response using proper chat template"""
         # Determine appropriate response length

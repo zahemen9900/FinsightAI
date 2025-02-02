@@ -165,18 +165,18 @@ class IntroDatasetGenerator:
         flows = [
             # Flow 1: Greeting -> Name -> Capabilities
             [(self.greetings, "Hello! I'm FinSight, your AI financial advisor. How can I help you today?"),
-             (self.name_questions, self.name_responses),
-             (self.capability_questions, self.capability_responses)],
+            (self.name_questions, self.name_responses),
+            (self.capability_questions, self.capability_responses)],
             
             # Flow 2: Greeting -> Model Nature -> Capabilities
             [(self.greetings, "Hi there! I'm FinSight, ready to help with your financial questions."),
-             (self.model_questions, self.model_responses),
-             (self.capability_questions, self.capability_responses)],
+            (self.model_questions, self.model_responses),
+            (self.capability_questions, self.capability_responses)],
             
             # Flow 3: Direct Question -> Name -> Model Nature
             [(self.capability_questions, self.capability_responses),
-             (self.name_questions, self.name_responses),
-             (self.model_questions, self.model_responses)]
+            (self.name_questions, self.name_responses),
+            (self.model_questions, self.model_responses)]
         ]
         
         # Select and execute a random conversation flow
