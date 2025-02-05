@@ -32,11 +32,11 @@ logging.basicConfig(
 logger = logging.getLogger('rich')
 
 # Download required NLTK data
-nltk.download(['punkt', 'averaged_perceptron_tagger', 'wordnet'])
+nltk.download(['punkt', 'punkt_tab', 'averaged_perceptron_tagger', 'wordnet'])
 from nltk.corpus import wordnet
 
 # Load spaCy model for text quality analysis
-nlp = spacy.load('en_core_web_sm')
+nlp = spacy.load('en_core_web_md')  # Changed from 'en_core_web_sm' to 'en_core_web_md'
 # Load financial domain specific model if available
 try:
     nlp_financial = spacy.load('en_core_financial_web_sm')
@@ -594,15 +594,12 @@ class DatasetCleaner:
                 if ent.label_ in entity_weights
             ) / max(len(doc_financial.ents), 1)
             
-            # Keyword analysis with context
+            # Keyword and phrase analysis (unchanged)
             words = text.lower().split()
             word_set = set(words)
-            
-            # Calculate keyword density
             keyword_matches = len(word_set.intersection(self.financial_keywords))
             keyword_density = keyword_matches / max(len(words), 1)
             
-            # Check for financial bigrams and phrases
             financial_phrases = [
                 'market analysis', 'risk management', 'asset allocation',
                 'interest rates', 'stock market', 'financial planning'
@@ -610,48 +607,32 @@ class DatasetCleaner:
             phrase_matches = sum(1 for phrase in financial_phrases if phrase in text.lower())
             phrase_score = phrase_matches / max(len(financial_phrases), 1)
             
-            # Semantic analysis using spaCy's word vectors
-            financial_topics = [
-                'finance', 'investment', 'banking', 'trade', 'stock',
-                'market', 'economy', 'money', 'crypto', 'currency',
-                'fund', 'asset', 'portfolio', 'risk', 'return', 'dividend', 
-                'interest', 'inflation', 'tax', 'loan', 'mortgage', 'savings', 
-                'wealth', 'insurance', 'audit', 'accounting', 'budget', 'retirement',
-                'pension', 'regulation', 'compliance', 'fraud', 'scam', 'payment',
-                'transaction', 'exchange', 'blockchain', 'token', 'coin', 'wallet',
-                'mining', 'staking', 'defi', 'nft', 'yield farming', 'liquidity pool',
-                'impermanent loss', 'rug pull', 'pump and dump', 'bear market',
-                'bull market', 'short selling', 'long position', 'margin trading',
-                'leverage', 'volatility', 'correlation', 'beta', 'alpha', 'sharpe ratio',
-                'sortino ratio', 'treynor ratio', 'jensen alpha', 'efficient market hypothesis',
-                'random walk', 'technical analysis', 'fundamental analysis', 'quantitative analysis',
-                'quantitative easing', 'monetary policy', 'fiscal policy', 'central bank', 'interest rate',
-                'inflation rate', 'deflation', 'stagflation', 'recession', 'depression', 'recovery',
-                'growth', 'expansion', 'peak', 'trough', 'cycle', 'bubble', 'crash', 'black swan',
-                'tail risk', 'systemic risk', 'counterparty risk', 'credit risk', 'liquidity risk',
-                'market risk', 'operational risk', 'regulatory risk', 'political risk', 'economic risk',
-                'geopolitical risk', 'environmental risk', 'social risk', 'ESG', 'sustainable investing',
-                'impact investing', 'green finance', 'carbon footprint', 'carbon offset', 'carbon credit',
-                'sustainability', 'climate change', 'global warming', 'renewable energy', 'clean energy',
-                'green energy', 'solar power'
-            ]
+            # Modified semantic analysis to handle missing vectors
             semantic_scores = []
             for token in doc_general:
-                if token.has_vector:
-                    topic_similarity = max(
-                        token.similarity(doc_general.vocab[topic])
-                        for topic in financial_topics
-                    )
-                    semantic_scores.append(topic_similarity)
+                if token.has_vector and token.vector_norm > 0:  # Only consider tokens with valid vectors
+                    topic_similarities = []
+                    for topic in self.financial_keywords:
+                        topic_token = nlp(topic)[0]  # Get the first token of the topic
+                        if topic_token.has_vector and topic_token.vector_norm > 0:
+                            try:
+                                similarity = token.similarity(topic_token)
+                                if not np.isnan(similarity):  # Check for valid similarity score
+                                    topic_similarities.append(similarity)
+                            except:
+                                continue
+                    if topic_similarities:
+                        semantic_scores.append(max(topic_similarities))
             
-            semantic_score = np.mean(semantic_scores) if semantic_scores else 0.0
+            # Calculate semantic score or fallback to keyword-based score
+            semantic_score = np.mean(semantic_scores) if semantic_scores else keyword_density
             
-            # Combine scores with weights
+            # Combine scores with adjusted weights to compensate for potential missing vectors
             final_score = (
-                0.35 * entity_score +
-                0.30 * keyword_density +
-                0.20 * semantic_score +
-                0.15 * phrase_score
+                0.40 * entity_score +
+                0.35 * keyword_density +
+                0.15 * semantic_score +
+                0.10 * phrase_score
             )
             
             return min(final_score, 1.0)
@@ -701,7 +682,7 @@ class DatasetCleaner:
         try:
             # Try to load from cache first
             cache_file = self.cache_dir / "processed_data.joblib"
-            if cache_file.exists():
+            if (cache_file.exists()):
                 df = joblib.load(cache_file)
                 logger.info("Loaded processed data from cache")
             else:

@@ -22,11 +22,17 @@ class IntroDatasetGenerator:
         
         # Basic greeting variations
         self.greetings = [
-            "Hi", "Hello", "Hey", "Good morning", "Good afternoon",
-            "Hi there", "Hello there", "Hey there", "Greetings",
-            "Welcome", "Good day", "Nice to meet you",
-            "Howdy", "Salutations", "Good to see you",
-            "Pleasure to meet you", "Nice to see you"
+            "Hi!", "Hello!", "Hey!", "Good morning!", "Good afternoon!",
+            "Hi there!", "Hello there!", "Hey there!", "Greetings!",
+            "Welcome!", "Good day!", "Nice to meet you!",
+            "Howdy!", "Salutations!", "Good to see you!",
+            "Pleasure to meet you!", "Nice to see you!",
+            "Hi, I need some help", "Hello, can you help me?",
+            "Hey, quick question", "Hi! I have a question",
+            "Hello! Need some financial advice", "Hi, I'd like some assistance",
+            "Good morning! Hope you can help", "Hi there, got a minute?",
+            "Hello... is anyone there?", "Hey! Can we chat?",
+            "Hi, I'm looking for guidance", "Hello, I need financial advice"
         ]
         
         # Name-related questions
