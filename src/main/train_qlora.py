@@ -94,8 +94,8 @@ class QLoRAConfig(SFTConfig):
     }
 
     # Model settings optimized for speed
-    bf16: bool = True
-    # fp16: bool = True
+    bf16: bool = False
+    fp16: bool = True
     double_quant: bool = True
     quant_type: str = "nf4"
     dataset_num_proc: int = 2    # Reduced to prevent memory issues

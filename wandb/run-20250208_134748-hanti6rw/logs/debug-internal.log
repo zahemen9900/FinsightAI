@@ -1,0 +1,16 @@
+{"time":"2025-02-08T13:47:48.138707558Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-08T13:47:48.138721068Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250208_134748-hanti6rw/logs/debug-core.log"}
+{"time":"2025-02-08T13:47:48.279893449Z","level":"INFO","msg":"created new stream","id":"hanti6rw"}
+{"time":"2025-02-08T13:47:48.279937138Z","level":"INFO","msg":"stream: started","id":"hanti6rw"}
+{"time":"2025-02-08T13:47:48.280007794Z","level":"INFO","msg":"handler: started","stream_id":"hanti6rw"}
+{"time":"2025-02-08T13:47:48.280388353Z","level":"INFO","msg":"sender: started","stream_id":"hanti6rw"}
+{"time":"2025-02-08T13:47:48.280383004Z","level":"INFO","msg":"writer: Do: started","stream_id":"hanti6rw"}
+{"time":"2025-02-08T13:47:49.331225017Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-08T14:19:27.514434507Z","level":"INFO","msg":"stream: closing","id":"hanti6rw"}
+{"time":"2025-02-08T14:19:27.514476004Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-08T14:19:27.515004029Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-08T14:19:29.425442598Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-08T14:19:30.824222704Z","level":"INFO","msg":"handler: closed","stream_id":"hanti6rw"}
+{"time":"2025-02-08T14:19:30.824284261Z","level":"INFO","msg":"writer: Close: closed","stream_id":"hanti6rw"}
+{"time":"2025-02-08T14:19:30.824322962Z","level":"INFO","msg":"sender: closed","stream_id":"hanti6rw"}
+{"time":"2025-02-08T14:19:30.824344451Z","level":"INFO","msg":"stream: closed","id":"hanti6rw"}

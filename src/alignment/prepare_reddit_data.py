@@ -34,8 +34,8 @@ logging.basicConfig(
 logger = logging.getLogger('rich')
 
 # Download required NLTK data
-nltk.download(['punkt', 'averaged_perceptron_tagger', 'wordnet'])
-from nltk.corpus import wordnet
+# nltk.download(['punkt', 'averaged_perceptron_tagger', 'wordnet'])
+# from nltk.corpus import wordnet
 
 # Before running the script, you need to download these models:
 # python -m spacy download en_core_web_lg  # Large English model with word vectors
@@ -62,6 +62,7 @@ except OSError:
 try:
     nlp_financial = spacy.load('en_core_financial_web_sm')
 except:
+    logger.warning("Could not load financial domain-specific spaCy model. Using general model.")
     nlp_financial = nlp
 
 class DatasetCleaner:
@@ -101,8 +102,8 @@ class DatasetCleaner:
         # Add new parameters
         self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.min_financial_relevance = 0.4  # Lowered from 0.7
-        self.max_similarity_threshold = 0.85  # For deduplication
+        self.min_financial_relevance = 0.25  # Lowered from 0.7
+        self.max_similarity_threshold = 0.80  # For deduplication
         self.complexity_threshold = 0.3  # Lowered from 0.4
         self.min_words = 5
         self.max_words = 200  # Limit response length
@@ -691,10 +692,10 @@ class DatasetCleaner:
 
             # Use both general and financial models
             logger.debug("Processing with spaCy models...")
-            doc_general = nlp(text)
-            doc_financial = nlp_financial(text)
+            doc_general = nlp(text[:10000]) # Limit text length for processing
+            doc_financial = nlp_financial(text[:10000])
             
-            # Enhanced entity recognition with weighted categories
+            # Enhanced entity recogni tion with weighted categories
             logger.debug("Calculating entity scores...")
             entity_weights = {
                 'ORG': 1.0,      # Organizations

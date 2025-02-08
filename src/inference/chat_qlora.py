@@ -308,7 +308,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-400")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_length", type=int, default=2048)
     args = parser.parse_args()
