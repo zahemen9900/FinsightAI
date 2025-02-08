@@ -1,0 +1,69 @@
+  0%|                                                                                                                                           | 0/1158 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+ 26%|████████████████████████████████▍                                                                                            | 300/1158 [2:01:18<4:32:13, 19.04s/it]
+{'loss': 5.0742, 'grad_norm': 0.16160227358341217, 'learning_rate': 2.1428571428571428e-05, 'epoch': 0.04}
+{'loss': 4.8558, 'grad_norm': 0.09747770428657532, 'learning_rate': 2.9599287622439892e-05, 'epoch': 0.09}
+{'loss': 4.4168, 'grad_norm': 0.12068240344524384, 'learning_rate': 2.8931433659839715e-05, 'epoch': 0.13}
+{'loss': 4.2379, 'grad_norm': 0.14582228660583496, 'learning_rate': 2.8263579697239535e-05, 'epoch': 0.17}
+{'loss': 4.1176, 'grad_norm': 0.16684962809085846, 'learning_rate': 2.759572573463936e-05, 'epoch': 0.22}
+{'loss': 4.0472, 'grad_norm': 0.15264788269996643, 'learning_rate': 2.692787177203918e-05, 'epoch': 0.26}
+{'loss': 4.2277, 'grad_norm': 0.13447478413581848, 'learning_rate': 2.6260017809439002e-05, 'epoch': 0.3}
+{'loss': 3.9014, 'grad_norm': 0.11190950125455856, 'learning_rate': 2.5592163846838825e-05, 'epoch': 0.35}
+{'loss': 3.8768, 'grad_norm': 0.12513482570648193, 'learning_rate': 2.4924309884238645e-05, 'epoch': 0.39}
+{'loss': 3.7455, 'grad_norm': 0.1570732742547989, 'learning_rate': 2.4256455921638468e-05, 'epoch': 0.43}
+{'loss': 3.943, 'grad_norm': 0.12665195763111115, 'learning_rate': 2.3588601959038288e-05, 'epoch': 0.47}
+{'loss': 3.7946, 'grad_norm': 0.25155264139175415, 'learning_rate': 2.292074799643811e-05, 'epoch': 0.52}
+                                                                                                                                                                         
+{'eval_loss': 1.8201236724853516, 'eval_runtime': 1617.0732, 'eval_samples_per_second': 0.956, 'eval_steps_per_second': 0.239, 'epoch': 0.52}
+[2;36m[2025-02-06 14:17:34][0m[2;36m [0m[1;31mERROR   [0m [1m[[0m[1;36m2025[0m-[1;36m02[0m-[1;36m06[0m [1;92m14:17:34[0m[1m][0m - ERROR - rich - Unhandled exception: [1m[[0mErrno [1;36m20[0m[1m][0m Not a directory:                                 ]8;id=231148;file:///home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py\[2mtrain_qlora.py[0m]8;;\[2m:[0m]8;id=471029;file:///home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py#381\[2m381[0m]8;;\
+[2;36m                      [0m         [32m'/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/huggingface_hub-0.27.0-py3.8.egg/huggingface[0m [2m                  [0m
+[2;36m                      [0m         [32m_hub/templates/modelcard_template.md'[0m                                                                                   [2m                  [0m
+[2;36m                      [0m         Traceback [1m([0mmost recent call last[1m)[0m:                                                                                      [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py"[0m, line [1;36m378[0m, in [1m<[0m[1;95mmodule[0m[1m>[0m                        [2m                  [0m
+[2;36m                      [0m             [1;35mtrain[0m[1m([0m[1m)[0m                                                                                                             [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py"[0m, line [1;36m348[0m, in train                           [2m                  [0m
+[2;36m                      [0m             [1;35mtrainer.train[0m[1m([0m[1m)[0m                                                                                                     [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m2171[0m,  [2m                  [0m
+[2;36m                      [0m         in train                                                                                                                [2m                  [0m
+[2;36m                      [0m             return [1;35minner_training_loop[0m[1m([0m                                                                                         [2m                  [0m
+[2;36m                      [0m                    ^^^^^^^^^^^^^^^^^^^^                                                                                         [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m2598[0m,  [2m                  [0m
+[2;36m                      [0m         in _inner_training_loop                                                                                                 [2m                  [0m
+[2;36m                      [0m             [1;35mself._maybe_log_save_evaluate[0m[1m([0m                                                                                      [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m3078[0m,  [2m                  [0m
+[2;36m                      [0m         in _maybe_log_save_evaluate                                                                                             [2m                  [0m
+[2;36m                      [0m             [1;35mself._save_checkpoint[0m[1m([0mmodel, trial[1m)[0m                                                                                 [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m3209[0m,  [2m                  [0m
+[2;36m                      [0m         in _save_checkpoint                                                                                                     [2m                  [0m
+[2;36m                      [0m             [1;35mself.save_model[0m[1m([0moutput_dir, [33m_internal_call[0m=[3;92mTrue[0m[1m)[0m                                                                    [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m3831[0m,  [2m                  [0m
+[2;36m                      [0m         in save_model                                                                                                           [2m                  [0m
+[2;36m                      [0m             [1;35mself._save[0m[1m([0moutput_dir[1m)[0m                                                                                              [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py"[0m, line [1;36m3935[0m,  [2m                  [0m
+[2;36m                      [0m         in _save                                                                                                                [2m                  [0m
+[2;36m                      [0m             [1;35mself.model.save_pretrained[0m[1m([0m                                                                                         [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/peft/peft_model.py"[0m, line [1;36m321[0m, in     [2m                  [0m
+[2;36m                      [0m         save_pretrained                                                                                                         [2m                  [0m
+[2;36m                      [0m             [1;35mself.create_or_update_model_card[0m[1m([0msave_directory[1m)[0m                                                                    [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/peft/peft_model.py"[0m, line [1;36m1360[0m, in    [2m                  [0m
+[2;36m                      [0m         create_or_update_model_card                                                                                             [2m                  [0m
+[2;36m                      [0m             card = [1;35mModelCard.load[0m[1m([0mfilename[1m)[0m if [1;35mos.path.exists[0m[1m([0mfilename[1m)[0m else [1;35mModelCard.from_template[0m[1m([0m[1;35mModelCardData[0m[1m([0m[1m)[0m[1m)[0m           [2m                  [0m
+[2;36m                      [0m                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^           [2m                  [0m
+[2;36m                      [0m           File                                                                                                                  [2m                  [0m
+[2;36m                      [0m         [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/huggingface_hub-0.27.0-py3.8.egg/huggingface[0m [2m                  [0m
+[2;36m                      [0m         [32m_hub/repocard.py"[0m, line [1;36m416[0m, in from_template                                                                           [2m                  [0m
+[2;36m                      [0m             return [1;35msuper[0m[1m([0m[1m)[0m[1;35m.from_template[0m[1m([0mcard_data, template_path, template_str, **template_kwargs[1m)[0m                             [2m                  [0m
+[2;36m                      [0m                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                             [2m                  [0m
+[2;36m                      [0m           File                                                                                                                  [2m                  [0m
+[2;36m                      [0m         [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/huggingface_hub-0.27.0-py3.8.egg/huggingface[0m [2m                  [0m
+[2;36m                      [0m         [32m_hub/repocard.py"[0m, line [1;36m332[0m, in from_template                                                                           [2m                  [0m
+[2;36m                      [0m             template_str = [1;35mPath[0m[1m([0mcls.default_template_path[1m)[0m[1;35m.read_text[0m[1m([0m[1m)[0m                                                          [2m                  [0m
+[2;36m                      [0m                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                          [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/pathlib.py"[0m, line [1;36m1058[0m, in read_text                [2m                  [0m
+[2;36m                      [0m             with [1;35mself.open[0m[1m([0m[33mmode[0m=[32m'r'[0m, [33mencoding[0m=[35mencoding[0m, [33merrors[0m=[35merrors[0m[1m)[0m as f:                                                    [2m                  [0m
+[2;36m                      [0m                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                          [2m                  [0m
+[2;36m                      [0m           File [32m"/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/pathlib.py"[0m, line [1;36m1044[0m, in open                     [2m                  [0m
+[2;36m                      [0m             return [1;35mio.open[0m[1m([0mself, mode, buffering, encoding, errors, newline[1m)[0m                                                    [2m                  [0m
+[2;36m                      [0m                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                    [2m                  [0m
+[2;36m                      [0m         NotADirectoryError: [1m[[0mErrno [1;36m20[0m[1m][0m Not a directory:                                                                         [2m                  [0m
+[2;36m                      [0m         [32m'/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/huggingface_hub-0.27.0-py3.8.egg/huggingface[0m [2m                  [0m
+[2;36m                      [0m         [32m_hub/templates/modelcard_template.md'[0m                                                                                   [2m                  [0m

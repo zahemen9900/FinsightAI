@@ -1,0 +1,13 @@
+  0%|                                                                                                                                   | 0/1158 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+  0%|▌                                                                                                                        | 5/1158 [01:30<5:45:07, 17.96s/it]Traceback (most recent call last):
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 427, in <module>
+    train()
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 397, in train
+    trainer.train()
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2171, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2536, in _inner_training_loop
+    and (torch.isnan(tr_loss_step) or torch.isinf(tr_loss_step))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

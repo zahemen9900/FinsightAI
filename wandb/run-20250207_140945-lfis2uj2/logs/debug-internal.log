@@ -1,0 +1,16 @@
+{"time":"2025-02-07T14:09:46.00144869Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-07T14:09:46.001458145Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250207_140945-lfis2uj2/logs/debug-core.log"}
+{"time":"2025-02-07T14:09:46.152941096Z","level":"INFO","msg":"created new stream","id":"lfis2uj2"}
+{"time":"2025-02-07T14:09:46.152992359Z","level":"INFO","msg":"stream: started","id":"lfis2uj2"}
+{"time":"2025-02-07T14:09:46.153077009Z","level":"INFO","msg":"handler: started","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:09:46.153825932Z","level":"INFO","msg":"writer: Do: started","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:09:46.153832712Z","level":"INFO","msg":"sender: started","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:09:49.339279888Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-07T14:11:30.541332698Z","level":"INFO","msg":"stream: closing","id":"lfis2uj2"}
+{"time":"2025-02-07T14:11:30.541366763Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-07T14:11:30.542046928Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-07T14:11:33.683534608Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-07T14:11:37.875913656Z","level":"INFO","msg":"handler: closed","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:11:37.875982057Z","level":"INFO","msg":"writer: Close: closed","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:11:37.876078061Z","level":"INFO","msg":"sender: closed","stream_id":"lfis2uj2"}
+{"time":"2025-02-07T14:11:37.876131859Z","level":"INFO","msg":"stream: closed","id":"lfis2uj2"}

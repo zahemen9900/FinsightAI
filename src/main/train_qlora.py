@@ -47,22 +47,21 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.1  
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 2
-    learning_rate: float = 3e-4
+    num_train_epochs: int = 1
+    learning_rate: float = 3e-5
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
     gradient_accumulation_steps: int = 2    # Reduced for faster updates
-    logging_steps: int = 5
+    logging_steps: int = 25
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
-    logging_steps: int = 25
     lr_scheduler_type: str = 'linear' # Linear scheduler for faster training
-    eval_steps: int = 300       # Reduced evaluation frequency
-    save_steps: int = 300
+    eval_steps: int = 200      # Reduced evaluation frequency
+    save_steps: int = 200
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
-    save_total_limit: int = 5   # Keep more checkpoints for resuming
+    save_total_limit: int = 3   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # we want to minimize loss
     
@@ -95,8 +94,8 @@ class QLoRAConfig(SFTConfig):
     }
 
     # Model settings optimized for speed
-    bf16: bool = False
-    fp16: bool = True
+    bf16: bool = True
+    # fp16: bool = True
     double_quant: bool = True
     quant_type: str = "nf4"
     dataset_num_proc: int = 2    # Reduced to prevent memory issues
@@ -271,17 +270,17 @@ def train():
         {
             "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
             "name": "reddit_finance",
-            "proportion": 1.0  # Use 50% of this dataset
+            "proportion": 1.0
         },
         {
             "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
             "name": "finance_qa",
-            "proportion": 1.0  # Use full dataset
+            "proportion": 1.0
         },
         {
             "path": "/home/zahemen/datasets/intro_conversations.jsonl",
             "name": "intro_conversations",
-            "proportion": 1.0  # Use 50% of this dataset
+            "proportion": 1.0
         }
     ]
 
@@ -340,12 +339,6 @@ def train():
         ],
         data_collator=None  # Let the trainer handle collation
     )
-
-    # Load optimizer and scheduler states if resuming
-    if training_args.resume_from_checkpoint:
-        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-    else:
-        trainer.train()
 
     # Train
     logger.info("Starting training")

@@ -17,27 +17,48 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.spatial.distance import cosine
 from textblob import TextBlob
 import joblib
-from torch import cosine_similarity
 from tqdm import tqdm
-from scipy.sparse import csr_matrix
 from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine_similarity
+from time import time
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="[%Y-%m-%d %H:%M:%S]",
-    handlers=[RichHandler()],
+    handlers=[
+        RichHandler(),
+        logging.FileHandler('reddit_data_processing.log')  # Add file handler
+    ],
 )
 logger = logging.getLogger('rich')
 
 # Download required NLTK data
-nltk.download(['punkt', 'punkt_tab', 'averaged_perceptron_tagger', 'wordnet'])
+nltk.download(['punkt', 'averaged_perceptron_tagger', 'wordnet'])
 from nltk.corpus import wordnet
 
-# Load spaCy model for text quality analysis
-nlp = spacy.load('en_core_web_md')  # Changed from 'en_core_web_sm' to 'en_core_web_md'
-# Load financial domain specific model if available
+# Before running the script, you need to download these models:
+# python -m spacy download en_core_web_lg  # Large English model with word vectors
+# python -m spacy download en_core_web_md  # Medium English model with word vectors (alternative)
+
+# Update the model loading section:
+try:
+    # Load the large model that includes word vectors
+    nlp = spacy.load('en_core_web_md')  # Changed from en_core_web_sm
+    logger.info("Loaded en_core_web_md model")
+except OSError:
+    try:
+        # Fallback to medium model if large one is not available
+        nlp = spacy.load('en_core_web_md')
+        logger.info("Loaded en_core_web_md model")
+    except OSError:
+        logger.error("Could not load spaCy model with word vectors. Please run:")
+        logger.error("python -m spacy download en_core_web_lg")
+        logger.error("or")
+        logger.error("python -m spacy download en_core_web_md")
+        raise
+
+# Load financial domain specific model if available (keep existing code)
 try:
     nlp_financial = spacy.load('en_core_financial_web_sm')
 except:
@@ -50,7 +71,7 @@ class DatasetCleaner:
         self.conv_starters_file = conv_starters_file
         self.silent_warnings = silent_warnings
         self.quality_threshold = 0.6  # Lowered from 0.75
-        self.max_prompt_length = 1000  # Reduced from 1500 to ensure more focused responses
+        self.max_prompt_length = 1250  # Reduced from 1500 to ensure more focused responses
         
         # Common profanity patterns
         self.profanity_patterns = [
@@ -80,11 +101,11 @@ class DatasetCleaner:
         # Add new parameters
         self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.min_financial_relevance = 0.5  # Lowered from 0.7
+        self.min_financial_relevance = 0.4  # Lowered from 0.7
         self.max_similarity_threshold = 0.85  # For deduplication
         self.complexity_threshold = 0.3  # Lowered from 0.4
         self.min_words = 5
-        self.max_words = 150  # Limit response length
+        self.max_words = 200  # Limit response length
         
         # Initialize vectorizer for similarity checking
         self.vectorizer = TfidfVectorizer(
@@ -121,6 +142,95 @@ class DatasetCleaner:
             'impact investing', 'green finance', 'carbon footprint', 'carbon offset',
             'carbon credit', 'sustainability', 'climate change', 'global warming',
             'renewable energy', 'clean energy', 'green energy', 'solar power',
+            'arbitrage', 'bid-ask spread', 'buyback', 'capital gains', 'commodities',
+            'contango', 'backwardation', 'derivatives', 'collateral', 'securitization',
+            'special purpose vehicle', 'structured finance', 'credit default swap',
+            'mortgage-backed security', 'asset-backed security', 'zero-coupon bond',
+            'fixed income', 'floating rate', 'coupon rate', 'par value', 'discount bond',
+            'convertible bond', 'sovereign debt', 'municipal bond', 'junk bond',
+            'investment grade', 'deleveraging', 'leveraged buyout', 'hostile takeover',
+            'mergers and acquisitions', 'initial public offering', 'direct listing',
+            'secondary offering', 'private equity', 'venture capital', 'angel investing',
+            'seed funding', 'series A funding', 'series B funding', 'unicorn startup',
+            'valuation multiple', 'earnings per share', 'price-to-earnings ratio',
+            'price-to-book ratio', 'enterprise value', 'discounted cash flow',
+            'intrinsic value', 'time value of money', 'net present value', 'internal rate of return',
+            'hurdle rate', 'capital asset pricing model', 'weighted average cost of capital',
+            'modigliani-miller theorem', 'efficient frontier', 'mean-variance optimization',
+            'black-scholes model', 'binomial options pricing', 'delta hedging',
+            'gamma exposure', 'vega risk', 'theta decay', 'implied volatility',
+            'historical volatility', 'market efficiency', 'behavioral finance',
+            'loss aversion', 'overconfidence bias', 'anchoring effect',
+            'herd mentality', 'hot hand fallacy', 'representativeness heuristic',
+            'recency bias', 'mental accounting', 'prospect theory',
+            'endowment effect', 'confirmation bias', 'framing effect',
+            'regret aversion', 'status quo bias', 'availability bias',
+            'yield curve', 'inverted yield curve', 'steepening yield curve',
+            'flattening yield curve', 'negative interest rates', 'quantitative tightening',
+            'forward guidance', 'dual mandate', 'open market operations',
+            'fractional reserve banking', 'money supply', 'velocity of money',
+            'fiat currency', 'gold standard', 'Bretton Woods system',
+            'sovereign wealth fund', 'foreign exchange reserves', 'current account deficit',
+            'balance of payments', 'trade surplus', 'trade deficit',
+            'purchasing power parity', 'interest rate parity', 'carry trade',
+            'capital flight', 'hot money flows', 'globalization', 'deglobalization',
+            'currency peg', 'dirty float', 'speculative attack', 'devaluation',
+            'revaluation', 'capital controls', 'shadow banking system',
+            'systemically important financial institution', 'moral hazard',
+            'adverse selection', 'principal-agent problem', 'asymmetric information',
+            'lemon market', 'creative destruction', 'invisible hand', 'Keynesian economics',
+            'Austrian economics', 'neoclassical economics', 'behavioral economics',
+            'modern monetary theory', 'supply-side economics', 'demand-side economics',
+            'trickle-down economics', 'helicopter money', 'fiscal cliff',
+            'debt ceiling', 'government bond', 'gilt', 'treasury yield',
+            'sovereign default', 'hyperinflation', 'stagflation', 'currency crisis',
+            'bank run', 'contagion effect', 'bailout', 'bail-in',
+            'too big to fail', 'stress test', 'macroprudential regulation',
+            'Basel III', 'Dodd-Frank Act', 'Glass-Steagall Act',
+            'Volcker Rule', 'monetary aggregate', 'broad money', 'narrow money',
+            'M1', 'M2', 'M3', 'velocity of circulation', 'GDP deflator',
+            'nominal GDP', 'real GDP', 'gross national product', 'disposable income',
+            'consumer sentiment', 'purchasing managers index', 'leading economic indicators',
+            'coincident economic indicators', 'lagging economic indicators',
+            'misery index', 'big mac index', 'tobin’s q', 'real wages',
+            'human capital', 'knowledge economy', 'creative economy', 'gig economy',
+            'circular economy', 'cryptographic hash', 'hash rate',
+            'proof of stake', 'proof of work', 'layer 1 blockchain',
+            'layer 2 scaling solution', 'oracle problem', 'flash loan',
+            'yield aggregator', 'stablecoin', 'algorithmic stablecoin',
+            'central bank digital currency', 'tokenomics', 'smart contract risk',
+            'gas fees', 'EIP-1559', 'rollups', 'zk-rollups', 'optimistic rollups',
+            'liquidity mining', 'governance token', 'fork', 'soft fork', 'hard fork',
+            'wrapped token', 'cross-chain interoperability', 'bridging assets',
+            'real-world assets', 'security token', 'tokenized securities',
+            'fractional ownership', 'NFT royalties', 'soulbound tokens',
+            'AI in finance', 'automated trading', 'algorithmic trading',
+            'high-frequency trading', 'market making', 'dark pools',
+            'quantitative hedge fund', 'factor investing', 'momentum investing',
+            'contrarian investing', 'index investing', 'smart beta', 'robo-advisor',
+            'passive investing', 'active investing', 'direct indexing',
+            'retail investor', 'institutional investor', 'sovereign investor',
+            'family office', 'endowment fund', 'pension fund', 'defined benefit plan',
+            'defined contribution plan', 'annuity', 'life insurance',
+            'reinsurance', 'insurance underwriting', 'catastrophe bond',
+            'parametric insurance', 'microinsurance', 'insurance-linked securities',
+            'policyholder surplus', 'policy lapse', 'self-insurance',
+            'fiduciary duty', 'proxy voting', 'stewardship', 'shareholder activism',
+            'poison pill', 'golden parachute', 'white knight', 'greenmail',
+            'dual-class shares', 'corporate governance', 'ESG scoring',
+            'carbon neutrality', 'emissions trading', 'green bonds',
+            'social impact bonds', 'blue economy', 'circular finance',
+            'impact measurement', 'stakeholder capitalism', 'benefit corporation',
+            'public-private partnership', 'crowdfunding', 'peer-to-peer lending',
+            'alternative investments', 'artificial intelligence in finance',
+            'machine learning in trading', 'neural networks in investing',
+            'alternative data', 'satellite imagery in finance',
+            'sentiment analysis in trading', 'predictive analytics',
+            'automated wealth management', 'fintech disruption',
+            'regtech', 'insurtech', 'suptech', 'financial inclusion',
+            'mobile banking', 'cashless society', 'open banking',
+            'digital wallet interoperability', 'banking as a service',
+            'embedded finance', 'central bank autonomy'
         ])
         self.sample_usage_counter = {}  # Track how many times each sample is used
         self.max_sample_usage = 5  # Maximum times a sample can be used
@@ -410,11 +520,14 @@ class DatasetCleaner:
                 if not self.is_quality_response(cleaned_body):
                     continue
                 
-                # Format the question/prompt
-                question = cleaned_title
-                if cleaned_selftext:
-                    question += f"\n\n{cleaned_selftext}"
-                
+                # Format the question/prompt - only include title if it ends with "?"
+                if cleaned_title.strip().endswith('?'):
+                    question = cleaned_title
+                    if cleaned_selftext:
+                        question += f"\n\n{cleaned_selftext}"
+                else:
+                    question = cleaned_selftext if cleaned_selftext else cleaned_title
+
                 # Select a random conversational starter
                 starter = random.choice(self.conv_starters)
                 
@@ -573,11 +686,16 @@ class DatasetCleaner:
             return 0.0
             
         try:
+            start_time = time()
+            logger.debug(f"Starting financial relevance assessment for text of length {len(text)}")
+
             # Use both general and financial models
+            logger.debug("Processing with spaCy models...")
             doc_general = nlp(text)
             doc_financial = nlp_financial(text)
             
             # Enhanced entity recognition with weighted categories
+            logger.debug("Calculating entity scores...")
             entity_weights = {
                 'ORG': 1.0,      # Organizations
                 'MONEY': 1.2,    # Monetary values
@@ -594,12 +712,21 @@ class DatasetCleaner:
                 if ent.label_ in entity_weights
             ) / max(len(doc_financial.ents), 1)
             
-            # Keyword and phrase analysis (unchanged)
+            logger.debug(f"Entity score: {entity_score:.3f}")
+            
+            # Keyword analysis with context
+            logger.debug("Performing keyword analysis...")
             words = text.lower().split()
             word_set = set(words)
+            
+            # Calculate keyword density
             keyword_matches = len(word_set.intersection(self.financial_keywords))
             keyword_density = keyword_matches / max(len(words), 1)
             
+            logger.debug(f"Keyword density: {keyword_density:.3f}")
+            
+            # Check for financial bigrams and phrases
+            logger.debug("Checking financial phrases...")
             financial_phrases = [
                 'market analysis', 'risk management', 'asset allocation',
                 'interest rates', 'stock market', 'financial planning'
@@ -607,33 +734,119 @@ class DatasetCleaner:
             phrase_matches = sum(1 for phrase in financial_phrases if phrase in text.lower())
             phrase_score = phrase_matches / max(len(financial_phrases), 1)
             
-            # Modified semantic analysis to handle missing vectors
+            logger.debug(f"Phrase score: {phrase_score:.3f}")
+            
+            # Semantic analysis using spaCy's word vectors
+            logger.debug("Performing semantic analysis...")
+            financial_topics = [
+                'finance', 'investment', 'banking', 'trade', 'stock',
+                'market', 'economy', 'money', 'crypto', 'currency',
+                'fund', 'asset', 'portfolio', 'risk', 'return', 'dividend', 
+                'interest', 'inflation', 'tax', 'loan', 'mortgage', 'savings', 
+                'wealth', 'insurance', 'audit', 'accounting', 'budget', 'retirement',
+                'pension', 'regulation', 'compliance', 'fraud', 'scam', 'payment',
+                'transaction', 'exchange', 'blockchain', 'token', 'coin', 'wallet',
+                'mining', 'staking', 'defi', 'nft', 'yield farming', 'liquidity pool',
+                'impermanent loss', 'rug pull', 'pump and dump', 'bear market',
+                'bull market', 'short selling', 'long position', 'margin trading',
+                'leverage', 'volatility', 'correlation', 'beta', 'alpha', 'sharpe ratio',
+                'sortino ratio', 'treynor ratio', 'jensen alpha', 'efficient market hypothesis',
+                'random walk', 'technical analysis', 'fundamental analysis', 'quantitative analysis',
+                'quantitative easing', 'monetary policy', 'fiscal policy', 'central bank', 'interest rate',
+                'inflation rate', 'deflation', 'stagflation', 'recession', 'depression', 'recovery',
+                'growth', 'expansion', 'peak', 'trough', 'cycle', 'bubble', 'crash', 'black swan',
+                'tail risk', 'systemic risk', 'counterparty risk', 'credit risk', 'liquidity risk',
+                'market risk', 'operational risk', 'regulatory risk', 'political risk', 'economic risk',
+                'geopolitical risk', 'environmental risk', 'social risk', 'ESG', 'sustainable investing',
+                'impact investing', 'green finance', 'carbon footprint', 'carbon offset', 'carbon credit',
+                'sustainability', 'climate change', 'global warming', 'renewable energy', 'clean energy',
+                'green energy', 'solar power', 'arbitrage', 'bid-ask spread', 'buyback', 'capital gains',
+                'private equity', 'venture capital', 'angel investing', 'seed funding', 'series A funding',
+                'series B funding', 'series C funding', 'leveraged buyout', 'mergers and acquisitions',
+                'hostile takeover', 'share buyback', 'initial public offering (IPO)', 'special purpose acquisition company (SPAC)',
+                'direct listing', 'secondary offering', 'private placement', 'hedge fund', 'mutual fund',
+                'exchange-traded fund (ETF)', 'index fund', 'target-date fund', 'sovereign wealth fund',
+                'family office', 'custodial account', 'margin call', 'stop-loss order', 'limit order',
+                'market order', 'bid-ask spread', 'liquidity premium', 'discount rate', 'yield curve',
+                'bond rating', 'credit default swap (CDS)', 'collateralized debt obligation (CDO)',
+                'mortgage-backed security (MBS)', 'asset-backed security (ABS)', 'structured finance',
+                'fixed-income securities', 'convertible bond', 'municipal bond', 'corporate bond',
+                'sovereign bond', 'treasury bond', 'treasury bill', 'zero-coupon bond', 'junk bond',
+                'high-yield bond', 'floating rate bond', 'perpetual bond', 'coupon rate',
+                'principal payment', 'balloon payment', 'callable bond', 'puttable bond',
+                'debt restructuring', 'forbearance', 'loan default', 'creditworthiness',
+                'credit bureau', 'FICO score', 'debt-to-equity ratio', 'current ratio',
+                'quick ratio', 'working capital', 'capital structure', 'capital budgeting',
+                'return on assets (ROA)', 'return on equity (ROE)', 'return on investment (ROI)',
+                'internal rate of return (IRR)', 'net present value (NPV)', 'discounted cash flow (DCF)',
+                'earnings before interest and taxes (EBIT)', 'earnings before interest, taxes, depreciation, and amortization (EBITDA)',
+                'price-to-earnings (P/E) ratio', 'price-to-book (P/B) ratio', 'enterprise value',
+                'market capitalization', 'free cash flow (FCF)', 'dividend yield', 'dividend payout ratio',
+                'stock split', 'reverse stock split', 'stock dilution', 'shareholder equity',
+                'preferred stock', 'common stock', 'restricted stock unit (RSU)', 'stock option',
+                'phantom stock', 'vesting schedule', 'exercise price', 'strike price',
+                'in-the-money option', 'out-of-the-money option', 'covered call', 'naked put',
+                'iron condor', 'butterfly spread', 'collar strategy', 'delta hedging',
+                'gamma scalping', 'theta decay', 'VIX (volatility index)', 'greeks (delta, gamma, theta, vega, rho)',
+                'carry trade', 'currency peg', 'foreign exchange reserves', 'balance of payments',
+                'current account deficit', 'trade surplus', 'trade deficit', 'export-import balance',
+                'tariffs', 'sanctions', 'quantitative tightening', 'yield spread', 'credit crunch',
+                'bank run', 'shadow banking system', 'fractional reserve banking', 'Basel III regulations',
+                'Dodd-Frank Act', 'Glass-Steagall Act', 'Volcker Rule', 'stress testing',
+                'bailout', 'bail-in', 'too big to fail', 'systemically important financial institution (SIFI)',
+                'financial contagion', 'moral hazard', 'asymmetric information', 'adverse selection',
+                'lemon problem', 'principal-agent problem', 'agency cost', 'corporate governance',
+                'proxy fight', 'dual-class shares', 'golden parachute', 'poison pill',
+                'white knight', 'shareholder activism', 'socially responsible investing (SRI)',
+                'triple bottom line (TBL)', 'green bonds', 'impact bonds', 'blue economy',
+                'carbon trading', 'greenwashing', 'corporate social responsibility (CSR)',
+                'behavioral finance', 'market efficiency', 'noise trader', 'sentiment analysis',
+                'algorithmic trading', 'high-frequency trading (HFT)', 'flash crash',
+                'mean reversion', 'momentum investing', 'contrarian investing',
+                'factor investing', 'smart beta', 'value investing', 'growth investing',
+                'income investing', 'small-cap stocks', 'mid-cap stocks', 'large-cap stocks',
+                'emerging markets', 'developed markets', 'sovereign risk', 'country risk',
+                'BRICS economies', 'frontier markets', 'macroeconomic indicators',
+                'leading indicators', 'lagging indicators', 'coincident indicators',
+                'consumer confidence index (CCI)', 'purchasing managers index (PMI)',
+                'gross domestic product (GDP)', 'gross national product (GNP)',
+                'human development index (HDI)', 'misery index', 'Gini coefficient',
+                'Lorenz curve', 'Phillips curve', 'Laffer curve', 'Okuns law',
+                'stagflation', 'hyperinflation', 'deleveraging', 'helicopter money',
+                'debt monetization', 'sovereign default', 'capital flight',
+                'hot money flows', 'brain drain', 'demographic dividend',
+                'pension fund crisis', 'social security insolvency', 'universal basic income (UBI)',
+                'negative income tax', 'wealth tax', 'estate tax', 'inheritance tax',
+                'sin tax', 'flat tax', 'progressive tax', 'regressive tax',
+                'tax evasion', 'tax avoidance', 'offshore banking', 'shell company',
+                'money laundering', 'Ponzi scheme', 'pyramid scheme', 'insider trading',
+                'whistleblower', 'white-collar crime', 'corporate espionage',
+                'dark pool trading', 'front running', 'pump and dump scheme',
+                'wash trading', 'naked short selling', 'dark web markets'
+
+            ]
             semantic_scores = []
             for token in doc_general:
-                if token.has_vector and token.vector_norm > 0:  # Only consider tokens with valid vectors
-                    topic_similarities = []
-                    for topic in self.financial_keywords:
-                        topic_token = nlp(topic)[0]  # Get the first token of the topic
-                        if topic_token.has_vector and topic_token.vector_norm > 0:
-                            try:
-                                similarity = token.similarity(topic_token)
-                                if not np.isnan(similarity):  # Check for valid similarity score
-                                    topic_similarities.append(similarity)
-                            except:
-                                continue
-                    if topic_similarities:
-                        semantic_scores.append(max(topic_similarities))
+                if token.has_vector:
+                    topic_similarity = max(
+                        token.similarity(doc_general.vocab[topic])
+                        for topic in financial_topics
+                    )
+                    semantic_scores.append(topic_similarity)
             
-            # Calculate semantic score or fallback to keyword-based score
-            semantic_score = np.mean(semantic_scores) if semantic_scores else keyword_density
+            semantic_score = np.mean(semantic_scores) if semantic_scores else 0.0
+            logger.debug(f"Semantic score: {semantic_score:.3f}")
             
-            # Combine scores with adjusted weights to compensate for potential missing vectors
+            # Combine scores with weights
             final_score = (
-                0.40 * entity_score +
-                0.35 * keyword_density +
-                0.15 * semantic_score +
-                0.10 * phrase_score
+                0.35 * entity_score +
+                0.30 * keyword_density +
+                0.20 * semantic_score +
+                0.15 * phrase_score
             )
+            
+            processing_time = time() - start_time
+            logger.debug(f"Financial relevance assessment completed in {processing_time:.2f}s with score {final_score:.3f}")
             
             return min(final_score, 1.0)
             
@@ -643,9 +856,21 @@ class DatasetCleaner:
 
     def parallel_process_text(self, texts: List[str], func) -> List[float]:
         """Process texts in parallel using ProcessPoolExecutor"""
+        total = len(texts)
+        logger.info(f"Starting parallel processing of {total:,} texts...")
+        start_time = time()
+        
+        results = []
         with ProcessPoolExecutor() as executor:
             futures = [executor.submit(func, text) for text in texts]
-            return [future.result() for future in as_completed(futures)]
+            for i, future in enumerate(tqdm(as_completed(futures), total=total, desc=f"Processing with {func.__name__}")):
+                results.append(future.result())
+                if (i + 1) % 1000 == 0:
+                    logger.info(f"Processed {i + 1:,}/{total:,} texts...")
+        
+        processing_time = time() - start_time
+        logger.info(f"Parallel processing completed in {processing_time:.2f}s")
+        return results
 
     def find_similar_texts(self, texts: List[str], threshold: float = 0.85) -> List[int]:
         """Find and return indices of similar texts using TF-IDF and cosine similarity"""
@@ -679,10 +904,14 @@ class DatasetCleaner:
 
     def process_dataset(self):
         """Enhanced main processing pipeline with safe filtering"""
+        start_time = time()
+        logger.info("Starting dataset processing pipeline...")
+        
         try:
             # Try to load from cache first
             cache_file = self.cache_dir / "processed_data.joblib"
-            if (cache_file.exists()):
+            if cache_file.exists():
+                logger.info("Found cached processed data, loading...")
                 df = joblib.load(cache_file)
                 logger.info("Loaded processed data from cache")
             else:
@@ -700,7 +929,11 @@ class DatasetCleaner:
                 # Text cleaning and quality metrics (Group 2: Text processing)
                 # logger.info("\n=== Text Processing and Quality Assessment ===")
                 with ProcessPoolExecutor() as executor:
-                    df['cleaned_body'] = list(executor.map(self.clean_text, df['body']))
+                    df['cleaned_body'] = list(tqdm(
+                        executor.map(self.clean_text, df['body']),
+                        total=len(df),
+                        desc="Cleaning text"
+                    ))
                 df = df[df['cleaned_body'].str.len() > 0]  # Remove empty texts
                 text_cleaned_size = len(df)
                 logger.info(f"After text cleaning: {text_cleaned_size:,} records ({(text_cleaned_size/score_filtered_size)*100:.1f}% retained)")
@@ -760,6 +993,7 @@ class DatasetCleaner:
                     f.write(json.dumps(item) + '\n')
             
             logger.info(f"Successfully saved {len(training_data):,} examples to {self.output_file}")
+            logger.info(f"Total processing time: {(time() - start_time):.2f}s")
             
         except Exception as e:
             logger.error(f"Error in dataset processing: {e}")

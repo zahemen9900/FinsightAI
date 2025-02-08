@@ -1,0 +1,28 @@
+  0%|                                                                                                                                    | 0/116 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+ 10%|████████████▌                                                                                                            | 12/116 [09:45<2:43:48, 94.51s/it]Traceback (most recent call last):
+{'loss': 2.5057, 'grad_norm': 0.1206948533654213, 'learning_rate': 0.00029732142857142853, 'epoch': 0.09}
+{'loss': 2.3632, 'grad_norm': 0.08025533705949783, 'learning_rate': 0.00028392857142857137, 'epoch': 0.17}
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 372, in <module>                                                                 
+{'eval_loss': 2.293180465698242, 'eval_runtime': 272.0252, 'eval_samples_per_second': 0.562, 'eval_steps_per_second': 0.143, 'epoch': 0.17}
+    train()
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 347, in train
+    train_result = trainer.train()
+                   ^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2171, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2531, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 3712, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/accelerate/accelerator.py", line 2242, in backward
+    self.scaler.scale(loss).backward(**kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_tensor.py", line 581, in backward
+    torch.autograd.backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/__init__.py", line 347, in backward
+    _engine_run_backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

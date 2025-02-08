@@ -1,0 +1,16 @@
+[2025-02-08 02:36:43] - INFO - Loaded en_core_web_md model
+[2025-02-08 02:36:43] - INFO - Starting dataset processing pipeline...
+[2025-02-08 02:36:43] - INFO - Found cached processed data, loading...
+[2025-02-08 02:36:43] - INFO - Loaded processed data from cache
+[2025-02-08 02:36:43] - INFO - 
+=== Converting to SFT Format ===
+[2025-02-08 02:36:45] - INFO - Successfully saved 1,467 examples to /home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl
+[2025-02-08 02:36:45] - INFO - Total processing time: 2.31s
+[2025-02-08 03:14:41] - INFO - Loaded en_core_web_md model
+[2025-02-08 03:14:41] - INFO - Starting dataset processing pipeline...
+[2025-02-08 03:14:41] - INFO - Found cached processed data, loading...
+[2025-02-08 03:14:41] - INFO - Loaded processed data from cache
+[2025-02-08 03:14:41] - INFO - 
+=== Converting to SFT Format ===
+[2025-02-08 03:14:44] - INFO - Successfully saved 1,467 examples to /home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl
+[2025-02-08 03:14:44] - INFO - Total processing time: 2.28s
