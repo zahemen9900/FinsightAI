@@ -1,0 +1,8 @@
+{"time":"2025-02-08T03:16:24.331345198Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-08T03:16:24.331361098Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250208_031624-neqv4tiq/logs/debug-core.log"}
+{"time":"2025-02-08T03:16:24.467988372Z","level":"INFO","msg":"created new stream","id":"neqv4tiq"}
+{"time":"2025-02-08T03:16:24.468028185Z","level":"INFO","msg":"stream: started","id":"neqv4tiq"}
+{"time":"2025-02-08T03:16:24.468160523Z","level":"INFO","msg":"handler: started","stream_id":"neqv4tiq"}
+{"time":"2025-02-08T03:16:24.468564482Z","level":"INFO","msg":"writer: Do: started","stream_id":"neqv4tiq"}
+{"time":"2025-02-08T03:16:24.468592176Z","level":"INFO","msg":"sender: started","stream_id":"neqv4tiq"}
+{"time":"2025-02-08T03:16:25.005407506Z","level":"INFO","msg":"Starting system monitor"}
