@@ -72,7 +72,7 @@ class DatasetCleaner:
         self.conv_starters_file = conv_starters_file
         self.silent_warnings = silent_warnings
         self.quality_threshold = 0.6  # Lowered from 0.75
-        self.max_prompt_length = 1250  # Reduced from 1500 to ensure more focused responses
+        self.max_prompt_length = 1000  # Reduced from 1500 to ensure more focused responses
         
         # Common profanity patterns
         self.profanity_patterns = [
@@ -102,7 +102,7 @@ class DatasetCleaner:
         # Add new parameters
         self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.min_financial_relevance = 0.25  # Lowered from 0.7
+        self.min_financial_relevance = 0.35  # Lowered from 0.7
         self.max_similarity_threshold = 0.80  # For deduplication
         self.complexity_threshold = 0.3  # Lowered from 0.4
         self.min_words = 5
@@ -235,6 +235,17 @@ class DatasetCleaner:
         ])
         self.sample_usage_counter = {}  # Track how many times each sample is used
         self.max_sample_usage = 5  # Maximum times a sample can be used
+
+        # Add individual cache files
+        self.cache_paths = {
+            'initial_load': self.cache_dir / "initial_data.joblib",
+            'score_filtered': self.cache_dir / "score_filtered.joblib",
+            'cleaned_text': self.cache_dir / "cleaned_text.joblib",
+            'text_quality': self.cache_dir / "text_quality.joblib",
+            'complexity': self.cache_dir / "complexity.joblib",
+            'financial_relevance': self.cache_dir / "financial_relevance.joblib",
+            'final_filtered': self.cache_dir / "final_filtered.joblib"
+        }
 
     def load_conv_starters(self) -> List[Dict[str, str]]:
         """Load conversational starters from a text file."""
@@ -903,92 +914,97 @@ class DatasetCleaner:
             logger.warning(f"Error finding similar texts: {e}")
             return []
 
+    def load_or_compute(self, cache_key: str, compute_func, df=None, message="Processing"):
+        """Generic function to handle loading from cache or computing"""
+        cache_path = self.cache_paths[cache_key]
+        
+        if cache_path.exists():
+            logger.info(f"Loading {cache_key} from cache...")
+            return joblib.load(cache_path)
+        
+        logger.info(f"Computing {cache_key}...")
+        result = compute_func(df) if df is not None else compute_func()
+        
+        logger.info(f"Caching {cache_key}...")
+        joblib.dump(result, cache_path)
+        return result
+
     def process_dataset(self):
-        """Enhanced main processing pipeline with safe filtering"""
+        """Enhanced main processing pipeline with granular caching"""
         start_time = time()
         logger.info("Starting dataset processing pipeline...")
         
         try:
-            # Try to load from cache first
-            cache_file = self.cache_dir / "processed_data.joblib"
-            if cache_file.exists():
-                logger.info("Found cached processed data, loading...")
-                df = joblib.load(cache_file)
-                logger.info("Loaded processed data from cache")
-            else:
-                df = self.load_data()
-                initial_size = len(df)
-                logger.info(f"Initial dataset size: {initial_size:,} records")
-                
-                # Initial filtering based on scores (Group 1: Score-based filtering)
-                # logger.info("\n=== Score-based Filtering ===")
+            # Load initial data
+            df = self.load_or_compute('initial_load', self.load_data)
+            initial_size = len(df)
+            logger.info(f"Initial dataset size: {initial_size:,} records")
+
+            # Score-based filtering
+            def apply_score_filtering(data):
                 score_cols = ['z_score', 'combined_score', 'comment_normalized_score']
-                df = df[np.all([df[col] > df[col].quantile(0.2) for col in score_cols], axis=0)]
-                score_filtered_size = len(df)
-                logger.info(f"After score filtering: {score_filtered_size:,} records ({(score_filtered_size/initial_size)*100:.1f}% retained)")
-                
-                # Text cleaning and quality metrics (Group 2: Text processing)
-                # logger.info("\n=== Text Processing and Quality Assessment ===")
+                return data[np.all([data[col] > data[col].quantile(0.2) for col in score_cols], axis=0)]
+            
+            df = self.load_or_compute('score_filtered', apply_score_filtering, df)
+            score_filtered_size = len(df)
+            logger.info(f"After score filtering: {score_filtered_size:,} records")
+
+            # Text cleaning
+            def apply_text_cleaning(data):
                 with ProcessPoolExecutor() as executor:
-                    df['cleaned_body'] = list(tqdm(
-                        executor.map(self.clean_text, df['body']),
-                        total=len(df),
+                    data['cleaned_body'] = list(tqdm(
+                        executor.map(self.clean_text, data['body']),
+                        total=len(data),
                         desc="Cleaning text"
                     ))
-                df = df[df['cleaned_body'].str.len() > 0]  # Remove empty texts
-                text_cleaned_size = len(df)
-                logger.info(f"After text cleaning: {text_cleaned_size:,} records ({(text_cleaned_size/score_filtered_size)*100:.1f}% retained)")
-                
-                # Calculate all quality metrics in parallel (Group 3: Quality metrics)
-                # logger.info("\n=== Quality Metrics Calculation ===")
-                df['body_quality'] = self.parallel_process_text(df['cleaned_body'], self.assess_text_quality)
-                df['complexity'] = self.parallel_process_text(df['cleaned_body'], self.calculate_text_complexity)
-                df['financial_relevance'] = self.parallel_process_text(df['cleaned_body'], self.assess_financial_relevance)
-                
-                # Apply all quality filters together (Group 4: Quality filtering)
-                # logger.info("\n=== Quality Filtering ===")
+                return data[data['cleaned_body'].str.len() > 0]
+            
+            df = self.load_or_compute('cleaned_text', apply_text_cleaning, df)
+            
+            # Quality metrics calculation (separate caching for each metric)
+            def compute_quality(data):
+                return self.parallel_process_text(data['cleaned_body'], self.assess_text_quality)
+            
+            def compute_complexity(data):
+                return self.parallel_process_text(data['cleaned_body'], self.calculate_text_complexity)
+            
+            def compute_financial_relevance(data):
+                return self.parallel_process_text(data['cleaned_body'], self.assess_financial_relevance)
+            
+            df['body_quality'] = self.load_or_compute('text_quality', compute_quality, df)
+            df['complexity'] = self.load_or_compute('complexity', compute_complexity, df)
+            df['financial_relevance'] = self.load_or_compute('financial_relevance', compute_financial_relevance, df)
+
+            # Apply all filters
+            def apply_final_filtering(data):
                 quality_filters = [
-                    ('Quality threshold', df['body_quality'] > self.quality_threshold),
-                    ('Complexity threshold', df['complexity'] > self.complexity_threshold),
-                    ('Financial relevance', df['financial_relevance'] > self.min_financial_relevance),
-                    ('Conversational style', df['cleaned_body'].apply(self.is_conversational)),
-                    ('No profanity', ~df['cleaned_body'].apply(self.contains_profanity)),
-                    ('Length constraints', df['cleaned_body'].str.len().between(50, 2000))
+                    ('Quality threshold', data['body_quality'] > self.quality_threshold),
+                    ('Complexity threshold', data['complexity'] > self.complexity_threshold),
+                    ('Financial relevance', data['financial_relevance'] > self.min_financial_relevance),
+                    ('Conversational style', data['cleaned_body'].apply(self.is_conversational)),
+                    ('No profanity', ~data['cleaned_body'].apply(self.contains_profanity)),
+                    ('Length constraints', data['cleaned_body'].str.len().between(50, 2000))
                 ]
                 
                 # Log individual filter impacts
                 for filter_name, condition in quality_filters:
-                    passing = len(df[condition])
-                    logger.info(f"{filter_name}: {passing:,} records pass ({(passing/len(df))*100:.1f}% pass rate)")
+                    passing = len(data[condition])
+                    logger.info(f"{filter_name}: {passing:,} records pass ({(passing/len(data))*100:.1f}% pass rate)")
                 
-                # Apply all filters
+                filtered_data = data.copy()
                 for _, condition in quality_filters:
-                    df = df[condition]
-                quality_filtered_size = len(df)
-                logger.info(f"After all quality filters: {quality_filtered_size:,} records ({(quality_filtered_size/text_cleaned_size)*100:.1f}% retained)")
+                    filtered_data = filtered_data[condition]
                 
-                # Deduplication (Group 5: Similarity filtering)
-                logger.info("\n=== Deduplication ===")
-                duplicate_indices = self.find_similar_texts(df['cleaned_body'].tolist())
-                df = df.drop(index=df.index[duplicate_indices])
-                final_size = len(df)
-                logger.info(f"After deduplication: {final_size:,} recorzds ({(final_size/quality_filtered_size)*100:.1f}% retained)")
+                # Deduplication
+                duplicate_indices = self.find_similar_texts(filtered_data['cleaned_body'].tolist())
+                filtered_data = filtered_data.drop(index=filtered_data.index[duplicate_indices])
                 
-                # Overall statistics
-                logger.info("\n=== Final Statistics ===")
-                logger.info(f"Initial dataset size: {initial_size:,}")
-                logger.info(f"Final dataset size: {final_size:,}")
-                logger.info(f"Overall retention rate: {(final_size/initial_size)*100:.1f}%")
-                
-                # Cache the processed DataFrame
-                joblib.dump(df, cache_file)
-                logger.info("\nProcessed data cached successfully")
+                return filtered_data
             
-            # Convert to SFT format
-            logger.info("\n=== Converting to SFT Format ===")
+            df = self.load_or_compute('final_filtered', apply_final_filtering, df)
+            
+            # Convert to SFT format and save
             training_data = self.convert_to_sft_format(df)
-            
-            # Save final output
             with open(self.output_file, 'w') as f:
                 for item in training_data:
                     f.write(json.dumps(item) + '\n')
