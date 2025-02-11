@@ -53,7 +53,7 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
     gradient_accumulation_steps: int = 2    # Reduced for faster updates
-    logging_steps: int = 50
+    logging_steps: int = 25
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'linear' # Linear scheduler for faster training
@@ -63,7 +63,7 @@ class QLoRAConfig(SFTConfig):
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
-    lower_is_better: bool = True # we want to minimize loss
+    lower_is_better: bool = True # minimize loss
     
     # Optimized DeepSpeed config for faster training
     # DeepSpeed configs
@@ -94,16 +94,16 @@ class QLoRAConfig(SFTConfig):
     }
 
     # Model settings optimized for speed
-    bf16: bool = False
-    fp16: bool = True
+    bf16: bool = True
+    # fp16: bool = True
     double_quant: bool = True
     quant_type: str = "nf4"
-    dataset_num_proc: int = 2    # Reduced to prevent memory issues
-    use_cache: bool = False
+    dataset_num_proc: int = 2    #. Reduced to prevent memory issues
+    use_cache: bool = True
     
     # Memory optimizations
     max_grad_norm: float = 1.0
-    dataloader_num_workers: int = 2
+    dataloader_num_workers: int = 4
     dataloader_pin_memory: bool = True
     
     # Add resume training parameters
