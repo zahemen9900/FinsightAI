@@ -1,7 +1,7 @@
 name: transformer_LM
 channels:
   - pytorch
-  - huggingface
+  - rapidsai
   - nvidia
   - defaults
   - conda-forge
@@ -10,7 +10,6 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
-  - accelerate=1.2.1=pyhd8ed1ab_1
   - aiohappyeyeballs=2.4.4=py311h06a4308_0
   - aiohttp=3.11.10=py311h5eee18b_0
   - aiosignal=1.2.0=pyhd3eb1b0_0
@@ -42,44 +41,69 @@ dependencies:
   - bitsandbytes=0.45.0=cpu_py311h25b7b37_0
   - blas=1.0=mkl
   - bleach=6.2.0=py311h06a4308_0
+  - boto3=1.36.3=py311h06a4308_0
+  - botocore=1.36.3=py311h06a4308_0
   - bottleneck=1.4.2=py311hf4808d0_0
   - brotli=1.0.9=he6710b0_2
   - brotli-bin=1.1.0=hb9d3cd8_2
   - brotli-python=1.0.9=py311h6a678d5_8
   - bzip2=1.0.8=h5eee18b_6
   - c-ares=1.34.4=hb9d3cd8_0
-  - ca-certificates=2024.12.31=h06a4308_0
+  - ca-certificates=2025.1.31=hbcca054_0
   - certifi=2024.12.14=pyhd8ed1ab_0
   - cffi=1.17.1=py311h1fdaa30_0
   - chardet=4.0.0=py311h06a4308_1003
   - charset-normalizer=3.3.2=pyhd3eb1b0_0
   - comm=0.2.1=py311h06a4308_0
+  - conllu=4.4.1=pyhd3eb1b0_0
   - contourpy=1.3.1=py311hdb19cb5_0
   - cookiecutter=2.6.0=py311h06a4308_0
+  - cuda-cccl=12.6.77=0
+  - cuda-cccl_linux-64=12.6.77=0
+  - cuda-crt-dev_linux-64=12.6.20=0
+  - cuda-crt-tools=12.6.20=0
   - cuda-cudart=12.4.127=0
+  - cuda-cudart-dev=12.4.127=0
+  - cuda-cudart-dev_linux-64=12.6.77=0
+  - cuda-cudart-static_linux-64=12.6.77=0
+  - cuda-cudart_linux-64=12.6.77=0
   - cuda-cupti=12.4.127=0
   - cuda-libraries=12.4.1=0
+  - cuda-nvcc-dev_linux-64=12.6.20=0
+  - cuda-nvcc-impl=12.6.20=0
+  - cuda-nvcc-tools=12.6.20=0
   - cuda-nvrtc=12.4.127=0
   - cuda-nvtx=12.4.127=0
+  - cuda-nvvm-dev_linux-64=12.6.20=0
+  - cuda-nvvm-impl=12.6.20=0
+  - cuda-nvvm-tools=12.6.20=0
   - cuda-opencl=12.6.77=0
+  - cuda-python=12.6.0=py311h7ffcb74_0
   - cuda-runtime=12.4.1=0
   - cuda-version=12.6=3
+  - cudf=24.12.00=cuda12_py311_241211_gff41ecf473_0
+  - cupy=13.3.0=py311h1c6efab_2
+  - cupy-core=13.3.0=py311ha4ffafd_2
   - cycler=0.11.0=pyhd3eb1b0_0
   - cyrus-sasl=2.1.28=h52b45da_1
   - dataclasses=0.8=pyh6d0b6a4_7
-  - datasets=3.2.0=py_0
   - dbus=1.13.18=hb2f20db_0
   - debugpy=1.6.7=py311h6a678d5_0
   - decorator=5.1.1=pyhd3eb1b0_0
   - deepspeed=0.16.2=cpu_py311hd0a74d0_0
   - defusedxml=0.7.1=pyhd3eb1b0_0
   - dill=0.3.8=py311h06a4308_0
+  - dlpack=0.8=h59595ed_3
   - einops=0.8.0=pyhd8ed1ab_1
-  - evaluate=0.4.0=py311h06a4308_0
+  - et_xmlfile=1.1.0=py311h06a4308_0
   - executing=0.8.3=pyhd3eb1b0_0
   - expat=2.6.4=h6a678d5_0
+  - faiss=1.8.0=py311cuda126h9381f1a_2_cuda
+  - faiss-gpu=1.8.0=h0240f8b_2
+  - fastrlock=0.8.3=py311h19fd3bc_1
   - ffmpeg=4.3=hf484d3e_0
   - filelock=3.13.1=py311h06a4308_0
+  - fmt=11.0.2=h434a139_0
   - fontconfig=2.14.1=h55d465d_3
   - fonttools=4.51.0=py311h5eee18b_0
   - freetype=2.12.1=h4a9f257_0
@@ -99,14 +123,17 @@ dependencies:
   - hjson-py=3.1.0=pyhd8ed1ab_1
   - httpcore=1.0.2=py311h06a4308_0
   - httpx=0.27.0=py311h06a4308_0
-  - huggingface_hub=0.27.0=py_0
   - icu=73.1=h6a678d5_0
   - idna=3.7=py311h06a4308_0
+  - importlib-metadata=8.5.0=py311h06a4308_0
+  - importlib_metadata=8.5.0=hd3eb1b0_0
+  - inflate64=0.3.1=py311h5eee18b_2
   - intel-openmp=2023.1.0=hdb19cb5_46306
   - ipykernel=6.29.5=py311h06a4308_0
   - ipython=8.30.0=py311h06a4308_0
   - jedi=0.19.2=py311h06a4308_0
   - jinja2=3.1.4=py311h06a4308_1
+  - jmespath=1.0.1=py311h06a4308_0
   - joblib=1.4.2=py311h06a4308_0
   - jpeg=9e=h5eee18b_3
   - json5=0.9.25=py311h06a4308_0
@@ -133,6 +160,7 @@ dependencies:
   - libarrow-acero=16.1.0=hac33072_6_cpu
   - libarrow-dataset=16.1.0=hac33072_6_cpu
   - libarrow-substrait=16.1.0=h7e0c224_6_cpu
+  - libblas=3.9.0=1_h86c2bf4_netlib
   - libbrotlicommon=1.1.0=hb9d3cd8_2
   - libbrotlidec=1.1.0=hb9d3cd8_2
   - libbrotlienc=1.1.0=hb9d3cd8_2
@@ -141,8 +169,10 @@ dependencies:
   - libclang13=14.0.6=default_he11475f_2
   - libcrc32c=1.1.2=h6a678d5_0
   - libcublas=12.4.5.8=0
+  - libcudf=24.12.00=cuda12_241211_gff41ecf473_0
   - libcufft=11.2.1.3=0
   - libcufile=1.11.1.6=0
+  - libcufile-dev=1.11.1.6=0
   - libcups=2.4.2=h2d74bed_1
   - libcurand=10.3.7.77=0
   - libcurl=8.11.1=hc9e6f67_0
@@ -154,6 +184,7 @@ dependencies:
   - libevent=2.1.12=hdbd6064_1
   - libfabric=1.22.0=ha770c72_3
   - libfabric1=1.22.0=ha594dbc_3
+  - libfaiss=1.8.0=cuda120h03f6ba9_1_cuda
   - libffi=3.4.4=h6a678d5_1
   - libgcc=14.2.0=h77fa898_1
   - libgcc-ng=14.2.0=h69a702a_1
@@ -171,7 +202,10 @@ dependencies:
   - libiconv=1.16=h5eee18b_3
   - libidn2=2.3.4=h5eee18b_0
   - libjpeg-turbo=2.0.0=h9bf148f_0
+  - libkvikio=24.12.01=cuda12_241212_g1d2c19d_0
+  - liblapack=3.9.0=8_h3b12eaf_netlib
   - libllvm14=14.0.6=hecde1de_4
+  - libllvm15=15.0.7=hb3ce162_4
   - libnghttp2=1.57.0=h2d74bed_0
   - libnl=3.11.0=hb9d3cd8_0
   - libnpp=12.2.5.30=0
@@ -184,6 +218,7 @@ dependencies:
   - libpq=17.2=hdbd6064_0
   - libprotobuf=4.25.3=he621ea3_0
   - libre2-11=2023.09.01=h5a48ba9_2
+  - librmm=24.12.01=cuda12_241212_ga723a986_0
   - libsodium=1.0.18=h7b6447c_0
   - libssh2=1.11.1=h251f7ec_0
   - libstdcxx=14.2.0=hc0a3c3a_1
@@ -201,9 +236,13 @@ dependencies:
   - libxcb=1.15=h7f8727e_0
   - libxkbcommon=1.0.1=h097e994_2
   - libxml2=2.13.5=hfdd30dd_0
+  - libxslt=1.1.41=h097e994_0
   - libzlib=1.2.13=h4ab18f5_6
   - llvm-openmp=14.0.6=h9e868ea_0
+  - llvmlite=0.44.0=py311h6a678d5_0
+  - lxml=5.3.0=py311h57af460_1
   - lz4-c=1.9.4=h6a678d5_1
+  - markdown-it-py=2.2.0=py311h06a4308_1
   - markupsafe=2.1.3=py311h5eee18b_0
   - matplotlib=3.9.2=py311h06a4308_1
   - matplotlib-base=3.9.2=py311hbfdbfaf_1
@@ -222,6 +261,7 @@ dependencies:
   - msgpack-python=1.1.0=py311hd18a35c_0
   - multidict=6.1.0=py311h5eee18b_0
   - multiprocess=0.70.15=py311h06a4308_0
+  - multivolumefile=0.2.3=pyhd3eb1b0_0
   - mysql=8.4.0=h29a9f33_1
   - nbclient=0.8.0=py311h06a4308_0
   - nbconvert=7.16.4=py311h06a4308_0
@@ -231,12 +271,17 @@ dependencies:
   - nettle=3.7.3=hbbd107a_1
   - networkx=3.3=py311h06a4308_0
   - notebook-shim=0.2.3=py311h06a4308_0
+  - numba=0.61.0=py311h4e1c48f_0
+  - numba-cuda=0.0.17.1=py_0
   - numexpr=2.10.1=py311h3c60e43_0
   - numpy=1.26.4=py311h08b1b3b_0
   - numpy-base=1.26.4=py311hf175353_0
+  - nvcomp=4.1.0.6=h66a0f98_0
+  - nvtx=0.2.10=py311h9ecbd09_2
   - openh264=2.1.1=h4ff587b_0
   - openjpeg=2.5.2=he7f1fd0_0
   - openldap=2.6.4=h42fbc30_0
+  - openpyxl=3.1.5=py311h5eee18b_1
   - openssl=3.4.0=h7b32b05_1
   - orc=2.0.1=h2d29ad5_0
   - overrides=7.4.0=py311h06a4308_0
@@ -246,10 +291,9 @@ dependencies:
   - parso=0.8.4=py311h06a4308_0
   - patsy=0.5.6=py311h06a4308_0
   - pcre2=10.42=hebb0a14_1
-  - peft=0.14.0=pyhd8ed1ab_0
+  - peft=0.6.2=pyhd8ed1ab_0
   - pexpect=4.8.0=pyhd3eb1b0_3
   - pillow=11.0.0=py311hcea889d_1
-  - pip=24.2=py311h06a4308_0
   - platformdirs=3.10.0=py311h06a4308_0
   - ply=3.11=py311h06a4308_0
   - prometheus_client=0.21.0=py311h06a4308_0
@@ -260,13 +304,19 @@ dependencies:
   - ptyprocess=0.7.0=pyhd3eb1b0_2
   - pure_eval=0.2.2=pyhd3eb1b0_0
   - py-cpuinfo=9.0.0=pyhd8ed1ab_1
+  - py7zr=0.20.5=py311h06a4308_0
   - pyarrow=16.1.0=py311h781c19f_1
   - pyarrow-core=16.1.0=py311h8e2c35d_1_cpu
+  - pybcj=1.0.1=py311h5eee18b_2
   - pycparser=2.21=pyhd3eb1b0_0
+  - pycryptodomex=3.21.0=py311h5eee18b_1
   - pydantic=2.10.4=pyh3cfb1c2_0
   - pydantic-core=2.27.2=py311h9e33e62_0
   - pygments=2.15.1=py311h06a4308_1
+  - pylibcudf=24.12.00=cuda12_py311_241211_gff41ecf473_0
+  - pynvjitlink=0.5.0=py311hf640dd1_0
   - pyparsing=3.2.0=py311h06a4308_0
+  - pyppmd=1.0.0=py311h6a678d5_0
   - pyqt=5.15.10=py311h6a678d5_0
   - pyqt5-sip=12.13.0=py311h5eee18b_0
   - pysocks=1.7.1=py311h06a4308_0
@@ -284,6 +334,7 @@ dependencies:
   - pytz=2024.1=py311h06a4308_0
   - pyyaml=6.0.2=py311h5eee18b_0
   - pyzmq=26.2.0=py311h6a678d5_0
+  - pyzstd=0.16.2=py311h5eee18b_0
   - qt-main=5.15.2=hb6262e9_11
   - rdma-core=55.0=h5888daf_0
   - re2=2023.09.01=h7f4b329_2
@@ -295,8 +346,11 @@ dependencies:
   - rfc3339-validator=0.1.4=py311h06a4308_0
   - rfc3986-validator=0.1.1=py311h06a4308_0
   - rich=13.9.4=py311h06a4308_0
+  - rmm=24.12.01=cuda12_py311_241212_ga723a986_0
   - rpds-py=0.10.6=py311h4aa5aa6_1
   - s2n=1.4.15=he19d79f_0
+  - s3transfer=0.11.2=py311h06a4308_0
+  - sacremoses=0.0.43=pyhd3eb1b0_0
   - safetensors=0.4.5=py311h448de89_1
   - scikit-learn=1.5.2=py311h6a678d5_0
   - seaborn=0.13.2=py311h06a4308_0
@@ -307,12 +361,14 @@ dependencies:
   - snappy=1.2.1=h6a678d5_0
   - sniffio=1.3.0=py311h06a4308_0
   - soupsieve=2.5=py311h06a4308_0
+  - spdlog=1.14.1=hed91bc2_1
   - sqlite=3.45.3=h5eee18b_0
   - stack_data=0.2.0=pyhd3eb1b0_0
   - statsmodels=0.14.4=py311h5eee18b_0
   - tbb=2021.8.0=hdb19cb5_0
   - terminado=0.17.1=py311h06a4308_0
   - text-unidecode=1.3=pyhd3eb1b0_0
+  - texttable=1.6.4=pyhd3eb1b0_0
   - threadpoolctl=3.5.0=py311h92b7b1e_0
   - tinycss2=1.2.1=py311h06a4308_0
   - tk=8.6.14=h39e8969_0
@@ -320,7 +376,6 @@ dependencies:
   - torchtriton=3.1.0=py311
   - torchvision=0.20.1=py311_cu124
   - tornado=6.4.2=py311h5eee18b_0
-  - tqdm=4.66.5=py311h92b7b1e_0
   - traitlets=5.14.3=py311h06a4308_0
   - typing-extensions=4.12.2=py311h06a4308_0
   - typing_extensions=4.12.2=py311h06a4308_0
@@ -338,10 +393,12 @@ dependencies:
   - yaml=0.2.5=h7b6447c_0
   - yarl=1.18.0=py311h5eee18b_0
   - zeromq=4.3.5=h6a678d5_0
+  - zipp=3.21.0=py311h06a4308_0
   - zlib=1.2.13=h4ab18f5_6
   - zstd=1.5.6=hc292b87_0
   - pip:
       - absl-py==2.1.0
+      - accelerate==1.3.0
       - aiofiles==23.2.1
       - altair==5.5.0
       - bert-score==0.3.13
@@ -357,8 +414,10 @@ dependencies:
       - confection==0.1.5
       - cryptography==44.0.0
       - cymem==2.0.10
+      - datasets==3.2.0
       - docker-pycreds==0.4.0
-      # - en-core-web-sm==3.8.0
+      - en-core-web-md==3.8.0
+      - en-core-web-sm==3.8.0
       - fastapi==0.115.6
       - ffmpy==0.5.0
       - flatbuffers==24.12.23
@@ -367,7 +426,7 @@ dependencies:
       - gitpython==3.1.43
       - gradio==5.13.0
       - gradio-client==1.6.0
-      - huggingface-hub==0.27.0
+      - huggingface-hub==0.28.1
       - humanfriendly==10.0
       - ijson==3.3.0
       - jsonlines==4.0.0
@@ -376,9 +435,7 @@ dependencies:
       - langcodes==3.5.0
       - language-data==1.3.0
       - linkify-it-py==2.0.3
-      - lxml==5.3.0
       - marisa-trie==1.2.1
-      # - markdown-it-py==3.0.0
       - mdit-py-plugins==0.3.3
       - mdurl==0.1.2
       - murmurhash==1.0.11
@@ -391,6 +448,7 @@ dependencies:
       - orjson==3.10.13
       - pdfminer-six==20231228
       - pdfplumber==0.11.5
+      - pip==25.0
       - portalocker==3.1.1
       - preshed==3.0.9
       - profanity-check==1.0.3
@@ -425,7 +483,8 @@ dependencies:
       - tokenizers==0.21.0
       - toml==0.10.2
       - tomlkit==0.13.2
-      - transformers==4.48.0
+      - tqdm==4.67.1
+      - transformers==4.48.3
       - trl==0.13.0
       - typer==0.15.1
       - uc-micro-py==1.0.3

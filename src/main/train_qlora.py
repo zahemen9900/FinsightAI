@@ -48,20 +48,20 @@ class QLoRAConfig(SFTConfig):
     
     # Training parameters optimized for speed
     num_train_epochs: int = 1
-    learning_rate: float = 3e-5
+    learning_rate: float = 6e-5
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
     gradient_accumulation_steps: int = 2    # Reduced for faster updates
-    logging_steps: int = 25
+    logging_steps: int = 50
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'linear' # Linear scheduler for faster training
-    eval_steps: int = 200      # Reduced evaluation frequency
-    save_steps: int = 200
+    eval_steps: int = 500      # Reduced evaluation frequency
+    save_steps: int = 500
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
-    save_total_limit: int = 3   # Keep more checkpoints for resuming
+    save_total_limit: int = 4   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # we want to minimize loss
     
@@ -270,7 +270,7 @@ def train():
         {
             "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
             "name": "reddit_finance",
-            "proportion": 1.0
+            "proportion": 0.67
         },
         {
             "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",

@@ -26,8 +26,9 @@ class Conversation:
     metadata: Dict
 
 class FinanceQAProcessor:
-    def __init__(self, dataset_path: Path):
+    def __init__(self, dataset_path: Path, num_cross_company_samples: int = 2000):
         self.data = pd.read_csv(dataset_path)
+        self.num_cross_company_samples = num_cross_company_samples
         self.used_samples = set()  # Track used question-answer pairs
         self.all_tickers = None  # Will store all unique tickers
         self.system_prompts = [
@@ -259,7 +260,7 @@ class FinanceQAProcessor:
             }
         )
 
-    def process_dataset(self, output_path: Path, max_samples_per_company: int = 10):
+    def process_dataset(self, output_path: Path, max_samples_per_company: int = 15):
         """Process the entire dataset and create variations"""
         processed_conversations = []
         
@@ -338,7 +339,7 @@ class FinanceQAProcessor:
                     
         # Now create cross-company conversations
         logger.info("Generating cross-company conversations...")
-        num_cross_company = 2000  # Number of cross-company conversations to generate
+        num_cross_company = self.num_cross_company_samples  # Number of cross-company conversations to generate
         
         for _ in range(num_cross_company):
             # Select two random companies
@@ -535,7 +536,7 @@ def main():
     output_path = Path('/home/zahemen/datasets/finance_qa_conversations.jsonl')
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    processor = FinanceQAProcessor(dataset_path)
+    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=5000)
     processor.process_dataset(output_path)
 
 if __name__ == "__main__":
