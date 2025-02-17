@@ -1,0 +1,40 @@
+{
+  "os":  "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "python":  "CPython 3.11.11",
+  "startedAt":  "2025-02-12T12:32:38.788853Z",
+  "program":  "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py",
+  "codePath":  "src/main/train_qlora.py",
+  "git":  {
+    "remote":  "https://github.com/zahemen9900/FinsightAI.git",
+    "commit":  "201344070c360c92aa340434ebe1e995d17e93f6"
+  },
+  "root":  "/home/zahemen/projects/dl-lib/FinsightAI",
+  "host":  "zahemen",
+  "executable":  "/home/zahemen/miniconda3/envs/transformer_LM/bin/python",
+  "codePathLocal":  "src/main/train_qlora.py",
+  "cpu_count":  6,
+  "cpu_count_logical":  12,
+  "gpu":  "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "1081101176832",
+      "used":  "51669057536"
+    }
+  },
+  "memory":  {
+    "total":  "16656809984"
+  },
+  "cpu":  {
+    "count":  6,
+    "countLogical":  12
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "memoryTotal":  "4294967296",
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.8"
+}

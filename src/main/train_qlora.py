@@ -48,7 +48,7 @@ class QLoRAConfig(SFTConfig):
     
     # Training parameters optimized for speed
     num_train_epochs: int = 1
-    learning_rate: float = 6e-5
+    learning_rate: float = 1e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
@@ -56,9 +56,9 @@ class QLoRAConfig(SFTConfig):
     logging_steps: int = 50
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
-    lr_scheduler_type: str = 'linear' # Linear scheduler for faster training
-    eval_steps: int = 700      # Reduced evaluation frequency
-    save_steps: int = 400
+    lr_scheduler_type: str = 'linear_with_warmup'
+    eval_steps: int = 700      # Increased evaluation frequency
+    save_steps: int = 700
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming

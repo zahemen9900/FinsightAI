@@ -1,3 +1,4 @@
+from calendar import c
 import json
 import random
 import pandas as pd
@@ -532,8 +533,8 @@ class DatasetCleaner:
                 if not self.is_quality_response(cleaned_body):
                     continue
                 
-                # Format the question/prompt - only include title if it ends with "?"
-                if cleaned_title.strip().endswith('?'):
+                # Format the question/prompt - only include title if it ends with "?"/ "!" or is in all caps
+                if cleaned_title.strip().endswith('?') or cleaned_title.isupper() or cleaned_title.endswith('!'):
                     question = cleaned_title
                     if cleaned_selftext:
                         question += f"\n\n{cleaned_selftext}"
