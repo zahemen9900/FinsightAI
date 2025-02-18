@@ -42,26 +42,26 @@ logger = logging.getLogger('rich')
 @dataclass 
 class QLoRAConfig(SFTConfig):
     # LoRA specific parameters - optimized for speed
-    lora_r: int = 64
+    lora_r: int = 32
     lora_alpha: int = 16
-    lora_dropout: float = 0.1  
+    lora_dropout: float = 0.05 
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 1
+    num_train_epochs: int = 2
     learning_rate: float = 1e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
     gradient_accumulation_steps: int = 2    # Reduced for faster updates
-    logging_steps: int = 50
+    logging_steps: int = 250
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
-    lr_scheduler_type: str = 'linear_with_warmup'
-    eval_steps: int = 700      # Increased evaluation frequency
-    save_steps: int = 700
+    lr_scheduler_type: str = 'reduce_lr_on_plateau'
+    eval_steps: int = 200      
+    save_steps: int = 200
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
-    save_total_limit: int = 4   # Keep more checkpoints for resuming
+    save_total_limit: int = 5   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # minimize loss
     

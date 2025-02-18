@@ -1,0 +1,16 @@
+{"time":"2025-02-18T13:07:15.732951341Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-18T13:07:15.732964746Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250218_130715-sfx6qdjp/logs/debug-core.log"}
+{"time":"2025-02-18T13:07:15.860352399Z","level":"INFO","msg":"created new stream","id":"sfx6qdjp"}
+{"time":"2025-02-18T13:07:15.860396915Z","level":"INFO","msg":"stream: started","id":"sfx6qdjp"}
+{"time":"2025-02-18T13:07:15.860447614Z","level":"INFO","msg":"writer: Do: started","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:07:15.86048552Z","level":"INFO","msg":"handler: started","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:07:15.860503159Z","level":"INFO","msg":"sender: started","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:07:16.532281607Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-18T13:09:40.810060345Z","level":"INFO","msg":"stream: closing","id":"sfx6qdjp"}
+{"time":"2025-02-18T13:09:40.81012409Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-18T13:09:40.810748417Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-18T13:09:41.91212859Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-18T13:09:42.355693729Z","level":"INFO","msg":"handler: closed","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:09:42.355727392Z","level":"INFO","msg":"sender: closed","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:09:42.35572414Z","level":"INFO","msg":"writer: Close: closed","stream_id":"sfx6qdjp"}
+{"time":"2025-02-18T13:09:42.355797833Z","level":"INFO","msg":"stream: closed","id":"sfx6qdjp"}

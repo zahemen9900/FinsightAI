@@ -421,12 +421,12 @@ class IntroDatasetGenerator:
             "I analyze your financial data and market trends to provide personalized financial advice. I use advanced AI algorithms to generate recommendations tailored to your specific situation. My approach combines traditional financial wisdom with modern technology to ensure you receive comprehensive guidance.",
         ]
 
-    def clean_text(self, text: str) -> str:
-        """Clean and standardize response text"""
-        text = text.strip()
-        if not text.endswith(('.', '!', '?')):
-            text += '.'
-        return text
+    # def clean_text(self, text: str) -> str:
+    #     """Clean and standardize response text"""
+    #     text = text.strip()
+    #     if not text.endswith(('.', '!', '?')):
+    #         text += '.'
+    #     return text
 
     def generate_conversation(self) -> List[Dict]:
         """Generate a single conversation with multiple turns"""
@@ -463,7 +463,7 @@ class IntroDatasetGenerator:
             assistant_msg = random.choice(responses) if isinstance(responses, list) else responses
             
             messages.append({"role": "user", "content": user_msg})
-            messages.append({"role": "assistant", "content": self.clean_text(assistant_msg)})
+            messages.append({"role": "assistant", "content": assistant_msg})
         
         return messages
 
@@ -510,4 +510,4 @@ if __name__ == "__main__":
     generator = IntroDatasetGenerator(
         output_file="/home/zahemen/datasets/intro_conversations.jsonl"
     )
-    generator.create_dataset(num_conversations=5000)
+    generator.create_dataset(num_conversations=1500)

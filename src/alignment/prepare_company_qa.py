@@ -536,7 +536,7 @@ def main():
     output_path = Path('/home/zahemen/datasets/finance_qa_conversations.jsonl')
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=5000)
+    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=500)
     processor.process_dataset(output_path)
 
 if __name__ == "__main__":

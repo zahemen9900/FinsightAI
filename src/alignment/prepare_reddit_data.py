@@ -103,8 +103,8 @@ class DatasetCleaner:
         # Add new parameters
         self.cache_dir = Path("/home/zahemen/datasets/dataset_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.min_financial_relevance = 0.35  # Lowered from 0.7
-        self.max_similarity_threshold = 0.80  # For deduplication
+        self.min_financial_relevance = 0.2  # Lowered from 0.7
+        self.max_similarity_threshold = 0.85  # For deduplication
         self.complexity_threshold = 0.3  # Lowered from 0.4
         self.min_words = 5
         self.max_words = 200  # Limit response length
@@ -694,172 +694,91 @@ class DatasetCleaner:
             return 0.0
 
     def assess_financial_relevance(self, text: str) -> float:
-        """Assess how relevant the text is to financial topics using multiple metrics"""
+        """Optimized assessment of financial relevance"""
         if not isinstance(text, str):
             return 0.0
             
         try:
-            start_time = time()
-            logger.debug(f"Starting financial relevance assessment for text of length {len(text)}")
-
-            # Use both general and financial models
-            logger.debug("Processing with spaCy models...")
-            doc_general = nlp(text[:10000]) # Limit text length for processing
-            doc_financial = nlp_financial(text[:10000])
+            # Limit text length for processing and convert to lowercase once
+            text = text[:5000].lower()  # Reduced from 10000 to 5000 chars
             
-            # Enhanced entity recogni tion with weighted categories
-            logger.debug("Calculating entity scores...")
-            entity_weights = {
-                'ORG': 1.0,      # Organizations
-                'MONEY': 1.2,    # Monetary values
-                'PERCENT': 1.1,  # Percentages
-                'QUANTITY': 0.8, # Quantities
-                'DATE': 0.5,     # Dates (some relevance for financial context)
-                'GPE': 0.3       # Geopolitical entities
-            }
+            # Quick keyword check first - if too few keywords, return early
+            word_set = set(text.split())
+            keyword_matches = len(word_set.intersection(self.financial_keywords))
+            if keyword_matches < 2:  # If less than 2 financial keywords, return low score
+                return 0.1
             
-            # Calculate weighted entity score
+            # Calculate keyword density once
+            keyword_density = keyword_matches / max(len(word_set), 1)
+            if keyword_density < 0.05:  # If density too low, return early
+                return 0.2
+            
+            # Process with spaCy more efficiently
+            doc = nlp(text)
+            
+            # Calculate entity score more efficiently
+            entity_weights = {'ORG': 1.0, 'MONEY': 1.2, 'PERCENT': 1.1}
             entity_score = sum(
                 entity_weights.get(ent.label_, 0)
-                for ent in doc_financial.ents
+                for ent in doc.ents
                 if ent.label_ in entity_weights
-            ) / max(len(doc_financial.ents), 1)
+            ) / max(len(doc.ents), 1)
             
-            logger.debug(f"Entity score: {entity_score:.3f}")
-            
-            # Keyword analysis with context
-            logger.debug("Performing keyword analysis...")
-            words = text.lower().split()
-            word_set = set(words)
-            
-            # Calculate keyword density
-            keyword_matches = len(word_set.intersection(self.financial_keywords))
-            keyword_density = keyword_matches / max(len(words), 1)
-            
-            logger.debug(f"Keyword density: {keyword_density:.3f}")
-            
-            # Check for financial bigrams and phrases
-            logger.debug("Checking financial phrases...")
-            financial_phrases = [
-                'market analysis', 'risk management', 'asset allocation',
-                'interest rates', 'stock market', 'financial planning'
-            ]
-            phrase_matches = sum(1 for phrase in financial_phrases if phrase in text.lower())
-            phrase_score = phrase_matches / max(len(financial_phrases), 1)
-            
-            logger.debug(f"Phrase score: {phrase_score:.3f}")
-            
-            # Semantic analysis using spaCy's word vectors
-            logger.debug("Performing semantic analysis...")
-            financial_topics = [
-                'finance', 'investment', 'banking', 'trade', 'stock',
-                'market', 'economy', 'money', 'crypto', 'currency',
-                'fund', 'asset', 'portfolio', 'risk', 'return', 'dividend', 
-                'interest', 'inflation', 'tax', 'loan', 'mortgage', 'savings', 
-                'wealth', 'insurance', 'audit', 'accounting', 'budget', 'retirement',
-                'pension', 'regulation', 'compliance', 'fraud', 'scam', 'payment',
-                'transaction', 'exchange', 'blockchain', 'token', 'coin', 'wallet',
-                'mining', 'staking', 'defi', 'nft', 'yield farming', 'liquidity pool',
-                'impermanent loss', 'rug pull', 'pump and dump', 'bear market',
-                'bull market', 'short selling', 'long position', 'margin trading',
-                'leverage', 'volatility', 'correlation', 'beta', 'alpha', 'sharpe ratio',
-                'sortino ratio', 'treynor ratio', 'jensen alpha', 'efficient market hypothesis',
-                'random walk', 'technical analysis', 'fundamental analysis', 'quantitative analysis',
-                'quantitative easing', 'monetary policy', 'fiscal policy', 'central bank', 'interest rate',
-                'inflation rate', 'deflation', 'stagflation', 'recession', 'depression', 'recovery',
-                'growth', 'expansion', 'peak', 'trough', 'cycle', 'bubble', 'crash', 'black swan',
-                'tail risk', 'systemic risk', 'counterparty risk', 'credit risk', 'liquidity risk',
-                'market risk', 'operational risk', 'regulatory risk', 'political risk', 'economic risk',
-                'geopolitical risk', 'environmental risk', 'social risk', 'ESG', 'sustainable investing',
-                'impact investing', 'green finance', 'carbon footprint', 'carbon offset', 'carbon credit',
-                'sustainability', 'climate change', 'global warming', 'renewable energy', 'clean energy',
-                'green energy', 'solar power', 'arbitrage', 'bid-ask spread', 'buyback', 'capital gains',
-                'private equity', 'venture capital', 'angel investing', 'seed funding', 'series A funding',
-                'series B funding', 'series C funding', 'leveraged buyout', 'mergers and acquisitions',
-                'hostile takeover', 'share buyback', 'initial public offering (IPO)', 'special purpose acquisition company (SPAC)',
-                'direct listing', 'secondary offering', 'private placement', 'hedge fund', 'mutual fund',
-                'exchange-traded fund (ETF)', 'index fund', 'target-date fund', 'sovereign wealth fund',
-                'family office', 'custodial account', 'margin call', 'stop-loss order', 'limit order',
-                'market order', 'bid-ask spread', 'liquidity premium', 'discount rate', 'yield curve',
-                'bond rating', 'credit default swap (CDS)', 'collateralized debt obligation (CDO)',
-                'mortgage-backed security (MBS)', 'asset-backed security (ABS)', 'structured finance',
-                'fixed-income securities', 'convertible bond', 'municipal bond', 'corporate bond',
-                'sovereign bond', 'treasury bond', 'treasury bill', 'zero-coupon bond', 'junk bond',
-                'high-yield bond', 'floating rate bond', 'perpetual bond', 'coupon rate',
-                'principal payment', 'balloon payment', 'callable bond', 'puttable bond',
-                'debt restructuring', 'forbearance', 'loan default', 'creditworthiness',
-                'credit bureau', 'FICO score', 'debt-to-equity ratio', 'current ratio',
-                'quick ratio', 'working capital', 'capital structure', 'capital budgeting',
-                'return on assets (ROA)', 'return on equity (ROE)', 'return on investment (ROI)',
-                'internal rate of return (IRR)', 'net present value (NPV)', 'discounted cash flow (DCF)',
-                'earnings before interest and taxes (EBIT)', 'earnings before interest, taxes, depreciation, and amortization (EBITDA)',
-                'price-to-earnings (P/E) ratio', 'price-to-book (P/B) ratio', 'enterprise value',
-                'market capitalization', 'free cash flow (FCF)', 'dividend yield', 'dividend payout ratio',
-                'stock split', 'reverse stock split', 'stock dilution', 'shareholder equity',
-                'preferred stock', 'common stock', 'restricted stock unit (RSU)', 'stock option',
-                'phantom stock', 'vesting schedule', 'exercise price', 'strike price',
-                'in-the-money option', 'out-of-the-money option', 'covered call', 'naked put',
-                'iron condor', 'butterfly spread', 'collar strategy', 'delta hedging',
-                'gamma scalping', 'theta decay', 'VIX (volatility index)', 'greeks (delta, gamma, theta, vega, rho)',
-                'carry trade', 'currency peg', 'foreign exchange reserves', 'balance of payments',
-                'current account deficit', 'trade surplus', 'trade deficit', 'export-import balance',
-                'tariffs', 'sanctions', 'quantitative tightening', 'yield spread', 'credit crunch',
-                'bank run', 'shadow banking system', 'fractional reserve banking', 'Basel III regulations',
-                'Dodd-Frank Act', 'Glass-Steagall Act', 'Volcker Rule', 'stress testing',
-                'bailout', 'bail-in', 'too big to fail', 'systemically important financial institution (SIFI)',
-                'financial contagion', 'moral hazard', 'asymmetric information', 'adverse selection',
-                'lemon problem', 'principal-agent problem', 'agency cost', 'corporate governance',
-                'proxy fight', 'dual-class shares', 'golden parachute', 'poison pill',
-                'white knight', 'shareholder activism', 'socially responsible investing (SRI)',
-                'triple bottom line (TBL)', 'green bonds', 'impact bonds', 'blue economy',
-                'carbon trading', 'greenwashing', 'corporate social responsibility (CSR)',
-                'behavioral finance', 'market efficiency', 'noise trader', 'sentiment analysis',
-                'algorithmic trading', 'high-frequency trading (HFT)', 'flash crash',
-                'mean reversion', 'momentum investing', 'contrarian investing',
-                'factor investing', 'smart beta', 'value investing', 'growth investing',
-                'income investing', 'small-cap stocks', 'mid-cap stocks', 'large-cap stocks',
-                'emerging markets', 'developed markets', 'sovereign risk', 'country risk',
-                'BRICS economies', 'frontier markets', 'macroeconomic indicators',
-                'leading indicators', 'lagging indicators', 'coincident indicators',
-                'consumer confidence index (CCI)', 'purchasing managers index (PMI)',
-                'gross domestic product (GDP)', 'gross national product (GNP)',
-                'human development index (HDI)', 'misery index', 'Gini coefficient',
-                'Lorenz curve', 'Phillips curve', 'Laffer curve', 'Okuns law',
-                'stagflation', 'hyperinflation', 'deleveraging', 'helicopter money',
-                'debt monetization', 'sovereign default', 'capital flight',
-                'hot money flows', 'brain drain', 'demographic dividend',
-                'pension fund crisis', 'social security insolvency', 'universal basic income (UBI)',
-                'negative income tax', 'wealth tax', 'estate tax', 'inheritance tax',
-                'sin tax', 'flat tax', 'progressive tax', 'regressive tax',
-                'tax evasion', 'tax avoidance', 'offshore banking', 'shell company',
-                'money laundering', 'Ponzi scheme', 'pyramid scheme', 'insider trading',
-                'whistleblower', 'white-collar crime', 'corporate espionage',
-                'dark pool trading', 'front running', 'pump and dump scheme',
-                'wash trading', 'naked short selling', 'dark web markets'
-
-            ]
+            # Simplified semantic analysis - check only tokens with vectors
             semantic_scores = []
-            for token in doc_general:
-                if token.has_vector:
-                    topic_similarity = max(
-                        token.similarity(doc_general.vocab[topic])
-                        for topic in financial_topics
-                    )
-                    semantic_scores.append(topic_similarity)
+            financial_topics = [
+                'finance', 'investment', 'market', 'stock', 'trading',
+                'banking', 'cryptocurrency', 'portfolio', 'dividend', 'economy',
+                'inflation', 'hedge', 'options', 'futures', 'bonds',
+                'asset', 'risk', 'volatility', 'liquidity', 'valuation',
+                'yield', 'credit', 'debt', 'equity', 'derivatives',
+                'leverage', 'margin', 'revenue', 'earnings', 'profit',
+                'balance', 'collateral', 'regulation', 'compliance', 'audit',
+                'merger', 'acquisition', 'ipo', 'startup', 'venture',
+                'blockchain', 'defi', 'nft', 'staking', 'mining',
+                'forex', 'currency', 'etf', 'index', 'mutual fund',
+                'private equity', 'real estate', 'commodities', 'gold', 'silver',
+                'interest rate', 'fed', 'federal reserve', 'monetary policy',
+                'quantitative easing', 'macroeconomics', 'microeconomics', 
+                'insider trading', 'short selling', 'bear market', 'bull market',
+                'pension', 'retirement', 'annuity', 'cash flow', 'capital gains',
+                'diversification', 'alpha', 'beta', 'sharpe ratio', 'treasury',
+                'bond yield', 'cds', 'credit default swap', 'credit risk',
+                'sovereign debt', 'securities', 'real returns', 'inflation hedge',
+                'financial modeling', 'fundamental analysis', 'technical analysis',
+                'earnings call', 'quarterly report', 'hedge fund', 'private banking',
+                'taxation', 'capital gains tax', 'income tax', 'tax shelter',
+                'corporate finance', 'personal finance', 'estate planning',
+                'inheritance tax', 'fiduciary', 'fiduciary duty', 'wealth management',
+                'smart contracts', 'yield farming', 'stablecoin', 'tokenomics',
+                'fiat currency', 'devaluation', 'currency peg', 'exchange rate',
+                'liquidity crisis', 'subprime mortgage', 'housing market',
+                'central bank', 'bankruptcy', 'chapter 11', 'chapter 7',
+                'financial statements', 'balance sheet', 'income statement',
+                'cash flow statement', 'goodwill', 'write-off', 'impairment',
+                'share buyback', 'dividend yield', 'preferred stock', 'common stock'
+            ]
+
+
+            # Process only tokens that have vectors and are relevant
+            relevant_tokens = [token for token in doc if token.has_vector and not token.is_stop][:50]  # Limit tokens
+            
+            if relevant_tokens:
+                topic_vectors = [doc.vocab[topic].vector for topic in financial_topics if topic in doc.vocab]
+                if topic_vectors:
+                    for token in relevant_tokens:
+                        similarities = [token.vector.dot(tv) / (token.vector_norm * np.linalg.norm(tv)) 
+                                     for tv in topic_vectors]
+                        semantic_scores.append(max(similarities))
             
             semantic_score = np.mean(semantic_scores) if semantic_scores else 0.0
-            logger.debug(f"Semantic score: {semantic_score:.3f}")
             
             # Combine scores with weights
             final_score = (
+                0.40 * keyword_density +
                 0.35 * entity_score +
-                0.30 * keyword_density +
-                0.20 * semantic_score +
-                0.15 * phrase_score
+                0.25 * semantic_score
             )
-            
-            processing_time = time() - start_time
-            logger.debug(f"Financial relevance assessment completed in {processing_time:.2f}s with score {final_score:.3f}")
             
             return min(final_score, 1.0)
             
@@ -978,30 +897,54 @@ class DatasetCleaner:
 
             # Apply all filters
             def apply_final_filtering(data):
-                quality_filters = [
-                    ('Quality threshold', data['body_quality'] > self.quality_threshold),
-                    ('Complexity threshold', data['complexity'] > self.complexity_threshold),
-                    ('Financial relevance', data['financial_relevance'] > self.min_financial_relevance),
-                    ('Conversational style', data['cleaned_body'].apply(self.is_conversational)),
-                    ('No profanity', ~data['cleaned_body'].apply(self.contains_profanity)),
-                    ('Length constraints', data['cleaned_body'].str.len().between(50, 2000))
+                filtered_data = data.copy()
+                total_initial = len(filtered_data)
+                
+                # Define filters as (name, condition_function) pairs
+                filters = [
+                    ('Quality threshold', lambda df: df['body_quality'] > self.quality_threshold),
+                    ('Complexity threshold', lambda df: df['complexity'] > self.complexity_threshold),
+                    ('Financial relevance', lambda df: df['financial_relevance'] > self.min_financial_relevance),
+                    ('Conversational style', lambda df: df['cleaned_body'].apply(self.is_conversational)),
+                    ('No profanity', lambda df: ~df['cleaned_body'].apply(self.contains_profanity)),
+                    ('Length constraints', lambda df: df['cleaned_body'].str.len().between(50, 2000))
                 ]
                 
-                # Log individual filter impacts
-                for filter_name, condition in quality_filters:
-                    passing = len(data[condition])
-                    logger.info(f"{filter_name}: {passing:,} records pass ({(passing/len(data))*100:.1f}% pass rate)")
-                
-                filtered_data = data.copy()
-                for _, condition in quality_filters:
+                # Apply filters sequentially
+                for filter_name, condition_func in filters:
+                    current_size = len(filtered_data)
+                    condition = condition_func(filtered_data)
                     filtered_data = filtered_data[condition]
+                    passing = len(filtered_data)
+                    
+                    # Log the impact of each filter relative to the previous step
+                    pass_rate_step = (passing / current_size) * 100 if current_size > 0 else 0
+                    pass_rate_total = (passing / total_initial) * 100
+                    
+                    logger.info(
+                        f"{filter_name}: {passing:,} records pass "
+                        f"({pass_rate_step:.1f}% of previous, {pass_rate_total:.1f}% of total)"
+                    )
+                    
+                    # Early exit if no records left
+                    if passing == 0:
+                        logger.warning(f"No records left after {filter_name} filter")
+                        return filtered_data
                 
-                # Deduplication
+                # Deduplication as final step
+                initial_dedup = len(filtered_data)
                 duplicate_indices = self.find_similar_texts(filtered_data['cleaned_body'].tolist())
                 filtered_data = filtered_data.drop(index=filtered_data.index[duplicate_indices])
+                final_count = len(filtered_data)
+                
+                logger.info(
+                    f"Deduplication: {final_count:,} records remain "
+                    f"({(final_count/initial_dedup)*100:.1f}% of pre-dedup, "
+                    f"{(final_count/total_initial)*100:.1f}% of total)"
+                )
                 
                 return filtered_data
-            
+
             df = self.load_or_compute('final_filtered', apply_final_filtering, df)
             
             # Convert to SFT format and save

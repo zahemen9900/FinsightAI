@@ -1,0 +1,16 @@
+{"time":"2025-02-18T13:33:37.770133925Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-18T13:33:37.770147733Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250218_133337-zkieks5g/logs/debug-core.log"}
+{"time":"2025-02-18T13:33:37.901963489Z","level":"INFO","msg":"created new stream","id":"zkieks5g"}
+{"time":"2025-02-18T13:33:37.902004659Z","level":"INFO","msg":"stream: started","id":"zkieks5g"}
+{"time":"2025-02-18T13:33:37.902108398Z","level":"INFO","msg":"handler: started","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:33:37.902363375Z","level":"INFO","msg":"writer: Do: started","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:33:37.902371746Z","level":"INFO","msg":"sender: started","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:33:38.574488182Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-18T13:43:32.816030086Z","level":"INFO","msg":"stream: closing","id":"zkieks5g"}
+{"time":"2025-02-18T13:43:32.816085825Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-18T13:43:32.816605716Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-18T13:43:34.032631927Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-18T13:43:34.50199549Z","level":"INFO","msg":"handler: closed","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:43:34.502024649Z","level":"INFO","msg":"writer: Close: closed","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:43:34.502064749Z","level":"INFO","msg":"sender: closed","stream_id":"zkieks5g"}
+{"time":"2025-02-18T13:43:34.50208165Z","level":"INFO","msg":"stream: closed","id":"zkieks5g"}

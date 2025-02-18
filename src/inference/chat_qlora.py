@@ -222,11 +222,12 @@ class FinanceAdvisor:
         self,
         prompt: str,
         temperature: float = 0.3,  # Lower temperature for more focused responses
-        top_p: float = 0.9
+        top_p: float = 0.9,
+        analyze_response = False
     ) -> str:
         """Generate a response using proper chat template"""
         # Determine appropriate response length
-        max_new_tokens = self.analyze_question(prompt)
+        max_new_tokens = 128 if not analyze_response else self.analyze_question(prompt)
 
         # Keep only last two exchanges before adding new message
         if len(self.conversation_history) > 4:  # 4 messages = 2 exchanges (user + assistant)
@@ -308,7 +309,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-400")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1000")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--max_length", type=int, default=2048)
     args = parser.parse_args()
