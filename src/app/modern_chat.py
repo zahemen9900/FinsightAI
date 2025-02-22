@@ -57,7 +57,7 @@ class FinanceAdvisorBot:
             ).to(self.device)
             logger.info("Adapter loaded successfully")
         else:
-            logger.info("No adapter found, using base model")
+            logger.info(f"No adapter found at `{adapter_path}`, using base model")
             self.model = base
         
         self.model.eval()
@@ -76,88 +76,146 @@ class FinanceAdvisorBot:
                 "2. Focus on factual, practical advice without speculation\n"
                 "3. Use professional but accessible language\n"
                 "4. Break down complex concepts into understandable terms\n"
-                "5. Maintain objectivity and avoid personal opinions\n"
+                # "5. Maintain objectivity and avoid personal opinions\n"
                 "6. Always consider risk management in advice\n"
                 "7. Be transparent about limitations of AI advice\n"
                 "8. Cite reliable sources when appropriate\n"
                 "9. Encourage due diligence and research\n"
-                "10. Avoid making specific investment recommendations\n"
+                # "10. Avoid making specific investment recommendations\n"
                 "Remember: You are an AI assistant focused on financial education and guidance."
             )
         }
         self.conversation_history = []
 
-        # Add question patterns for analysis
+        # Enhanced question patterns with more granular control
         self.question_patterns = {
-            # Basic interactions (very concise)
-            'greeting': (r'\b(hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening)|yo|sup)\b|^[^a-zA-Z]*$', 36),
-            'farewell': (r'\b(bye|goodbye|thanks|thank you|exit|quit|stop)\b', 24),
+            # Short responses (24-48 tokens)
+            'confirmation': (r'^(yes|no|maybe|correct|right|wrong|true|false)\b\??$', 24),
+            'greeting': (r'^\b(hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening))\b\s*\??$', 32),
+            'farewell': (r'^\b(bye|goodbye|thanks|thank you|exit|quit)\b\s*\??$', 24),
             'acknowledgment': (r'^(ok|okay|sure|alright|i see|got it|understood)\b', 24),
             
-            # Simple queries
-            'basic_question': (r'^(what( is|\'s)|how|why|can you|could you|would you|do you|is|are)\b.{0,50}\?*$', 80),
-            'definition': (r'\b(what (is|are|does)|define|meaning of|definition)\b.{0,50}\?*$', 80),
+            # Brief responses (48-96 tokens)
+            'quick_clarification': (r'\b(what does|what is|who is|where is|when is)\b.{0,30}\?$', 48),
+            'simple_query': (r'^(can|could|would|should|is|are|do|does)\b.{0,40}\?$', 64),
+            'status_check': (r'\b(how (?:is|are|does)|what\'s the status)\b', 72),
+            'verification': (r'\b(verify|confirm|check|validate|right|correct)\b', 64),
             
-            # Financial specifics
-            'investment': (r'\b(invest|stock|bond|etf|fund|portfolio|diversify|asset|allocation)\b', 176),
-            'risk_related': (r'\b(risk|safe|secure|volatile|stability|protect|hedge|insurance)\b', 144),
-            'numbers_heavy': (r'\b(\d+%|\$\d+|ratio|rate|return|yield|profit|loss)\b', 128),
+            # Standard responses (96-144 tokens)
+            'definition': (r'\b(what (?:is|are|does)|define|explain|meaning of)\b.{0,50}\?', 96),
+            'process_query': (r'\b(how (?:to|do|can|should)|what steps|process for)\b', 128),
+            'comparison': (r'\b(vs|versus|compare|difference|better|which|or|between)\b', 144),
+            'market_status': (r'\b(market|stock|price|rate|trend)\b.*\b(now|today|current|latest)\b', 128),
             
-            # Analysis requests
-            'analysis': (r'\b(analyze|evaluate|assess|review|examine|consider|thoughts|opinion|strategy|plan)\b', 192),
-            'recommendation': (r'\b(recommend|suggest|advise|should i|what would you|best way|optimal|ideal)\b', 160),
+            # Detailed responses (144-192 tokens)
+            'strategy': (r'\b(strategy|plan|approach|method|system|framework)\b', 176),
+            'explanation': (r'\b(explain|describe|elaborate|tell me about|how does)\b', 160),
+            'methodology': (r'\b(methodology|procedure|technique|practice|protocol)\b', 144),
+            'risk_analysis': (r'\b(risk|safety|security|protection|danger|threat)\b', 176),
             
-            # Complex queries
-            'comparison': (r'\b(vs|versus|compare|difference|better|which|or|between|prefer)\b', 128),
-            'explanation': (r'\b(explain|describe|elaborate|tell me about|how does|in what way|why does)\b', 144),
-            'scenario': (r'\b(imagine|suppose|what if|scenario|case|situation)\b', 176),
+            # Comprehensive responses (192-256 tokens)
+            'analysis': (r'\b(analyze|evaluate|assess|review|examine|investigate)\b', 224),
+            'recommendation': (r'\b(recommend|suggest|advise|propose|guidance|opinion)\b', 208),
+            'scenario': (r'\b(scenario|situation|case|example|instance|suppose|imagine)\b', 192),
+            'complex_query': (r'.*\b(and|or)\b.*\?.*\b(and|or)\b.*\?', 256),  # Multiple questions
+            
+            # Financial specifics (192-256 tokens)
+            'investment_strategy': (r'\b(portfolio|diversification|allocation|rebalancing)\b', 224),
+            'market_analysis': (r'\b(technical analysis|fundamental analysis|indicators)\b', 240),
+            'risk_management': (r'\b(hedge|insurance|protection|stop loss|risk management)\b', 208),
+            'financial_planning': (r'\b(retirement|estate|tax|planning|long[- ]term)\b', 224),
+            
+            # Technical topics (224-288 tokens)
+            'derivatives': (r'\b(options|futures|swaps|derivatives|contracts)\b', 256),
+            'crypto': (r'\b(crypto|blockchain|defi|nft|token|mining)\b', 240),
+            'trading_systems': (r'\b(algorithm|automated|system|bot|trading)\b', 224),
+            'regulations': (r'\b(regulation|compliance|law|rule|requirement)\b', 288),
         }
 
     def analyze_question(self, question: str) -> int:
-        """Enhanced question analysis for better response length control"""
+        """Enhanced question analysis with context-aware token control"""
         if not isinstance(question, str) or not question.strip():
-            return 96  # Default token length
+            return 128  # Default moderate length
             
         question = question.lower().strip()
         
-        # Check for specific patterns
+        # Initial pattern matching
         matched_tokens = []
-        for _, (pattern, tokens) in self.question_patterns.items():
+        primary_pattern = None
+        for pattern_name, (pattern, tokens) in self.question_patterns.items():
             if re.search(pattern, question):
                 matched_tokens.append(tokens)
+                if not primary_pattern:
+                    primary_pattern = pattern_name
         
-        if matched_tokens:
-            return max(matched_tokens)
+        # Context-based adjustments
+        context_multiplier = 1.0
         
-        # Enhanced fallback logic
-        words = len(question.split())
-        
-        # Very short queries
-        if words <= 3:
-            return 48
-        
-        # Complex or long queries
-        if words >= 20:
-            return 200
-        
-        # Questions with multiple parts
+        # Complexity factors
+        if len(question.split()) >= 20:
+            context_multiplier *= 1.4  # Longer questions need more detailed responses
         if question.count('?') > 1:
-            return 176
+            context_multiplier *= 1.3  # Multiple questions need longer responses
+        if re.search(r'\d+', question):
+            context_multiplier *= 1.2  # Questions with numbers often need more explanation
+            
+        # Topic-based adjustments
+        financial_terms = {
+            'complex': {
+                'derivatives', 'options', 'futures', 'hedge', 'swap', 'volatility',
+                'correlation', 'beta', 'alpha', 'sharpe', 'portfolio', 'risk',
+                'technical analysis', 'fundamental analysis'
+            },
+            'moderate': {
+                'stock', 'bond', 'fund', 'etf', 'dividend', 'interest', 'market',
+                'investment', 'trading', 'price', 'trend', 'chart'
+            },
+            'basic': {
+                'money', 'save', 'spend', 'buy', 'sell', 'profit', 'loss',
+                'account', 'bank', 'credit', 'debit'
+            }
+        }
         
-        # Questions with numbers or financial terms
-        if re.search(r'\d+', question) or any(term in question for term in [
-            'stock', 'bond', 'invest', 'market', 'fund', 'portfolio', 
-            'risk', 'return', 'dividend', 'crypto', 'finance'
-        ]):
-            return 144
+        words = set(question.split())
+        if any(term in question for term in financial_terms['complex']):
+            context_multiplier *= 1.5
+        elif any(term in question for term in financial_terms['moderate']):
+            context_multiplier *= 1.25
+        elif any(term in question for term in financial_terms['basic']):
+            context_multiplier *= 1.0
+            
+        # Depth indicators
+        depth_markers = {
+            'detailed': {'explain', 'detail', 'elaborate', 'analyze', 'describe'},
+            'brief': {'quick', 'brief', 'shortly', 'summary', 'tldr'}
+        }
         
-        # Default based on question length
-        if words < 8:
-            return 64
-        elif words < 15:
-            return 96
+        if any(marker in words for marker in depth_markers['detailed']):
+            context_multiplier *= 1.3
+        elif any(marker in words for marker in depth_markers['brief']):
+            context_multiplier *= 0.7
+            
+        # Calculate final token count
+        if matched_tokens:
+            base_tokens = max(matched_tokens)
         else:
-            return 128
+            # Smart fallback based on question length and structure
+            words = len(question.split())
+            if words <= 5:
+                base_tokens = 64
+            elif words <= 10:
+                base_tokens = 96
+            elif words <= 15:
+                base_tokens = 128
+            elif words <= 20:
+                base_tokens = 160
+            else:
+                base_tokens = 192
+        
+        final_tokens = int(base_tokens * context_multiplier)
+        
+        # Ensure tokens stay within reasonable bounds
+        return max(48, min(final_tokens, 512))
 
     def chat(self, message: str, history: list) -> Generator[str, None, None]:
         """Main chat function with improved streaming and generation"""

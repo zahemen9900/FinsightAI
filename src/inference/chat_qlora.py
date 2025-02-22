@@ -86,149 +86,135 @@ class FinanceAdvisor:
             )
         }
 
-        # Enhanced question type patterns
+        # Enhanced question patterns with more granular control
         self.question_patterns = {
-            # Basic interactions (very concise)
-            'greeting': (
-                r'\b(hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening)|yo|sup)\b|^[^a-zA-Z]*$',
-                36
-            ),
-            'farewell': (
-                r'\b(bye|goodbye|thanks|thank you|exit|quit|stop)\b',
-                24
-            ),
-            'acknowledgment': (
-                r'^(ok|okay|sure|alright|i see|got it|understood)\b',
-                24
-            ),
+            # Short responses (24-48 tokens)
+            'confirmation': (r'^(yes|no|maybe|correct|right|wrong|true|false)\b\??$', 24),
+            'greeting': (r'^\b(hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening))\b\s*\??$', 32),
+            'farewell': (r'^\b(bye|goodbye|thanks|thank you|exit|quit)\b\s*\??$', 24),
+            'acknowledgment': (r'^(ok|okay|sure|alright|i see|got it|understood)\b', 24),
             
-            # Simple queries (concise)
-            'basic_question': (
-                r'^(what( is|\'s)|how|why|can you|could you|would you|do you|is|are)\b.{0,50}\?*$',
-                 80
-            ),
-            'definition': (
-                r'\b(what (is|are|does)|define|meaning of|definition)\b.{0,50}\?*$',
-                80
-            ),
+            # Brief responses (48-96 tokens)
+            'quick_clarification': (r'\b(what does|what is|who is|where is|when is)\b.{0,30}\?$', 48),
+            'simple_query': (r'^(can|could|would|should|is|are|do|does)\b.{0,40}\?$', 64),
+            'status_check': (r'\b(how (?:is|are|does)|what\'s the status)\b', 72),
+            'verification': (r'\b(verify|confirm|check|validate|right|correct)\b', 64),
             
-            # Comparisons (medium length)
-            'comparison': (
-                r'\b(vs|versus|compare|difference|better|which|or|between|prefer)\b',
-                96
-            ),
-            'pros_cons': (
-                r'\b(advantages|disadvantages|benefits|drawbacks|pros|cons|upsides|downsides)\b',
-                112
-            ),
+            # Standard responses (96-144 tokens)
+            'definition': (r'\b(what (?:is|are|does)|define|explain|meaning of)\b.{0,50}\?', 96),
+            'process_query': (r'\b(how (?:to|do|can|should)|what steps|process for)\b', 128),
+            'comparison': (r'\b(vs|versus|compare|difference|better|which|or|between)\b', 144),
+            'market_status': (r'\b(market|stock|price|rate|trend)\b.*\b(now|today|current|latest)\b', 128),
             
-            # Explanations (detailed)
-            'explanation': (
-                r'\b(explain|describe|elaborate|tell me about|how does|in what way|why does)\b',
-                128
-            ),
-            'process': (
-                r'\b(how to|steps|process|procedure|method|approach|way to|guide)\b',
-                144
-            ),
+            # Detailed responses (144-192 tokens)
+            'strategy': (r'\b(strategy|plan|approach|method|system|framework)\b', 176),
+            'explanation': (r'\b(explain|describe|elaborate|tell me about|how does)\b', 160),
+            'methodology': (r'\b(methodology|procedure|technique|practice|protocol)\b', 144),
+            'risk_analysis': (r'\b(risk|safety|security|protection|danger|threat)\b', 176),
             
-            # Analysis (comprehensive)
-            'analysis': (
-                r'\b(analyze|evaluate|assess|review|examine|consider|thoughts on|opinion|strategy|plan)\b',
-                192
-            ),
-            'recommendation': (
-                r'\b(recommend|suggest|advise|should i|what would you|best way|optimal|ideal)\b',
-                160
-            ),
+            # Comprehensive responses (192-256 tokens)
+            'analysis': (r'\b(analyze|evaluate|assess|review|examine|investigate)\b', 224),
+            'recommendation': (r'\b(recommend|suggest|advise|propose|guidance|opinion)\b', 208),
+            'scenario': (r'\b(scenario|situation|case|example|instance|suppose|imagine)\b', 192),
+            'complex_query': (r'.*\b(and|or)\b.*\?.*\b(and|or)\b.*\?', 256),  # Multiple questions
             
-            # Lists and enumerations
-            'list': (
-                r'\b(list|what are|give me|show me|tips|steps|ways)\b.*\b(points|steps|ways|things|tips|examples|factors|reasons)\b',
-                160
-            ),
+            # Financial specifics (192-256 tokens)
+            'investment_strategy': (r'\b(portfolio|diversification|allocation|rebalancing)\b', 224),
+            'market_analysis': (r'\b(technical analysis|fundamental analysis|indicators)\b', 240),
+            'risk_management': (r'\b(hedge|insurance|protection|stop loss|risk management)\b', 208),
+            'financial_planning': (r'\b(retirement|estate|tax|planning|long[- ]term)\b', 224),
             
-            # Financial specifics (detailed)
-            'investment': (
-                r'\b(invest|stock|bond|etf|fund|portfolio|diversify|asset|allocation)\b',
-                176
-            ),
-            'risk_related': (
-                r'\b(risk|safe|secure|volatile|stability|protect|hedge|insurance)\b',
-                144
-            ),
-            'numbers_heavy': (
-                r'\b(\d+%|\$\d+|ratio|rate|return|yield|profit|loss)\b',
-                128
-            ),
-            
-            # Edge cases
-            'complex_query': (
-                r'(.*?\b(and|or)\b.*?\?)|(\?.*?\band\b.*?\?)',  # Multiple questions
-                200
-            ),
-            'scenario': (
-                r'\b(imagine|suppose|what if|scenario|case|situation)\b',
-                176
-            ),
-            'urgent': (
-                r'\b(urgent|asap|emergency|quick|fast|help|crisis)\b',
-                96  # Keep it focused for urgent queries
-            ),
-            'clarification': (
-                r'\b(clarify|understand|mean|rephrase|explain again|still don\'t get)\b',
-                80
-            ),
+            # Technical topics (224-288 tokens)
+            'derivatives': (r'\b(options|futures|swaps|derivatives|contracts)\b', 256),
+            'crypto': (r'\b(crypto|blockchain|defi|nft|token|mining)\b', 240),
+            'trading_systems': (r'\b(algorithm|automated|system|bot|trading)\b', 224),
+            'regulations': (r'\b(regulation|compliance|law|rule|requirement)\b', 288),
         }
 
     def analyze_question(self, question: str) -> int:
-        """Enhanced question analysis with better fallbacks"""
+        """Enhanced question analysis with context-aware token control"""
+        if not isinstance(question, str) or not question.strip():
+            return 128  # Default moderate length
+            
         question = question.lower().strip()
         
-        # Default token length for unmatched patterns
-        default_length = 96
-        
-        # Check for specific patterns
+        # Initial pattern matching
         matched_tokens = []
-        for _, (pattern, tokens) in self.question_patterns.items():
+        primary_pattern = None
+        for pattern_name, (pattern, tokens) in self.question_patterns.items():
             if re.search(pattern, question):
                 matched_tokens.append(tokens)
+                if not primary_pattern:
+                    primary_pattern = pattern_name
         
-        if matched_tokens:
-            # If multiple patterns match, use the larger token length
-            return max(matched_tokens)
+        # Context-based adjustments
+        context_multiplier = 1.0
         
-        # Enhanced fallback logic
-        words = len(question.split())
-        
-        # Super short inputs
-        if words <= 3:
-            return 48
-        
-        # Very long or complex queries
-        if words >= 20:
-            return 200
-        
-        # Questions with multiple parts
+        # Complexity factors
+        if len(question.split()) >= 20:
+            context_multiplier *= 1.4  # Longer questions need more detailed responses
         if question.count('?') > 1:
-            return 176
-        
-        # Questions with numbers might need more detail
+            context_multiplier *= 1.3  # Multiple questions need longer responses
         if re.search(r'\d+', question):
-            return 144
+            context_multiplier *= 1.2  # Questions with numbers often need more explanation
+            
+        # Topic-based adjustments
+        financial_terms = {
+            'complex': {
+                'derivatives', 'options', 'futures', 'hedge', 'swap', 'volatility',
+                'correlation', 'beta', 'alpha', 'sharpe', 'portfolio', 'risk',
+                'technical analysis', 'fundamental analysis'
+            },
+            'moderate': {
+                'stock', 'bond', 'fund', 'etf', 'dividend', 'interest', 'market',
+                'investment', 'trading', 'price', 'trend', 'chart'
+            },
+            'basic': {
+                'money', 'save', 'spend', 'buy', 'sell', 'profit', 'loss',
+                'account', 'bank', 'credit', 'debit'
+            }
+        }
         
-        # Questions with specific financial terms
-        financial_terms = r'\b(stock|bond|invest|market|fund|portfolio|risk|return|dividend)\b'
-        if re.search(financial_terms, question):
-            return 144
+        words = set(question.split())
+        if any(term in question for term in financial_terms['complex']):
+            context_multiplier *= 1.5
+        elif any(term in question for term in financial_terms['moderate']):
+            context_multiplier *= 1.25
+        elif any(term in question for term in financial_terms['basic']):
+            context_multiplier *= 1.0
+            
+        # Depth indicators
+        depth_markers = {
+            'detailed': {'explain', 'detail', 'elaborate', 'analyze', 'describe'},
+            'brief': {'quick', 'brief', 'shortly', 'summary', 'tldr'}
+        }
         
-        # Default based on question length
-        if words < 8:
-            return 64
-        elif words < 15:
-            return 96
+        if any(marker in words for marker in depth_markers['detailed']):
+            context_multiplier *= 1.3
+        elif any(marker in words for marker in depth_markers['brief']):
+            context_multiplier *= 0.7
+            
+        # Calculate final token count
+        if matched_tokens:
+            base_tokens = max(matched_tokens)
         else:
-            return 128
+            # Smart fallback based on question length and structure
+            words = len(question.split())
+            if words <= 5:
+                base_tokens = 64
+            elif words <= 10:
+                base_tokens = 96
+            elif words <= 15:
+                base_tokens = 128
+            elif words <= 20:
+                base_tokens = 160
+            else:
+                base_tokens = 192
+        
+        final_tokens = int(base_tokens * context_multiplier)
+        
+        # Ensure tokens stay within reasonable bounds
+        return max(48, min(final_tokens, 512))
 
     def generate_response(
         self,
@@ -237,7 +223,7 @@ class FinanceAdvisor:
         top_p: float = 0.9,
     ) -> str:
         """Generate a response using enhanced prompt handling"""
-        max_new_tokens = 128 if not self.should_analyze_question else self.analyze_question(prompt)
+        max_new_tokens = 256 if not self.should_analyze_question else self.analyze_question(prompt)
 
         # Keep conversation history manageable
         if len(self.conversation_history) > 4:

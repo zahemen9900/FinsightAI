@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime  # Change this line
 import json
 import os
 import torch
@@ -48,6 +48,7 @@ class QLoRAEvaluator:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
         self.dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        self.adapter_path = adapter_path
         
         # Load base model and LoRA adapter
         logger.info(f"Loading base model from {base_model}")
@@ -111,51 +112,70 @@ class QLoRAEvaluator:
             'stock', 'trade', 'volume', 'yield'
         ])
 
-        # Add metrics directory path
-        self.metrics_dir = Path("metrics")
-        self.metrics_dir.mkdir(exist_ok=True)
-        
-        # Add run identifier
-        self.run_id = str(uuid.uuid4())[:8]
-        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
         # Add metrics tracking
         self.all_sample_metrics = []
+        self.metrics_dir = Path("metrics")
+        self.metrics_dir.mkdir(exist_ok=True)
+        self.run_id = str(uuid.uuid4())[:8]
+        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Add system prompt
+        self.system_prompt = {
+            "role": "system",
+            "content": (
+                "You are FinSight, a professional financial advisor. "
+                "Keep responses clear, focused, and concise."
+            )
+        }
 
     def generate_response(self, prompt: str) -> str:
-        """Generate response from model for given prompt"""
-        # Format prompt with chat template
-        formatted_prompt = f"### Human: {prompt}\n### Assistant:"
+        """Generate response using proper chat template formatting"""
+        # Format messages properly with system prompt
+        messages = [
+            self.system_prompt,
+            {"role": "user", "content": prompt}
+        ]
         
+        # Apply chat template using tokenizer's built-in method
+        formatted_prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+        # Prepare inputs with proper handling
         inputs = self.tokenizer(
-            formatted_prompt, 
+            formatted_prompt,
             return_tensors="pt",
             truncation=True,
             max_length=self.max_length,
-            add_special_tokens=True
+            add_special_tokens=True,
+            padding=True,
+            return_attention_mask=True
         ).to(self.device)
-        
-        with torch.no_grad():
+
+        with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
-                max_length=self.max_length,
+                max_new_tokens=128,
                 do_sample=True,
-                temperature=0.7,
+                temperature=0.5,
                 top_p=0.9,
+                repetition_penalty=1.5,
+                no_repeat_ngram_size=5,
                 pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
             )
-        
+
+        # Decode and clean up response
         response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        response = response.split(prompt)[-1].strip()
         
-        # Clean up response
-        try:
-            response = response.split("### Assistant:")[-1]
-            if "### Human:" in response:
-                response = response.split("### Human:")[0]
-            response = response.strip()
-        except:
-            response = "I apologize, but I couldn't generate a proper response."
+        # Ensure proper formatting
+        if response and response[0].islower():
+            response = response[0].upper() + response[1:]
+        if response and response[-1] not in '.!?':
+            response += '.'
             
         return response
 
@@ -188,63 +208,9 @@ class QLoRAEvaluator:
         return metrics
 
     def evaluate_single_response(self, prompt: str, reference: str) -> Dict[str, float]:
-        """Evaluate a single response with comprehensive metrics"""
-        # Format messages properly with system prompt and chat history
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are FinSight, a professional financial advisor. "
-                    "Keep responses clear, focused, and concise."
-                )
-            }
-        ]
-
-        # Add current prompt
-        messages.append({"role": "user", "content": prompt})
-        
-        # Apply chat template using tokenizer's built-in method
-        formatted_prompt = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-
-        # Prepare inputs with proper handling
-        inputs = self.tokenizer(
-            formatted_prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=self.max_length,
-            add_special_tokens=True,
-            padding=True,
-            return_attention_mask=True
-        ).to(self.device)
-
-        with torch.inference_mode(), torch.amp.autocast(enabled=True, dtype=self.dtype, device_type=self.device, cache_enabled=True):
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=128,
-                do_sample=True,
-                temperature=0.3,  # Lower temperature for evaluation
-                top_p=0.9,
-                repetition_penalty=1.5,
-                no_repeat_ngram_size=5,
-                pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
-                early_stopping=True
-            )
-
-        # Decode and clean up response
-        prediction = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        prediction = prediction.split(prompt)[-1].strip()
-        
-        # Ensure proper formatting
-        if prediction and prediction[0].islower():
-            prediction = prediction[0].upper() + prediction[1:]
-        
-        if prediction and prediction[-1] not in '.!?':
-            prediction += '.'
+        """Evaluate a single response without regenerating"""
+        # Generate response only once
+        prediction = self.generate_response(prompt)
 
         # Calculate metrics
         rouge_scores = self.compute_rouge_scores(prediction, reference)
@@ -256,7 +222,7 @@ class QLoRAEvaluator:
             'bleu': bleu_score,
             **{f'response_{k}': v for k, v in response_metrics.items()}
         }
-        
+
         # Track individual sample metrics
         self.all_sample_metrics.append({
             'prompt': prompt,
@@ -349,9 +315,9 @@ class QLoRAEvaluator:
 
     def convert_to_serializable(self, obj: Any) -> Any:
         """Convert numpy types to Python native types for JSON serialization"""
-        if isinstance(obj, np.integer):
+        if isinstance(obj, (np.integer, np.int64)):
             return int(obj)
-        elif isinstance(obj, np.floating):
+        elif isinstance(obj, (np.floating, np.float32, np.float64)):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
@@ -359,7 +325,14 @@ class QLoRAEvaluator:
             return {key: self.convert_to_serializable(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self.convert_to_serializable(item) for item in obj]
-        return obj
+        elif isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        elif isinstance(obj, (str, int, float)):
+            return obj
+        elif obj is None:
+            return None
+        else:
+            return str(obj)
 
     def save_results(self, results: Dict[str, Dict[str, Dict[str, float]]], output_path: str = None):
         """Enhanced save_results with better organization for visualization"""
@@ -377,7 +350,7 @@ class QLoRAEvaluator:
                 "timestamp": self.run_timestamp,
                 "model_type": "qlora",
                 "base_model": self.model.config._name_or_path,
-                "adapter_path": str(Path(self.model.peft_config.path).resolve()),
+                "adapter_path": self.adapter_path,
                 "device": self.device,
                 "torch_dtype": str(self.dtype),
             },
@@ -388,25 +361,28 @@ class QLoRAEvaluator:
             }
         }
 
+        # Convert results to serializable format before saving
+        detailed_results = self.convert_to_serializable(detailed_results)
+
         # Save main results JSON
         with open(output_path / "results.json", 'w') as f:
             json.dump(detailed_results, f, indent=2)
 
-        # Save detailed sample metrics as CSV
-        df_samples = pd.DataFrame(self.all_sample_metrics)
+        # Convert DataFrame values to native types before saving
+        df_samples = pd.DataFrame(self.convert_to_serializable(self.all_sample_metrics))
         df_samples.to_csv(output_path / "sample_metrics.csv", index=False)
 
-        # Save aggregated metrics per dataset
+        # Handle aggregated metrics
         aggregated_metrics = {}
         for dataset_name, metrics in results.items():
             if dataset_name != 'overall':
                 dataset_df = pd.DataFrame([{
                     'dataset': dataset_name,
                     'metric': metric,
-                    'mean': stats['mean'],
-                    'std': stats['std'],
-                    'min': stats['min'],
-                    'max': stats['max']
+                    'mean': float(stats['mean']),  # Explicit conversion
+                    'std': float(stats['std']),    # Explicit conversion
+                    'min': float(stats['min']),    # Explicit conversion
+                    'max': float(stats['max'])     # Explicit conversion
                 } for metric, stats in metrics.items()])
                 aggregated_metrics[dataset_name] = dataset_df
         
@@ -424,7 +400,7 @@ def main():
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
     parser.add_argument("--adapter_path", type=str, default="qlora_output")
     parser.add_argument("--num_samples", type=int, default=100)
-    parser.add_argument("--output_path", type=str, default="metrics/qlora_evaluation_results.json")
+    parser.add_argument("--output_path", type=str, default="metrics/qlora_evaluation_results")
     args = parser.parse_args()
 
     # Define datasets to evaluate

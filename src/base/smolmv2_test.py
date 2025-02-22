@@ -35,7 +35,10 @@ def generate_response(conversation, prompt: str, stream: bool = True, precision=
     """Generate response with better handling and mixed precision."""
     # Format messages with system prompt
     messages = conversation.history + [
-        {"role": "system", "content": "Keep responses concise and to the point. Avoid long-winded explanations."},
+        {"role": "system", "content": (
+            "You are FinSight AI, a financial advisor. "
+            "Keep responses concise and to the point. Avoid long-winded explanations."
+        )},
         {"role": "user", "content": prompt}
     ]
     
