@@ -1,0 +1,11 @@
+{"time":"2025-02-21T18:12:40.753148203Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-21T18:12:40.753155893Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250221_181240-b3ddecv3/logs/debug-core.log"}
+{"time":"2025-02-21T18:12:40.890496512Z","level":"INFO","msg":"created new stream","id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:40.890538544Z","level":"INFO","msg":"stream: started","id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:40.89057474Z","level":"INFO","msg":"writer: Do: started","stream_id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:40.890595167Z","level":"INFO","msg":"sender: started","stream_id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:40.890634459Z","level":"INFO","msg":"handler: started","stream_id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:41.436444644Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-21T18:12:59.071127213Z","level":"INFO","msg":"stream: closing","id":"b3ddecv3"}
+{"time":"2025-02-21T18:12:59.071147855Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-21T18:12:59.071765579Z","level":"INFO","msg":"Stopped system monitor"}

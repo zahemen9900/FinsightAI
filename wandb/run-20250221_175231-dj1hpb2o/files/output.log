@@ -1,0 +1,24 @@
+  0%|                                                                                                                                 | 0/1293 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+  4%|████▉                                                                                                                 | 54/1293 [16:34<6:36:34, 19.20s/it]Traceback (most recent call last):
+{'loss': 2.696, 'grad_norm': 0.10215403884649277, 'learning_rate': 1.9305019305019306e-05, 'epoch': 0.06}
+{'loss': 2.6598, 'grad_norm': 0.08302959054708481, 'learning_rate': 3.861003861003861e-05, 'epoch': 0.12}
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 372, in <module>
+  File "/home/zahemen/projects/dl-lib/FinsightAI/src/main/train_qlora.py", line 347, in train
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2171, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 2531, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/transformers/trainer.py", line 3712, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/_tensor.py", line 581, in backward
+    torch.autograd.backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/__init__.py", line 347, in backward
+    _engine_run_backward(
+  File "/home/zahemen/miniconda3/envs/transformer_LM/lib/python3.11/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

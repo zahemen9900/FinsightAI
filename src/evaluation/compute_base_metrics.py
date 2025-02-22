@@ -15,6 +15,8 @@ from tqdm import tqdm
 from rich.logging import RichHandler
 from rich.progress import track
 from datetime import datetime
+import uuid
+import pandas as pd
 
 # Download required NLTK data
 try:
@@ -74,6 +76,17 @@ class ModelEvaluator:
             'investment', 'stock', 'bond', 'market', 'fund', 'dividend',
             # ...rest of financial terms...
         ])
+        
+        # Add metrics directory path
+        self.metrics_dir = Path("metrics")
+        self.metrics_dir.mkdir(exist_ok=True)
+        
+        # Add run identifier
+        self.run_id = str(uuid.uuid4())[:8]
+        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Add metrics tracking
+        self.all_sample_metrics = []
 
     def generate_response(self, prompt: str) -> str:
         """Generate response from model for given prompt"""
@@ -115,32 +128,19 @@ class ModelEvaluator:
         prediction = self.generate_response(prompt)
         rouge = self.compute_rouge_scores(prediction, reference)
         bleu = self.compute_bleu_score(prediction, reference)
-        return {**rouge, 'bleu': bleu}
+        metrics = {**rouge, 'bleu': bleu}
+        
+        # Track individual sample metrics
+        self.all_sample_metrics.append({
+            'prompt': prompt,
+            'reference': reference,
+            'prediction': prediction,
+            **metrics
+        })
+        
+        return metrics
 
     def evaluate_dataset(self, dataset, name: str, num_samples: int = 100) -> Dict[str, Dict[str, float]]:
-        """Evaluate model on a specific dataset"""
-        if num_samples:
-            eval_data = dataset.select(range(min(num_samples, len(dataset))))
-        else:
-            eval_data = dataset
-
-        all_metrics = []
-        
-        logger.info(f"\nEvaluating base model on {len(eval_data)} samples from {name}")
-        for item in track(eval_data, description=f"Evaluating {name}"):
-            try:
-                messages = item['messages']
-                last_exchange = None
-                
-                for i in range(len(messages)-1):
-                    if messages[i]['role'] == 'user' and messages[i+1]['role'] == 'assistant':
-                        last_exchange = (messages[i]['content'], messages[i+1]['content'])
-                
-                if not last_exchange:
-                    continue
-                
-                prompt, reference = last_exchange
-                metrics = self.evaluate_single_response(prompt, reference)
                 all_metrics.append(metrics)
                 
             except Exception as e:

@@ -1,4 +1,4 @@
-from datetime import datetime  # Change this line
+from datetime import datetime
 import json
 import os
 import torch
@@ -17,6 +17,8 @@ from rich.logging import RichHandler
 from rich.progress import track
 import re
 import argparse
+import uuid
+import pandas as pd
 
 
 # Download required NLTK data
@@ -108,6 +110,17 @@ class QLoRAEvaluator:
             'margin', 'portfolio', 'quant', 'rally', 'recession', 'security',
             'stock', 'trade', 'volume', 'yield'
         ])
+
+        # Add metrics directory path
+        self.metrics_dir = Path("metrics")
+        self.metrics_dir.mkdir(exist_ok=True)
+        
+        # Add run identifier
+        self.run_id = str(uuid.uuid4())[:8]
+        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Add metrics tracking
+        self.all_sample_metrics = []
 
     def generate_response(self, prompt: str) -> str:
         """Generate response from model for given prompt"""
@@ -238,11 +251,21 @@ class QLoRAEvaluator:
         bleu_score = self.compute_bleu_score(prediction, reference)
         response_metrics = self.analyze_response(prediction)
 
-        return {
+        metrics = {
             **rouge_scores,
             'bleu': bleu_score,
             **{f'response_{k}': v for k, v in response_metrics.items()}
         }
+        
+        # Track individual sample metrics
+        self.all_sample_metrics.append({
+            'prompt': prompt,
+            'reference': reference,
+            'prediction': prediction,
+            **metrics
+        })
+        
+        return metrics
 
     def evaluate_dataset(self, dataset, name: str, num_samples: int = 100) -> Dict[str, Dict[str, float]]:
         """Evaluate model on a specific dataset"""
@@ -338,28 +361,61 @@ class QLoRAEvaluator:
             return [self.convert_to_serializable(item) for item in obj]
         return obj
 
-    def save_results(self, results: Dict[str, Dict[str, Dict[str, float]]], output_path: str = "metrics/qlora_evaluation_results.json"):
-        """Save evaluation results with additional metadata"""
-        output_dir = Path(output_path).parent
-        output_dir.mkdir(parents=True, exist_ok=True)
+    def save_results(self, results: Dict[str, Dict[str, Dict[str, float]]], output_path: str = None):
+        """Enhanced save_results with better organization for visualization"""
+        if output_path is None:
+            output_path = self.metrics_dir / f"qlora_eval_{self.run_timestamp}_{self.run_id}"
+        else:
+            output_path = Path(output_path)
         
-        # Convert all numpy types to native Python types
-        serializable_results = self.convert_to_serializable(results)
-        
-        # Add metadata to results
-        final_results = {
-            "metrics_by_dataset": serializable_results,
-            "metadata": {
-                "evaluation_time": datetime.now().isoformat(),  # Fixed datetime usage
-                "model_name": self.model.config._name_or_path,
-                "datasets": list(self.datasets.keys()),
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Save detailed results
+        detailed_results = {
+            "run_metadata": {
+                "run_id": self.run_id,
+                "timestamp": self.run_timestamp,
+                "model_type": "qlora",
+                "base_model": self.model.config._name_or_path,
+                "adapter_path": str(Path(self.model.peft_config.path).resolve()),
                 "device": self.device,
+                "torch_dtype": str(self.dtype),
+            },
+            "metrics_summary": results,
+            "datasets_info": {
+                name: {"size": len(dataset)} 
+                for name, dataset in self.datasets.items()
             }
         }
+
+        # Save main results JSON
+        with open(output_path / "results.json", 'w') as f:
+            json.dump(detailed_results, f, indent=2)
+
+        # Save detailed sample metrics as CSV
+        df_samples = pd.DataFrame(self.all_sample_metrics)
+        df_samples.to_csv(output_path / "sample_metrics.csv", index=False)
+
+        # Save aggregated metrics per dataset
+        aggregated_metrics = {}
+        for dataset_name, metrics in results.items():
+            if dataset_name != 'overall':
+                dataset_df = pd.DataFrame([{
+                    'dataset': dataset_name,
+                    'metric': metric,
+                    'mean': stats['mean'],
+                    'std': stats['std'],
+                    'min': stats['min'],
+                    'max': stats['max']
+                } for metric, stats in metrics.items()])
+                aggregated_metrics[dataset_name] = dataset_df
         
-        with open(output_path, 'w') as f:
-            json.dump(final_results, f, indent=2)
-        logger.info(f"\nResults saved to {output_path}")
+        # Combine all datasets
+        df_all = pd.concat(aggregated_metrics.values(), ignore_index=True)
+        df_all.to_csv(output_path / "aggregated_metrics.csv", index=False)
+
+        logger.info(f"Results saved to {output_path}")
+        return output_path
 
 def main():
     # Parse arguments

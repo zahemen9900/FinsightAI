@@ -28,12 +28,14 @@ class FinanceAdvisor:
         device: str = None,
         max_length: int = 512,
         num_beams: int = 1,
-        stream: bool = True  # Add streaming parameter
+        stream: bool = True,
+        should_analyze_question: bool = True  # Renamed from analyze_question
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
         self.num_beams = num_beams
         self.stream = stream
+        self.should_analyze_question = should_analyze_question  # Renamed variable
         
         # Load tokenizer with specific settings and move to device
         logger.info(f"Loading tokenizer from {base_model}")
@@ -49,7 +51,7 @@ class FinanceAdvisor:
             base_model,
             torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
             trust_remote_code=True,
-        ).to(self.device)  # Explicitly move to device
+        ).to(self.device).eval()  # Explicitly move to device
         
         # Load LoRA adapter
         if Path(adapter_path).exists():
@@ -68,9 +70,19 @@ class FinanceAdvisor:
         self.system_prompt = {
             "role": "system",
             "content": (
-                "You are FinSight, a professional financial advisor. "
-                "Keep responses clear, focused, and concise. "
-                # "Provide accurate guidance while maintaining transparency about being an AI."
+                "You are FinSight, a professional financial advisor chatbot. "
+                "Follow these guidelines strictly:\n"
+                "1. Provide clear, concise, and accurate financial guidance\n"
+                "2. Focus on factual, practical advice without speculation\n"
+                "3. Use professional but accessible language\n"
+                "4. Break down complex concepts into understandable terms\n"
+                "5. Maintain objectivity and avoid personal opinions\n"
+                "6. Always consider risk management in advice\n"
+                "7. Be transparent about limitations of AI advice\n"
+                "8. Cite reliable sources when appropriate\n"
+                "9. Encourage due diligence and research\n"
+                "10. Avoid making specific investment recommendations\n"
+                "Remember: You are an AI assistant focused on financial education and guidance."
             )
         }
 
@@ -221,27 +233,33 @@ class FinanceAdvisor:
     def generate_response(
         self,
         prompt: str,
-        temperature: float = 0.3,  # Lower temperature for more focused responses
+        temperature: float = 0.3,
         top_p: float = 0.9,
-        analyze_response = False
     ) -> str:
-        """Generate a response using proper chat template"""
-        # Determine appropriate response length
-        max_new_tokens = 128 if not analyze_response else self.analyze_question(prompt)
+        """Generate a response using enhanced prompt handling"""
+        max_new_tokens = 128 if not self.should_analyze_question else self.analyze_question(prompt)
 
-        # Keep only last two exchanges before adding new message
-        if len(self.conversation_history) > 4:  # 4 messages = 2 exchanges (user + assistant)
+        # Keep conversation history manageable
+        if len(self.conversation_history) > 4:
             self.conversation_history = self.conversation_history[-4:]
 
-        # Format messages with limited history
+        # Format messages with system prompt reinforcement
         messages = [self.system_prompt]
-        messages.extend(self.conversation_history)
-        messages.append({"role": "user", "content": prompt})
         
-        # Apply chat template using tokenizer's built-in method
+        # Add a brief system reminder before each user message
+        if self.conversation_history:
+            messages.extend(self.conversation_history)
+            messages.append({
+                "role": "system",
+                "content": "Remember to provide professional financial guidance."
+            })
+        
+        messages.append({"role": "user", "content": prompt})
+
+        # Enhanced prompt formatting
         formatted_prompt = self.tokenizer.apply_chat_template(
             messages,
-            tokenize=False,
+            tokenize=False,  # Keep as string for better control
             add_generation_prompt=True
         )
 
@@ -257,7 +275,21 @@ class FinanceAdvisor:
         )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}  # Move all tensors to device
 
-        # Set up streamer if streaming is enabled
+        # Adjust generation parameters for more controlled responses
+        generation_config = {
+            "max_new_tokens": max_new_tokens,
+            "temperature": min(temperature, 0.7),
+            "top_p": top_p,
+            "do_sample": True,
+            "pad_token_id": self.tokenizer.eos_token_id,
+            "eos_token_id": self.tokenizer.eos_token_id,
+            "repetition_penalty": 1.2,
+            "no_repeat_ngram_size": 4,
+            "num_beams": self.num_beams,
+            "early_stopping": False,
+            "length_penalty": 1.0,
+        }
+
         timeout = max(20.0, max_new_tokens // 5.0)
         streamer = TextStreamer(
             self.tokenizer,
@@ -266,58 +298,47 @@ class FinanceAdvisor:
             timeout=timeout
         ) if self.stream else None
 
-        # Add temperature control for more focused responses
-        temperature = min(temperature, 0.7 if max_new_tokens > 128 else 0.4)
-
         with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
-                repetition_penalty=1.5,  # Increased
-                no_repeat_ngram_size=5,  # Increased
-                num_beams=self.num_beams,
-                streamer=streamer
+                streamer=streamer,
+                **generation_config
             )
-            
-        # Update conversation history consistently for both streaming and non-streaming
+
+        # Update conversation history
         self.conversation_history.append({"role": "user", "content": prompt})
-        
+
         if not self.stream:
             outputs = outputs.cpu()
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             response = response.split(prompt)[-1].strip()
+            
             if not response:
                 response = "I apologize, but I couldn't generate a proper response."
             
-            # Add assistant response to history
             self.conversation_history.append({"role": "assistant", "content": response})
             
-            # Ensure only last two exchanges are kept
             if len(self.conversation_history) > 4:
                 self.conversation_history = self.conversation_history[-4:]
             
             return response
-        
-        return ""  # Empty string for streaming mode
+
+        return ""
 
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1000")
-    parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--adapter_path", type=str, default="qlora_output")
+    parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--max_length", type=int, default=2048)
+    # parser.add_argument("--analyze_question", action=False)
     args = parser.parse_args()
     
     advisor = FinanceAdvisor(
         base_model=args.base_model,
         adapter_path=args.adapter_path,
-        max_length=args.max_length
+        max_length=args.max_length,
     )
     
     # Print welcome message
@@ -342,7 +363,7 @@ def main():
             # Generate response (will stream automatically)
             advisor.generate_response(
                 user_input,
-                temperature=args.temperature
+                temperature=args.temperature,
             )
             
             console.print()  # Add newline after streamed response

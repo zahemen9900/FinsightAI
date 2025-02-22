@@ -416,8 +416,8 @@ dependencies:
       - cymem==2.0.10
       - datasets==3.2.0
       - docker-pycreds==0.4.0
-      - en-core-web-md==3.8.0
-      - en-core-web-sm==3.8.0
+      # - en-core-web-md==3.8.0
+      # - en-core-web-sm==3.8.0
       - fastapi==0.115.6
       - ffmpy==0.5.0
       - flatbuffers==24.12.23
