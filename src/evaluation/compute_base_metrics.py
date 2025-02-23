@@ -71,10 +71,15 @@ class ModelEvaluator:
         self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
         self.smooth = SmoothingFunction().method1
         
-        # Add financial terms set
+        # Add financial terms set (expanded version from QLora script)
         self.financial_terms = set([
             'investment', 'stock', 'bond', 'market', 'fund', 'dividend',
-            # ...rest of financial terms...
+            'portfolio', 'asset', 'equity', 'risk', 'return', 'trading',
+            'broker', 'hedge', 'option', 'futures', 'commodity', 'leverage',
+            'volatility', 'yield', 'capital', 'margin', 'inflation', 'liquidity',
+            'diversification', 'securities', 'share', 'etf', 'reit', 'interest',
+            'appreciation', 'depreciation', 'bear', 'bull', 'derivative', 'forex',
+            # ... copy rest of financial terms from QLora script ...
         ])
         
         # Add metrics directory path
@@ -163,14 +168,39 @@ class ModelEvaluator:
         reference_tokens = [nltk.word_tokenize(reference.lower())]
         return sentence_bleu(reference_tokens, prediction_tokens, smoothing_function=self.smooth)
 
+    def analyze_response(self, response: str) -> Dict[str, float]:
+        """Analyze response quality based on multiple metrics"""
+        metrics = {
+            'length': len(response.split()),
+            'financial_terms': len([w for w in response.lower().split() if w in self.financial_terms]),
+            'has_numbers': bool(re.search(r'\d', response)),
+            'sentence_count': len(nltk.sent_tokenize(response)),
+            'avg_word_length': np.mean([len(w) for w in response.split()]),
+            'capitalization': response[0].isupper() if response else False,
+            'ends_properly': response[-1] in '.!?' if response else False,
+        }
+        return metrics
+
     def evaluate_single_response(self, prompt: str, reference: str) -> Dict[str, float]:
-        """Evaluate a single response"""
+        """Evaluate a single response with additional metrics"""
+        # Generate response first
         prediction = self.generate_response(prompt)
-        rouge = self.compute_rouge_scores(prediction, reference)
-        bleu = self.compute_bleu_score(prediction, reference)
-        metrics = {**rouge, 'bleu': bleu}
         
-        # Track individual sample metrics
+        # Calculate existing metrics
+        rouge_scores = self.compute_rouge_scores(prediction, reference)
+        bleu_score = self.compute_bleu_score(prediction, reference)
+        
+        # Add new response metrics
+        response_metrics = self.analyze_response(prediction)
+        
+        # Combine all metrics
+        metrics = {
+            **rouge_scores,
+            'bleu': bleu_score,
+            **{f'response_{k}': v for k, v in response_metrics.items()}
+        }
+        
+        # Track individual sample metrics with full information
         self.all_sample_metrics.append({
             'prompt': prompt,
             'reference': reference,

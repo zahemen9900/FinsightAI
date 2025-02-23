@@ -171,7 +171,7 @@ class FinanceAdvisor:
             },
             'basic': {
                 'money', 'save', 'spend', 'buy', 'sell', 'profit', 'loss',
-                'account', 'bank', 'credit', 'debit'
+                'account', 'bank', 'credit', 'debit', 'invest', 'plan', 'budget'
             }
         }
         
@@ -315,7 +315,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-600")
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--max_length", type=int, default=2048)
     # parser.add_argument("--analyze_question", action=False)
