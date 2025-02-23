@@ -47,8 +47,8 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.05 
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 3
-    learning_rate: float = 2e-4
+    num_train_epochs: int = 4
+    learning_rate: float = 3e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 4   # Adjusted for memory
     per_device_eval_batch_size: int = 4
@@ -57,6 +57,7 @@ class QLoRAConfig(SFTConfig):
     warmup_ratio: float = 0.1
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
+    max_grad_norm: float = 0.2
     do_eval: bool = True
     eval_steps: int = 300      
     save_steps: int = 300

@@ -1,0 +1,9 @@
+{"time":"2025-02-22T21:32:35.446127858Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-02-22T21:32:35.44613612Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250222_213235-30l6hmbt/logs/debug-core.log"}
+{"time":"2025-02-22T21:32:35.600222473Z","level":"INFO","msg":"created new stream","id":"30l6hmbt"}
+{"time":"2025-02-22T21:32:35.600260344Z","level":"INFO","msg":"stream: started","id":"30l6hmbt"}
+{"time":"2025-02-22T21:32:35.600345181Z","level":"INFO","msg":"handler: started","stream_id":"30l6hmbt"}
+{"time":"2025-02-22T21:32:35.600836003Z","level":"INFO","msg":"writer: Do: started","stream_id":"30l6hmbt"}
+{"time":"2025-02-22T21:32:35.600861659Z","level":"INFO","msg":"sender: started","stream_id":"30l6hmbt"}
+{"time":"2025-02-22T21:32:40.859452044Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-23T01:18:24.109751876Z","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/zahemen9900-ai/huggingface/30l6hmbt/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

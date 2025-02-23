@@ -81,7 +81,7 @@ class FinanceAdvisorBot:
                 "7. Be transparent about limitations of AI advice\n"
                 "8. Cite reliable sources when appropriate\n"
                 "9. Encourage due diligence and research\n"
-                # "10. Avoid making specific investment recommendations\n"
+                "10. Give bullet points and numbered lists when necessary\n"
                 "Remember: You are an AI assistant focused on financial education and guidance."
             )
         }
@@ -233,7 +233,7 @@ class FinanceAdvisorBot:
                     messages.append({"role": "assistant", "content": assistant_msg})
             messages.append({
                 "role": "system",
-                "content": "Remember to provide professional financial guidance."
+                "content": "Remember to provide professional financial guidance. Also give bullet points and numbered lists when necessary."
             })
         
         # Add current message
@@ -314,55 +314,134 @@ def create_demo():
     
     with gr.Blocks(theme=gr.themes.Ocean(),
                   css="""
-        .gradio-container {max-width: 900px !important}
-        .chat-bubble {border-radius: 12px !important}
-        .chat-bubble.user {background-color: #e3f2fd !important}
-        .chat-bubble.bot {background-color: #f5f5f5 !important}
+        /* Base container styling */
+        .gradio-container {
+            max-width: 750px !important;
+            margin: 0 auto !important;
+        }
+
+        /* Chat bubble styling */
+        .chat-bubble {
+            border-radius: 15px !important;
+            padding: 15px 20px !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+        }
+        .chat-bubble.user {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%) !important;
+            border: 1px solid #90CAF9 !important;
+        }
+        .chat-bubble.bot {
+            background: linear-gradient(135deg, #F5F5F5 0%, #EEEEEE 100%) !important;
+            border: 1px solid #E0E0E0 !important;
+        }
         
-        /* Custom Header Styling */
+        /* Modern Header Styling */
         .custom-header {
             text-align: center;
-            margin-bottom: 2rem;
-            padding: 2.5rem;
-            background: linear-gradient(135deg, #4286f4 0%, #373B44 100%);
-            color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(255, 75, 31, 0.2);  # Matching shadow tint
+            margin: -10px -10px -20px -10px;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #01579b 100%);
+            position: relative;
+            overflow: hidden;
+            max-width: 900px;
         }
+
+        /* Animated gradient overlay */
+        .custom-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, 
+                rgba(33, 150, 243, 0.15) 0%,
+                rgba(3, 169, 244, 0.15) 25%,
+                rgba(0, 188, 212, 0.15) 50%,
+                rgba(3, 169, 244, 0.15) 75%,
+                rgba(33, 150, 243, 0.15) 100%);
+            animation: gradient 15s ease infinite;
+            background-size: 400% 400%;
+        }
+
+        /* Header content styling */
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+
         .custom-header h1 {
-            font-family: 'Space Mono', monospace !important;
-            font-weight: 700 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 800 !important;
             color: white !important;
-            letter-spacing: 1px !important;
-            font-size: 3.5em !important;
-            margin-bottom: 0.5rem !important;
+            font-size: 3.8em !important;
+            margin-bottom: 0.3rem !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            letter-spacing: -0.5px !important;
         }
-        
+
+        .custom-header .logo {
+            font-size: 2.5em;
+            margin-right: 0.3em;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
         .custom-header p {
-            font-size: 1.2em !important;
-            opacity: 0.9;
-            margin-top: 1rem !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 1.25em !important;
+            line-height: 1.6 !important;
+            color: rgba(255,255,255,0.95) !important;
+            margin: 1.2rem auto 0 !important;
+            max-width: 700px !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
         }
-        
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        /* Accent elements */
+        .accent-box {
+            display: inline-block;
+            padding: 0.3em 0.8em;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            margin: 0.5em;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Animation keyframes */
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Import fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     """) as demo:
         
-        # Add the custom header as HTML
+        # Enhanced header HTML with accent elements
         gr.HTML("""
             <div class="custom-header">
-                <h1>⚡FinSight AI</h1>
-                <p>Your intelligent financial companion, powered by advanced AI.<br>
-                Ask me anything about personal finance, investments, or financial planning.</p>
+                <div class="header-content">
+                    <h1>💡FinSight AI</h1>
+                    <p>Your intelligent financial companion, powered by advanced AI</p>
+                    <div>
+                        <span class="accent-box">💼 Personal Finance</span>
+                        <span class="accent-box">📈 Investments</span>
+                        <span class="accent-box">🎯 Financial Planning</span>
+                    </div>
+                </div>
             </div>
         """)
         
         # Create the chat interface
         chat_interface = gr.ChatInterface(
             fn=bot.chat,
+            type='messages',
             examples=[
-                ["What's the best way to start investing with $1000?"],
-                ["Explain dollar-cost averaging in simple terms."],
-                ["What's the difference between stocks and bonds?"],
+            ["I have $5000 saved up. What's the best way to start investing it?"],
+            ["My monthly income is $4000. How should I split my expenses and savings?"],
+            ["I have $10,000 in credit card debt with 20% APR. What's my best strategy to pay it off?"],
+            ["Should I consider buying or renting a house?"],
             ],
         )
     
