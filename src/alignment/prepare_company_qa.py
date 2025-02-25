@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -9,6 +10,7 @@ import logging
 from rich.logging import RichHandler
 import hashlib
 import jsonlines
+from sympy import comp
 from tqdm import tqdm
 
 # Configure logging
@@ -31,40 +33,22 @@ class FinanceQAProcessor:
         self.num_cross_company_samples = num_cross_company_samples
         self.used_samples = set()  # Track used question-answer pairs
         self.all_tickers = None  # Will store all unique tickers
-        self.system_prompts = [
-                "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings.",
-                "You are FinSight, a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the filings in a professional and concise manner.",
-                "You are a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings in an accurate and concise manner.",
-                "You are FinSight (Financial Insight), a finance Bot trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
-                "You are a finance Bot trained on 10-K filings of various S&P500 Companies. Your Name is FinSight - Finacial Insights Bot.",
-            ]
-        self.context_prompt_templates = [
-            "Based on this context: {context}\n",
-            "According to the company's filing: {context}\n",
-            "Given this information from the 10-K filing: {context}\n",
-            "Considering this excerpt from the filing: {context}\n"
-        ]
-        
-        self.system_prompt_with_context = [
-            "You are a finance Bot trained on 10-K filings. Here's relevant information from the company's filing: {context}",
-            "You are FinSight, an AI trained on financial documents. According to the company's 10-K: {context}",
-            "You are a financial advisor with access to company filings. Based on their 10-K: {context}",
-            "You are FinSight, an AI assistant specialized in financial analysis. From the company's filing: {context}"
-        ]
-        
-        self.system_prompt_no_context = [
-            "You are a finance Bot trained on 10-K filings of various S&P500 Companies.",
-            "You are FinSight, an AI trained to analyze and explain company financials.",
-            "You are a financial advisor bot trained to answer questions about company financials.",
-            "You are an AI assistant specialized in financial analysis and company information."
-        ]
+        self.system_prompt = {
+            "role": "system",
+            "content": (
+                "You are FinSight, a professional financial advisor chatbot specialized in "
+                "company analysis and financial insights. Provide accurate, factual responses "
+                "and use lists when appropriate to organize information clearly."
+            )
+        }
+
         self.conversation_counter = 0  # Add counter for unique IDs
         self.sample_usage_counter = {}  # Track how many times each sample is used
         self.max_sample_usage = 3  # Maximum times a sample can be used
         
         # Add list-specific system prompts
         self.list_system_prompts = [
-            "You are FinSight, an AI trained to provide clear, structured financial advice. When appropriate, present information in well-organized lists.",
+            "You are FinSight, an AI trained to provide clear, structured financial opinions & advice. When appropriate, present information in well-organized lists.",
             "You are a finance Bot that excels at breaking down complex information into clear, numbered or bulleted lists when suitable.",
             "You are FinSight, specializing in delivering financial insights through structured responses, including organized lists when beneficial.",
         ]
@@ -98,20 +82,20 @@ class FinanceQAProcessor:
         ]
         
         self.comparison_aspects = [
-            "financial performance",
-            "revenue growth",
-            "market position",
-            "business strategy",
-            "operational efficiency",
-            "profit margins",
-            "risk management",
-            "competitive advantages",
-            "industry leadership",
-            "innovation capabilities",
-            "market share",
-            "business model",
-            "growth potential",
-            "financial health",
+            "recent developments",
+            "key activities", 
+            "current status",
+            "overall performance",
+            "main priorities",
+            "notable highlights",
+            "general direction",
+            "major initiatives",
+            "significant changes",
+            "important factors",
+            "core strengths",
+            "key characteristics",
+            "main focus areas",
+            "strategic elements"
         ]
         
         self.list_question_templates = [
@@ -142,8 +126,64 @@ class FinanceQAProcessor:
             "industry trends",
         ]
         
-        self.min_words_for_list = 5  # Minimum words required for list items
+        self.min_words_for_list = 8  # Minimum words required for list items
         
+        # Add company fact question templates
+        self.company_fact_templates = [
+            "Tell me some interesting facts about {company}",
+            "What are some key things to know about {company}?",
+            "Share some important information about {company}",
+            "What should investors know about {company}?",
+            "Give me an overview of {company}'s business",
+            "What makes {company} stand out in their industry?",
+            "What are {company}'s main strengths and characteristics?",
+            "Highlight some notable aspects of {company}",
+        ]
+
+        # Remove context-related attributes and add company-specific question templates
+        self.company_question_templates = [
+            "What was {company}'s revenue growth in their latest report?",
+            "How did {company} perform in terms of {metric}?",
+            "What are {company}'s main products or services?",
+            "How does {company} generate most of its revenue?",
+            "What is {company}'s market position in {industry}?",
+            "How has {company}'s strategy evolved recently?",
+            "What are {company}'s competitive advantages?",
+            "What risks does {company} face in their business?",
+        ]
+        
+        # Load company names mapping
+        self.company_names = self.load_company_names()
+        
+    def load_company_names(self) -> Dict[str, str]:
+        """Load company ticker to name mapping"""
+        try:
+            with open('/home/zahemen/datasets/company_tickers.json', 'r') as f:
+                data = json.load(f)
+            
+            # Create ticker -> company name mapping
+            mapping = {}
+            for item in data.values():
+                ticker = item['ticker']
+                # Clean company name (remove common corporate suffixes)
+                name = re.sub(r'\s+(CORP|INC|LTD|LLC|CO|CORPORATION|LIMITED)\.?$', '', 
+                            item['title'], flags=re.IGNORECASE)
+                mapping[ticker] = name
+                
+            logger.info(f"Loaded {len(mapping)} company name mappings")
+            return mapping
+        except Exception as e:
+            logger.error(f"Failed to load company names: {e}")
+            return {}
+            
+    def get_company_name(self, ticker: str) -> str:
+        """Get company name from ticker, fallback to ticker if not found"""
+        company_name =  self.company_names.get(ticker, ticker)
+        if company_name == ticker:
+            return company_name
+        else:
+            return company_name.title()
+
     def generate_prompt_id(self) -> str:
         """Generate a unique 64-character prompt ID"""
         # Combine counter with some random bytes for uniqueness
@@ -153,13 +193,6 @@ class FinanceQAProcessor:
         self.conversation_counter += 1
         return prompt_id
         
-    def format_with_context(self, question: str, context: str) -> str:
-        """Format a question with its context"""
-        # Handle NaN or invalid context
-        if pd.isna(context) or not isinstance(context, str):
-            return question.strip()
-        template = random.choice(self.context_prompt_templates)
-        return template.format(context=context.strip()) + question.strip()
 
     def combine_qa_pairs(self, row1, row2) -> Tuple[str, str]:
         """Combine two Q&A pairs into a single question and answer without context in question"""
@@ -225,31 +258,77 @@ class FinanceQAProcessor:
         ]
         return {"role": "user", "content": random.choice(starters)}, {"role": "assistant", "content": random.choice(bot_responses)}
 
-    def create_system_message(self, context: str = None, use_context: bool = True) -> Dict[str, str]:
-        """Create a system message, optionally including context"""
-        if use_context and context and not pd.isna(context) and isinstance(context, str):
-            template = random.choice(self.system_prompt_with_context)
-            content = template.format(context=context.strip())
-        else:
-            content = random.choice(self.system_prompt_no_context)
-        return {"role": "system", "content": content or ""}  # Ensure content is never None
+    def create_system_message(self) -> Dict[str, str]:
+        """Create a consistent system message without context"""
+        return self.system_prompt
+
+    def create_company_fact_question(self, company_name: str) -> str:
+        """Create a question asking for facts about a company"""
+        return random.choice(self.company_fact_templates).format(company=company_name)
+
+    def format_company_question(self, question: str, company_name: str) -> str:
+        """Format a question to include company name naturally"""
+        if not isinstance(question, str) or not question.strip():
+            return ""
+            
+        # Replace generic company references with specific name
+        patterns = [
+            (r'\bthe company\'s\b', f"{company_name}'s"),
+            (r'\bthe company\b', company_name),
+            (r'\bthey\b', company_name),
+            (r'\btheir\b', f"{company_name}'s"),
+            (r'\bcompany\b', company_name),
+            (r'\bfirm\'s\b', f"{company_name}'s"),
+            (r'\bfirm\b', company_name),
+            (r'\benterprise\'s\b', f"{company_name}'s"),
+            (r'\benterprise\b', company_name),
+            (r'\bbusiness\'s\b', f"{company_name}'s"),
+            (r'\bbusiness\b', company_name),
+            (r'\bcorporation\'s\b', f"{company_name}'s"),
+            (r'\bcorporation\b', company_name),
+            (r'\borganization\'s\b', f"{company_name}'s"),
+            (r'\borganization\b', company_name),
+        ]
+        
+        formatted = question
+        for pattern, replacement in patterns:
+            formatted = re.sub(pattern, replacement, formatted, flags=re.IGNORECASE)
+            
+        # Add company name at start if no reference exists
+        if company_name.lower() not in formatted.lower():
+            formatted = f"For {company_name}, {formatted}"
+            
+        return formatted.strip()
 
     def create_multi_turn_conversation(self, company_data: pd.DataFrame, num_turns: int) -> Conversation:
-        """Create a multi-turn conversation for a specific company"""
+        """Modified to include fact-based questions and remove context"""
         messages = []
         greeting, response = self.create_greetings()
         usr, ast = self.create_conversation_starter()
         
-        # Decide whether to use context (50% chance)
-        use_context = random.random() < 0.8
-        
-        # Add system prompt with/without context
-        context = company_data['context'].iloc[0] if use_context else None
-        messages.append(self.create_system_message(context, use_context))
-        
+        # Add system message without context
+        messages.append(self.create_system_message())
         messages.extend([greeting, response, usr, ast])
         
-        # Rest of conversation without context in questions
+        # Add a fact-based question about the company
+        company_name = self.get_company_name(company_data['ticker'].iloc[0])
+        fact_question = self.create_company_fact_question(company_name)
+        
+        # Get 3-5 relevant facts as response
+        fact_indices = random.sample([
+            idx for idx in company_data.index 
+            if self.can_use_sample(idx) and self.is_valid_list_item(str(company_data.loc[idx, 'answer']))
+        ], min(random.randint(3, 5), len(company_data)))
+        
+        fact_responses = [company_data.loc[idx, 'answer'] for idx in fact_indices]
+        fact_response = self.format_list_response(fact_responses, f"Facts about {company_name}")
+        
+        messages.extend([
+            {"role": "user", "content": fact_question},
+            {"role": "assistant", "content": fact_response}
+        ])
+        
+        # Add remaining turns with company-specific questions
         available_indices = [idx for idx in company_data.index if self.can_use_sample(idx)]
         if len(available_indices) < num_turns:
             num_turns = len(available_indices)
@@ -258,19 +337,21 @@ class FinanceQAProcessor:
         
         for idx in selected_indices:
             row = company_data.loc[idx]
-            self.mark_sample_used(idx)
+            formatted_question = self.format_company_question(row['question'], company_name)
+            
             messages.extend([
-                {"role": "user", "content": str(row['question'] or "")},  # Convert to string and handle None
-                {"role": "assistant", "content": str(row['answer'] or "")}  # Convert to string and handle None
+                {"role": "user", "content": formatted_question or ""},
+                {"role": "assistant", "content": row['answer'] or ""}
             ])
+            self.mark_sample_used(idx)
         
         return Conversation(
             messages=messages,
             metadata={
                 "ticker": company_data['ticker'].iloc[0],
+                "company_name": company_name,
                 "filing_year": company_data['filing'].iloc[0],
-                "has_context": use_context,
-                "conversation_id": self.generate_prompt_id()  # Renamed from prompt_id
+                "conversation_id": self.generate_prompt_id()
             }
         )
 
@@ -290,15 +371,8 @@ class FinanceQAProcessor:
         context1 = company1_data['context'].iloc[0]
         context2 = company2_data['context'].iloc[0]
         
-        # Create combined context if using context and both contexts are valid
-        if use_context and not pd.isna(context1) and not pd.isna(context2):
-            context = f"For {company1_data['ticker'].iloc[0]}: {context1} For {company2_data['ticker'].iloc[0]}: {context2}"
-        else:
-            context = None
-            use_context = False
             
-        messages.append(self.create_system_message(context, use_context))
-        messages.extend([greeting, response, usr, ast])
+        messages.append(self.create_system_message())
         
         # Rest of conversation without context in questions
         company1_indices = [idx for idx in company1_data.index if self.can_use_sample(idx)]
@@ -324,20 +398,20 @@ class FinanceQAProcessor:
                 if random.random() < 0.7:
                     aspect = random.choice(self.comparison_aspects)
                     question = random.choice(self.cross_company_questions).format(
-                        company1=company1_data['ticker'].iloc[0],
-                        company2=company2_data['ticker'].iloc[0],
+                        company1=self.get_company_name(company1_data['ticker'].iloc[0]),
+                        company2=self.get_company_name(company2_data['ticker'].iloc[0]),
                         aspect=aspect
                     )
                 else:
                     question = row['question']
                 
                 # 60% chance to format response as a list
-                use_list_format = random.random() < 0.6
-                
-                if use_list_format:
-                    prev_idx = messages[-2]['content']
-                    prev_row = company1_data[company1_data['question'] == prev_idx].iloc[0]
-                    
+                use_list_format = random.random() < 0.7
+
+                prev_idx = messages[-2]['content']
+                prev_row = company1_data[company1_data['question'] == prev_idx].iloc[0]                
+
+                if use_list_format:              
                     # Validate both answers have sufficient words for list items
                     if not (self.is_valid_list_item(str(prev_row['answer'])) and 
                             self.is_valid_list_item(str(row['answer']))):
@@ -349,34 +423,38 @@ class FinanceQAProcessor:
                         
                         if list_style == 'number':
                             response = (
-                                f"Here's a comparison of {aspect} between {company1_data['ticker'].iloc[0]} "
-                                f"and {company2_data['ticker'].iloc[0]}:\n\n"
-                                f"1. {company1_data['ticker'].iloc[0]}:\n"
+                                f"Here's a comparison of {aspect} between {self.get_company_name(company1_data['ticker'].iloc[0])} "
+                                f"and {self.get_company_name(company2_data['ticker'].iloc[0])}:\n\n"
+                                f"1. {self.get_company_name(company1_data['ticker'].iloc[0])}:\n"
                                 f"   - {prev_row['answer']}\n\n"
-                                f"2. {company2_data['ticker'].iloc[0]}:\n"
+                                f"2. {self.get_company_name(company2_data['ticker'].iloc[0])}:\n"
                                 f"   - {row['answer']}"
                             )
                         elif list_style == 'bullet':
                             response = (
                                 f"Comparing {aspect}:\n\n"
-                                f"* {company1_data['ticker'].iloc[0]}:\n"
+                                f"* {self.get_company_name(company1_data['ticker'].iloc[0])}:\n"
                                 f"  - {prev_row['answer']}\n\n"
-                                f"* {company2_data['ticker'].iloc[0]}:\n"
+                                f"* {self.get_company_name(company2_data['ticker'].iloc[0])}:\n"
                                 f"  - {row['answer']}"
                             )
                         else:  # detailed
                             response = (
                                 f"Detailed comparison of {aspect}:\n\n"
-                                f"[{company1_data['ticker'].iloc[0]}]\n"
+                                f"[{self.get_company_name(company1_data['ticker'].iloc[0])}]\n"
                                 f"• {prev_row['answer']}\n\n"
-                                f"[{company2_data['ticker'].iloc[0]}]\n"
+                                f"[{self.get_company_name(company2_data['ticker'].iloc[0])}]\n"
                                 f"• {row['answer']}\n\n"
                                 f"Key Differences:\n"
                                 f"- {random.choice(['Stronger', 'Different', 'Unique'])} focus on specific aspects\n"
                                 f"- Distinct approaches to {aspect}"
                             )
                 else:
-                    response = row['answer']
+                    response = (
+                        f"For {self.get_company_name(company1_data['ticker'].iloc[0])} {prev_row['answer']}. \
+                        In comparison, {self.get_company_name(company2_data['ticker'].iloc[0])}: {row['answer']}"
+                    )
+
             else:
                 question = row['question']
                 response = row['answer']
@@ -397,9 +475,9 @@ class FinanceQAProcessor:
             messages=messages,
             metadata={
                 "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
+                "company_names": f"{self.get_company_name(company1_data['ticker'].iloc[0])}, {self.get_company_name(company2_data['ticker'].iloc[0])}",
                 "combined": False,
                 "cross_company": True,
-                "has_context": use_context,
                 "has_lists": True,  # Add flag for list formatting
                 "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}" if str(company1_data['filing'].iloc[0]) != str(company2_data['filing'].iloc[0]) else company1_data['filing'].iloc[0],
                 "conversation_id": self.generate_prompt_id()
@@ -484,10 +562,10 @@ class FinanceQAProcessor:
                 list_question = random.choice(self.list_question_templates).format(
                     num=len(items),
                     aspect=aspect,
-                    company=company_data['ticker'].iloc[0]
+                    company=self.get_company_name(company_data['ticker'].iloc[0])
                 )
                 
-                list_response = self.format_list_response(items, f"{company_data['ticker'].iloc[0]}'s {aspect}")
+                list_response = self.format_list_response(items, f"{self.get_company_name(company_data['ticker'].iloc[0])}'s {aspect}")
                 
                 messages.extend([
                     {"role": "user", "content": list_question},
@@ -498,6 +576,7 @@ class FinanceQAProcessor:
                     messages=messages,
                     metadata={
                         "ticker": company_data['ticker'].iloc[0],
+                        "company_name": self.get_company_name(company_data['ticker'].iloc[0]),
                         "filing_year": company_data['filing'].iloc[0],
                         "has_lists": True,
                         "conversation_id": self.generate_prompt_id()
@@ -517,14 +596,6 @@ class FinanceQAProcessor:
         for ticker, company_data in grouped:
             logger.info(f"Processing company: {ticker}")
             
-            # Create some combined Q&A pairs
-            system_prompts = [
-                "You are a Finsight, a finance AI trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings.",
-                "You are FinSight, a finance Bot trained on a dataset of 10-K filings. You are tasked with answering questions related to the filings in a professional and concise manner.",
-                "You are a finance AI trained on a dataset of 10-K filings. You are tasked with answering questions related to the 10-K filings in an accurate and concise manner.",
-                "You are FinSight, a finance AI model trained on a dataset of 10-K filings of various S&P500 Companies. You are expected to answer questions related to the 10-K filings in a professional and accurate manner.",
-            ]
-
             if len(company_data) >= 2:
                 num_combinations = random.randint(3, 7)
                 for _ in range(min(num_combinations, len(company_data) // 2)):
@@ -538,10 +609,9 @@ class FinanceQAProcessor:
                         
                         # Decide whether to use context
                         use_context = random.random() < 0.8
-                        system_msg = self.create_system_message(
-                            self.combined_context if use_context else None,
-                            use_context
-                        )
+                        system_msg = self.create_system_message()
+                            # self.combined_context if use_context else None,
+                            # use_context)
                         
                         greeting, response = self.create_greetings()
                         usr, ast = self.create_conversation_starter()

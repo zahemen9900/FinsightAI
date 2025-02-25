@@ -128,6 +128,18 @@ class QLoRAConfig(SFTConfig):
     torch_compile: bool = True             # Use torch.compile for speed
     optim: str = "paged_adamw_32bit"      # Memory efficient optimizer
     
+    # Add evaluation optimization params
+    eval_batch_size: int = 2  # Reduced from 3
+    evaluation_strategy: str = "steps"
+    eval_steps: int = 500     # Increased from 400
+    metric_for_best_model: str = "combined_score"
+    greater_is_better: bool = True
+    
+    # Memory optimizations
+    max_grad_norm: float = 0.2
+    max_eval_samples: int = 1000  # Limit eval samples
+    eval_accumulation_steps: int = 4
+    
     def __post_init__(self):
         super().__post_init__()
         self.gradient_checkpointing_kwargs = {
@@ -138,6 +150,9 @@ class QLoRAConfig(SFTConfig):
         # If resuming, ensure we load the best model
         if self.resume_from_checkpoint:
             self.load_best_model_at_end = True
+        self.evaluation_strategy = "steps"
+        self.eval_steps = 500
+        self.per_device_eval_batch_size = self.eval_batch_size
 
 def setup_quantized_model(model_args, training_args):
     """Enhanced model setup with consistency improvements"""
@@ -281,48 +296,72 @@ def merge_datasets(dataset_paths: List[Dict[str, Union[str, float]]], tokenizer,
 
 
 def compute_consistency_metrics(tokenizer, eval_pred):
-    """
-    Computes consistency-related evaluation metrics for model predictions.
-    Args:
-        tokenizer: Tokenizer instance
-        eval_pred (tuple): Tuple containing model logits and ground truth labels
-            - logits: Model prediction logits
-            - labels: Ground truth label indices
-    Returns:
-        dict: Dictionary containing computed metrics:
-            - response_consistency: Score measuring consistency across responses
-            - topic_adherence: Score measuring adherence to input topics
-    """
+    """Optimized metrics computation with reduced memory usage"""
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
     
-    # Filter out padding tokens
-    mask = labels != -100
-    filtered_preds = predictions[mask]
-    filtered_labels = labels[mask]
+    # Process in smaller batches to reduce memory usage
+    batch_size = 32  # Adjust based on your GPU memory
+    metrics_sum = {"response_consistency": 0.0, "topic_adherence": 0.0}
+    total_batches = 0
     
-    metrics = {}
     try:
-        # Add focused response consistency score
-        response_consistency = calculate_response_consistency(filtered_preds, filtered_labels)
-        metrics["response_consistency"] = response_consistency
+        # Process predictions in batches
+        for i in range(0, len(predictions), batch_size):
+            batch_preds = predictions[i:i + batch_size]
+            batch_labels = labels[i:i + batch_size]
+            
+            # Filter padding tokens
+            mask = batch_labels != -100
+            filtered_preds = batch_preds[mask]
+            filtered_labels = batch_labels[mask]
+            
+            if len(filtered_preds) == 0:
+                continue
+                
+            # Calculate metrics for batch
+            consistency = calculate_response_consistency(filtered_preds, filtered_labels)
+            
+            # Use CPU for text decoding to save GPU memory
+            with torch.cuda.device('cpu'):
+                topic_score = calculate_topic_adherence(
+                    tokenizer, 
+                    filtered_preds, 
+                    filtered_labels
+                )
+            
+            metrics_sum["response_consistency"] += consistency
+            metrics_sum["topic_adherence"] += topic_score
+            total_batches += 1
+            
+            # Clear GPU cache after each batch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
-        # Add topic adherence score
-        topic_adherence = calculate_topic_adherence(tokenizer, filtered_preds, filtered_labels)
-        metrics["topic_adherence"] = topic_adherence
+        # Calculate averages
+        if total_batches > 0:
+            metrics = {
+                "response_consistency": metrics_sum["response_consistency"] / total_batches,
+                "topic_adherence": metrics_sum["topic_adherence"] / total_batches,
+            }
+            metrics["combined_score"] = (metrics["response_consistency"] + 
+                                       metrics["topic_adherence"]) / 2
+        else:
+            metrics = {
+                "response_consistency": 0.0,
+                "topic_adherence": 0.0,
+                "combined_score": 0.0
+            }
         
-        # Add combined score
-        metrics["combined_score"] = (response_consistency + topic_adherence) / 2
+        return metrics
         
     except Exception as e:
         logger.warning(f"Error computing metrics: {e}")
-        metrics = {
+        return {
             "response_consistency": 0.0,
             "topic_adherence": 0.0,
             "combined_score": 0.0
         }
-    
-    return metrics
 
 # Add these helper functions at the end of the file
 def calculate_response_consistency(predictions, labels):
@@ -549,12 +588,15 @@ def train():
     # Add gradient checkpointing for memory efficiency
     model.gradient_checkpointing_enable()
     
-    # Initialize trainer with corrected compute_metrics
+    # Initialize trainer with optimized settings
     trainer = SFTTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
+        eval_dataset=dataset["test"].select(range(min(
+            len(dataset["test"]), 
+            training_args.max_eval_samples
+        ))),  # Limit eval dataset size
         processing_class=tokenizer,
         callbacks=[
             EarlyStoppingCallback(
@@ -562,7 +604,7 @@ def train():
                 early_stopping_threshold=0.05
             )
         ],
-        compute_metrics=lambda eval_pred: compute_consistency_metrics(tokenizer, eval_pred),  # Add custom metrics
+        compute_metrics=lambda eval_pred: compute_consistency_metrics(tokenizer, eval_pred),
         data_collator=None,
     )
 
