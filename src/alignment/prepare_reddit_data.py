@@ -338,7 +338,7 @@ class DatasetCleaner:
             text = re.sub(pattern, replacement, text, flags=re.MULTILINE)
         
         # Clean up whitespace
-        text = re.sub(r'\n+', ' ', text)  # Replace multiple newlines with single space
+        # text = re.sub(r'\n+', ' ', text)  # Replace multiple newlines with single space
         text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with single space
         text = text.strip()
         

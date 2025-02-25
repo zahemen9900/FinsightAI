@@ -1,3 +1,11 @@
 {
-    "python.analysis.autoImportCompletions": true
+    "python.analysis.autoImportCompletions": true,
+    "editor.semanticTokenColorCustomizations": {
+        "rules": {
+            "comment": "#6A9955"  // A lighter shade of green for comments
+        }
+    },
+    "workbench.colorCustomizations": {
+        
+    }
 }

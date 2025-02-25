@@ -3948,3 +3948,7 @@ AttributeError: 'DatasetCleaner' object has no attribute 'find_similar_texts'
 [2025-02-18 13:29:15] - INFO - Caching final_filtered...
 [2025-02-18 13:29:19] - INFO - Successfully saved 2,131 examples to /home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl
 [2025-02-18 13:29:19] - INFO - Total processing time: 863.17s
+[2025-02-24 17:12:30] - ERROR - Could not load spaCy model with word vectors. Please run:
+[2025-02-24 17:12:30] - ERROR - python -m spacy download en_core_web_lg
+[2025-02-24 17:12:30] - ERROR - or
+[2025-02-24 17:12:30] - ERROR - python -m spacy download en_core_web_md

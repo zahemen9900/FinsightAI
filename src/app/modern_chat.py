@@ -25,7 +25,7 @@ class FinanceAdvisorBot:
     def __init__(
         self,
         base_model: str = "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        adapter_path: str = "qlora_output",
+        adapter_path: str = "qlora_output/checkpoint-1500",
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
     ):
         self.device = device
@@ -224,13 +224,16 @@ class FinanceAdvisorBot:
         # Format messages with system prompt first
         messages.append(self.system_prompt)
         
-        # Add a system reminder before current message if there's history
+        # Add conversation history from Gradio's history format
         if history:
-            for user_msg, assistant_msg in history[-3:]:  # Keep last 3 turns
-                if user_msg:
-                    messages.append({"role": "user", "content": user_msg})
-                if assistant_msg:
-                    messages.append({"role": "assistant", "content": assistant_msg})
+            # History comes as a list of [user_message, bot_message] pairs
+            for human, assistant in history[-3:]:  # Keep last 3 turns
+                if human:
+                    messages.append({"role": "user", "content": human})
+                if assistant:
+                    messages.append({"role": "assistant", "content": assistant})
+                    
+            # Add system reminder after history
             messages.append({
                 "role": "system",
                 "content": "Remember to provide professional financial guidance. Also give bullet points and numbered lists when necessary."
@@ -264,31 +267,24 @@ class FinanceAdvisorBot:
                 skip_special_tokens=True
             )
             
-            def generate_with_mixed_precision():
-                with torch.inference_mode(), torch.amp.autocast(enabled=True, dtype=self.precision, device_type=self.device, cache_enabled=True):
-                    # Use analyze_question to determine max_new_tokens
-                    max_new_tokens = self.analyze_question(message)
-                    
-                    generation_kwargs = dict(
-                        **inputs,
-                        streamer=streamer,
-                        max_new_tokens=max_new_tokens,  # Dynamic token length
-                        temperature=0.3,
-                        top_p=0.9,
-                        do_sample=True,
-                        repetition_penalty=1.2,
-                        no_repeat_ngram_size=4,
-                        num_beams=1,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id,
-                        early_stopping=False,
-                        length_penalty=1.0,
-                        use_cache=True
-                    )
-                    
-                    self.model.generate(**generation_kwargs)
+            generation_kwargs = dict(
+                **inputs,
+                streamer=streamer,
+                max_new_tokens=self.analyze_question(message),
+                temperature=0.3,
+                top_p=0.9,
+                do_sample=True,
+                repetition_penalty=1.2,
+                no_repeat_ngram_size=4,
+                num_beams=1,
+                pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+                early_stopping=False,
+                length_penalty=1.0,
+                use_cache=True
+            )
             
-            thread = Thread(target=generate_with_mixed_precision)
+            thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
             thread.start()
             
             # Improved response streaming with better formatting
@@ -433,15 +429,20 @@ def create_demo():
             </div>
         """)
         
-        # Create the chat interface
+        # Create the chat interface with proper history handling
         chat_interface = gr.ChatInterface(
-            fn=bot.chat,
-            type='messages',
+            bot.chat,
+            chatbot=gr.Chatbot(
+                height=600,
+                show_copy_button=True,
+                show_share_button=True,
+                bubble_full_width=False
+            ),
             examples=[
-            ["I have $5000 saved up. What's the best way to start investing it?"],
-            ["My monthly income is $4000. How should I split my expenses and savings?"],
-            ["I have $10,000 in credit card debt with 20% APR. What's my best strategy to pay it off?"],
-            ["Should I consider buying or renting a house?"],
+                ["I have $5000 saved up. What's the best way to start investing it?"],
+                ["My monthly income is $4000. How should I split my expenses and savings?"],
+                ["I have $10,000 in credit card debt with 20% APR. What's my best strategy to pay it off?"],
+                ["Should I consider buying or renting a house?"],
             ],
         )
     

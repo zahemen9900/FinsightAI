@@ -29,7 +29,7 @@ class FinanceAdvisor:
         max_length: int = 512,
         num_beams: int = 1,
         stream: bool = True,
-        should_analyze_question: bool = True  # Renamed from analyze_question
+        should_analyze_question: bool = False  # Renamed from analyze_question
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
@@ -315,7 +315,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-600")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1500")
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--max_length", type=int, default=2048)
     # parser.add_argument("--analyze_question", action=False)

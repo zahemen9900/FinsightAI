@@ -62,6 +62,88 @@ class FinanceQAProcessor:
         self.sample_usage_counter = {}  # Track how many times each sample is used
         self.max_sample_usage = 3  # Maximum times a sample can be used
         
+        # Add list-specific system prompts
+        self.list_system_prompts = [
+            "You are FinSight, an AI trained to provide clear, structured financial advice. When appropriate, present information in well-organized lists.",
+            "You are a finance Bot that excels at breaking down complex information into clear, numbered or bulleted lists when suitable.",
+            "You are FinSight, specializing in delivering financial insights through structured responses, including organized lists when beneficial.",
+        ]
+        
+        # Add list response templates
+        self.list_templates = [
+            "Here are {num} key points about {topic}:\n{items}",
+            "Let me break down {topic} into {num} main aspects:\n{items}",
+            "Consider these {num} important factors regarding {topic}:\n{items}",
+            "{topic} can be understood through these {num} elements:\n{items}",
+        ]
+        
+        # Add list marker patterns
+        self.list_markers = [
+            r'^\d+\.\s+',  # Numbered lists (1. 2. etc)
+            r'^\*\s+',     # Bullet points
+            r'^\-\s+',     # Dash lists
+            r'^\[\d+\]\s+' # Bracketed numbers
+        ]
+        
+        # Add cross-company comparison questions
+        self.cross_company_questions = [
+            "How do {company1} and {company2} compare in terms of {aspect}?",
+            "What are the key differences between {company1} and {company2} regarding {aspect}?",
+            "Can you compare {company1} and {company2}'s performance in {aspect}?",
+            "Break down the differences between {company1} and {company2} in {aspect}.",
+            "List the main points of comparison between {company1} and {company2} for {aspect}.",
+            "What advantages does {company1} have over {company2} in {aspect}?",
+            "How do {company1}'s {aspect} stack up against {company2}?",
+            "Analyze the strengths of both {company1} and {company2} in {aspect}.",
+        ]
+        
+        self.comparison_aspects = [
+            "financial performance",
+            "revenue growth",
+            "market position",
+            "business strategy",
+            "operational efficiency",
+            "profit margins",
+            "risk management",
+            "competitive advantages",
+            "industry leadership",
+            "innovation capabilities",
+            "market share",
+            "business model",
+            "growth potential",
+            "financial health",
+        ]
+        
+        self.list_question_templates = [
+            "What are the top {num} {aspect} of {company}?",
+            "List {num} key {aspect} that {company} demonstrates.",
+            "Can you break down {num} main {aspect} of {company}?",
+            "What {num} factors make {company} stand out in terms of {aspect}?",
+            "Identify {num} critical {aspect} that define {company}.",
+            "Enumerate {num} significant {aspect} of {company}.",
+            "What are {num} notable {aspect} that characterize {company}?",
+            "Outline {num} essential {aspect} of {company}.",
+        ]
+        
+        self.list_aspects = [
+            "strengths",
+            "challenges",
+            "growth drivers",
+            "risk factors",
+            "competitive advantages",
+            "market opportunities",
+            "strategic initiatives",
+            "performance indicators",
+            "business segments",
+            "revenue sources",
+            "operational highlights",
+            "investment considerations",
+            "market positions",
+            "industry trends",
+        ]
+        
+        self.min_words_for_list = 5  # Minimum words required for list items
+        
     def generate_prompt_id(self) -> str:
         """Generate a unique 64-character prompt ID"""
         # Combine counter with some random bytes for uniqueness
@@ -86,8 +168,8 @@ class FinanceQAProcessor:
 
         combined_a = np.random.choice([
             f"{row1['answer']} Additionally, {row2['answer']}",
-            f"1. {row1['answer']} \n2. {row2['answer']}",
-            f"{row1['answer']} \nAlso, {row2['answer']}",
+            f"1. {row1['answer']} \n\n2. {row2['answer']}",
+            f"{row1['answer']} \n\nAlso, {row2['answer']}",
             f"{row1['answer']} In addition, {row2['answer']}",
         ])
         
@@ -198,7 +280,7 @@ class FinanceQAProcessor:
         company2_data: pd.DataFrame,
         num_turns: int
     ) -> Conversation:
-        """Create a conversation mixing questions from two companies"""
+        """Create a conversation mixing questions from two companies with enhanced list formatting"""
         messages = []
         greeting, response = self.create_greetings()
         usr, ast = self.create_conversation_starter()
@@ -235,10 +317,73 @@ class FinanceQAProcessor:
             idx = random.choice(available)
             row = current_data.loc[idx]
             
-            # Add question without context
+            # Enhanced question generation for comparison
+            if i % 2 == 1:  # When we have info from both companies
+                # 70% chance to use comparison question
+                aspect = random.choice(self.comparison_aspects)
+                if random.random() < 0.7:
+                    aspect = random.choice(self.comparison_aspects)
+                    question = random.choice(self.cross_company_questions).format(
+                        company1=company1_data['ticker'].iloc[0],
+                        company2=company2_data['ticker'].iloc[0],
+                        aspect=aspect
+                    )
+                else:
+                    question = row['question']
+                
+                # 60% chance to format response as a list
+                use_list_format = random.random() < 0.6
+                
+                if use_list_format:
+                    prev_idx = messages[-2]['content']
+                    prev_row = company1_data[company1_data['question'] == prev_idx].iloc[0]
+                    
+                    # Validate both answers have sufficient words for list items
+                    if not (self.is_valid_list_item(str(prev_row['answer'])) and 
+                            self.is_valid_list_item(str(row['answer']))):
+                        use_list_format = False
+                        response = row['answer']
+                    else:
+                        # Enhanced list formatting with varied structures
+                        list_style = random.choice(['number', 'bullet', 'detailed'])
+                        
+                        if list_style == 'number':
+                            response = (
+                                f"Here's a comparison of {aspect} between {company1_data['ticker'].iloc[0]} "
+                                f"and {company2_data['ticker'].iloc[0]}:\n\n"
+                                f"1. {company1_data['ticker'].iloc[0]}:\n"
+                                f"   - {prev_row['answer']}\n\n"
+                                f"2. {company2_data['ticker'].iloc[0]}:\n"
+                                f"   - {row['answer']}"
+                            )
+                        elif list_style == 'bullet':
+                            response = (
+                                f"Comparing {aspect}:\n\n"
+                                f"* {company1_data['ticker'].iloc[0]}:\n"
+                                f"  - {prev_row['answer']}\n\n"
+                                f"* {company2_data['ticker'].iloc[0]}:\n"
+                                f"  - {row['answer']}"
+                            )
+                        else:  # detailed
+                            response = (
+                                f"Detailed comparison of {aspect}:\n\n"
+                                f"[{company1_data['ticker'].iloc[0]}]\n"
+                                f"• {prev_row['answer']}\n\n"
+                                f"[{company2_data['ticker'].iloc[0]}]\n"
+                                f"• {row['answer']}\n\n"
+                                f"Key Differences:\n"
+                                f"- {random.choice(['Stronger', 'Different', 'Unique'])} focus on specific aspects\n"
+                                f"- Distinct approaches to {aspect}"
+                            )
+                else:
+                    response = row['answer']
+            else:
+                question = row['question']
+                response = row['answer']
+            
             messages.extend([
-                {"role": "user", "content": row['question']},
-                {"role": "assistant", "content": row['answer']}
+                {"role": "user", "content": question},
+                {"role": "assistant", "content": response}
             ])
             self.mark_sample_used(idx)
             
@@ -255,10 +400,111 @@ class FinanceQAProcessor:
                 "combined": False,
                 "cross_company": True,
                 "has_context": use_context,
+                "has_lists": True,  # Add flag for list formatting
                 "filing_year": f"{company1_data['filing'].iloc[0]}, {company2_data['filing'].iloc[0]}" if str(company1_data['filing'].iloc[0]) != str(company2_data['filing'].iloc[0]) else company1_data['filing'].iloc[0],
                 "conversation_id": self.generate_prompt_id()
             }
         )
+
+    def format_list_response(self, items: List[str], topic: str) -> str:
+        """Format a list response with proper structure"""
+        num_items = len(items)
+        template = random.choice(self.list_templates)
+        
+        # Format items with consistent markers
+        formatted_items = []
+        marker_type = random.choice(['number', 'bullet'])
+        
+        for i, item in enumerate(items, 1):
+            if marker_type == 'number':
+                formatted_items.append(f"{i}. {item.strip()}")
+            else:
+                formatted_items.append(f"* {item.strip()}")
+                
+        formatted_list = '\n'.join(formatted_items)
+        
+        return template.format(
+            num=num_items,
+            topic=topic,
+            items=formatted_list
+        )
+
+    def is_valid_list_item(self, text: str) -> bool:
+        """Check if a text is valid for use in lists"""
+        if not isinstance(text, str):
+            return False
+        # Count words (split by whitespace and filter out empty strings)
+        word_count = len([w for w in text.strip().split() if w])
+        return word_count >= self.min_words_for_list
+
+    def create_list_conversation(self, company_data: pd.DataFrame) -> Conversation:
+        """Create a conversation focusing on enhanced list-based responses"""
+        messages = []
+        
+        # Use list-specific system prompt
+        messages.append({
+            "role": "system",
+            "content": random.choice(self.list_system_prompts)
+        })
+        
+        # Add greeting and conversation starter
+        greeting, response = self.create_greetings()
+        usr, ast = self.create_conversation_starter()
+        messages.extend([greeting, response, usr, ast])
+        
+        # Generate enhanced list-based QA with word count validation
+        available_indices = [
+            idx for idx in company_data.index 
+            if self.can_use_sample(idx) and self.is_valid_list_item(str(company_data.loc[idx, 'answer']))
+        ]
+        
+        if len(available_indices) >= 3:
+            num_items = random.randint(2, 4)
+            items = []
+            attempts = 0
+            max_attempts = 10  # Prevent infinite loops
+            
+            while len(items) < num_items and attempts < max_attempts:
+                if not available_indices:
+                    break
+                    
+                idx = random.choice(available_indices)
+                row = company_data.loc[idx]
+                answer = str(row['answer'])
+                
+                if self.is_valid_list_item(answer):
+                    items.append(answer)
+                    self.mark_sample_used(idx)
+                
+                available_indices.remove(idx)
+                attempts += 1
+            
+            if len(items) >= 2:  # Ensure we have at least 2 valid items
+                aspect = random.choice(self.list_aspects)
+                list_question = random.choice(self.list_question_templates).format(
+                    num=len(items),
+                    aspect=aspect,
+                    company=company_data['ticker'].iloc[0]
+                )
+                
+                list_response = self.format_list_response(items, f"{company_data['ticker'].iloc[0]}'s {aspect}")
+                
+                messages.extend([
+                    {"role": "user", "content": list_question},
+                    {"role": "assistant", "content": list_response}
+                ])
+                
+                return Conversation(
+                    messages=messages,
+                    metadata={
+                        "ticker": company_data['ticker'].iloc[0],
+                        "filing_year": company_data['filing'].iloc[0],
+                        "has_lists": True,
+                        "conversation_id": self.generate_prompt_id()
+                    }
+                )
+        
+        return None  # Return None if we couldn't create a valid list conversation
 
     def process_dataset(self, output_path: Path, max_samples_per_company: int = 15):
         """Process the entire dataset and create variations"""
@@ -325,6 +571,25 @@ class FinanceQAProcessor:
                         
                         self.mark_sample_used(idx1)
                         self.mark_sample_used(idx2)
+            
+            # Add list-based conversations with validation
+            num_list_conversations = random.randint(2, 5)
+            successful_list_convs = 0
+            max_attempts = num_list_conversations * 2  # Allow some extra attempts
+            
+            for _ in range(max_attempts):
+                if successful_list_convs >= num_list_conversations:
+                    break
+                    
+                try:
+                    conv = self.create_list_conversation(company_data)
+                    if conv is not None:  # Only add if we got a valid conversation
+                        processed_conversations.append(conv)
+                        successful_list_convs += 1
+                except Exception as e:
+                    logger.warning(f"Failed to create list conversation for {ticker}: {e}")
+                    continue
+            
             # Create multi-turn conversations
             num_conversations = random.randint(3, max_samples_per_company)
             for _ in range(num_conversations):
@@ -536,7 +801,7 @@ def main():
     output_path = Path('/home/zahemen/datasets/finance_qa_conversations.jsonl')
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=500)
+    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=1000)
     processor.process_dataset(output_path)
 
 if __name__ == "__main__":

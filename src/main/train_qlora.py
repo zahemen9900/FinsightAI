@@ -1,11 +1,14 @@
 import os
 import logging
 import random
+import re
 import sys
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, List, Union
 
+import numpy as np
+from sympy import comp
 import torch
 import datasets
 import transformers
@@ -48,19 +51,18 @@ class QLoRAConfig(SFTConfig):
     
     # Training parameters optimized for speed
     num_train_epochs: int = 4
-    learning_rate: float = 3e-4
+    learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
-    per_device_train_batch_size: int = 4   # Adjusted for memory
-    per_device_eval_batch_size: int = 4
-    gradient_accumulation_steps: int = 2    # Reduced for faster updates
-    logging_steps: int = 30
-    warmup_ratio: float = 0.1
+    per_device_train_batch_size: int = 2   # Adjusted for memory
+    per_device_eval_batch_size: int = 3
+    gradient_accumulation_steps: int = 4    # Reduced for faster updates
+    logging_steps: int = 50
+    warmup_ratio: float = 0.15
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
-    max_grad_norm: float = 0.2
     do_eval: bool = True
-    eval_steps: int = 300      
-    save_steps: int = 300
+    eval_steps: int = 400      
+    save_steps: int = 400
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 5   # Keep more checkpoints for resuming
@@ -100,11 +102,11 @@ class QLoRAConfig(SFTConfig):
     # fp16: bool = True
     double_quant: bool = True
     quant_type: str = "nf4"
-    dataset_num_proc: int = 2    #. Reduced to prevent memory issues
+    dataset_num_proc: int = 6
     use_cache: bool = True
     
     # Memory optimizations
-    max_grad_norm: float = 1.0
+    max_grad_norm: float = 0.2
     dataloader_num_workers: int = 4
     dataloader_pin_memory: bool = True
     
@@ -112,18 +114,33 @@ class QLoRAConfig(SFTConfig):
     resume_from_checkpoint: Optional[str] = None  # Path to checkpoint directory
     save_safetensors: bool = True  # Better format for saving checkpoints
     
+    # Enhanced training parameters for consistency
+    weight_decay: float = 0.05             # Added weight decay
+    num_cycles: int = 3                    # Number of LR cycles
+    
+    # Added focused attention params
+    attn_dropout: float = 0.1
+    resid_dropout: float = 0.1
+    embed_dropout: float = 0.1
+    
+    # Memory optimization
+    gradient_checkpointing: bool = True
+    torch_compile: bool = True             # Use torch.compile for speed
+    optim: str = "paged_adamw_32bit"      # Memory efficient optimizer
+    
     def __post_init__(self):
         super().__post_init__()
         self.gradient_checkpointing_kwargs = {
             "use_reentrant": False,
-            'use_cache': False,
+            # 'use_cache': False,
+            "use_gradient_scaling": True    # Added for better stability
         }
         # If resuming, ensure we load the best model
         if self.resume_from_checkpoint:
             self.load_best_model_at_end = True
 
 def setup_quantized_model(model_args, training_args):
-    """Set up quantized model with LoRA configuration"""
+    """Enhanced model setup with consistency improvements"""
     
     # Quantization configuration
     compute_dtype = torch.bfloat16 if training_args.bf16 else torch.float16
@@ -149,7 +166,7 @@ def setup_quantized_model(model_args, training_args):
     # Prepare model for k-bit training
     model = prepare_model_for_kbit_training(model)
     
-    # Set up LoRA configuration
+    # Enhanced LoRA configuration
     peft_config = LoraConfig(
         r=training_args.lora_r,
         lora_alpha=training_args.lora_alpha,
@@ -164,16 +181,27 @@ def setup_quantized_model(model_args, training_args):
             "gate_proj",
             "up_proj",
             "down_proj",
+            "down_proj",
+            "mixer_self_attention",  # Added for better attention
+            "mixer_cross_attention", # Added for better attention
+            "mixer_mlp",            # Added for better feature mixing
         ],
+        init_lora_weights="gaussian",  # Changed from default
     )
     
-    # Get PEFT model
+    # Get PEFT model with enhanced settings
     model = get_peft_model(model, peft_config)
     
     # Add more aggressive memory optimization
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.backends.cudnn.benchmark = True
+    
+    # Add focused attention dropouts
+    if hasattr(model, "config"):
+        model.config.attention_dropout = training_args.attn_dropout
+        model.config.resid_dropout = training_args.resid_dropout
+        model.config.embed_dropout = training_args.embed_dropout
     
     # Enable more efficient training
     model.gradient_checkpointing_enable()
@@ -249,6 +277,201 @@ def merge_datasets(dataset_paths: List[Dict[str, Union[str, float]]], tokenizer,
         "train": merged_train,
         "test": merged_test
     })
+
+
+
+def compute_consistency_metrics(tokenizer, eval_pred):
+    """
+    Computes consistency-related evaluation metrics for model predictions.
+    Args:
+        tokenizer: Tokenizer instance
+        eval_pred (tuple): Tuple containing model logits and ground truth labels
+            - logits: Model prediction logits
+            - labels: Ground truth label indices
+    Returns:
+        dict: Dictionary containing computed metrics:
+            - response_consistency: Score measuring consistency across responses
+            - topic_adherence: Score measuring adherence to input topics
+    """
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    
+    # Filter out padding tokens
+    mask = labels != -100
+    filtered_preds = predictions[mask]
+    filtered_labels = labels[mask]
+    
+    metrics = {}
+    try:
+        # Add focused response consistency score
+        response_consistency = calculate_response_consistency(filtered_preds, filtered_labels)
+        metrics["response_consistency"] = response_consistency
+        
+        # Add topic adherence score
+        topic_adherence = calculate_topic_adherence(tokenizer, filtered_preds, filtered_labels)
+        metrics["topic_adherence"] = topic_adherence
+        
+        # Add combined score
+        metrics["combined_score"] = (response_consistency + topic_adherence) / 2
+        
+    except Exception as e:
+        logger.warning(f"Error computing metrics: {e}")
+        metrics = {
+            "response_consistency": 0.0,
+            "topic_adherence": 0.0,
+            "combined_score": 0.0
+        }
+    
+    return metrics
+
+# Add these helper functions at the end of the file
+def calculate_response_consistency(predictions, labels):
+    """Calculate how consistent the responses are with the questions"""
+    try:
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        from scipy.stats import entropy
+        
+        # Convert to numpy arrays if needed
+        pred_array = np.array(predictions)
+        label_array = np.array(labels)
+        
+        # Calculate multiple consistency metrics
+        scores = []
+        
+        # 1. Distribution similarity
+        pred_dist = np.bincount(pred_array.flatten()) / len(pred_array.flatten())
+        label_dist = np.bincount(label_array.flatten()) / len(label_array.flatten())
+        
+        # Pad distributions to same length
+        max_len = max(len(pred_dist), len(label_dist))
+        pred_dist = np.pad(pred_dist, (0, max_len - len(pred_dist)))
+        label_dist = np.pad(label_dist, (0, max_len - len(label_dist)))
+        
+        # KL divergence (lower is better)
+        kl_div = entropy(pred_dist + 1e-10, label_dist + 1e-10)
+        distribution_score = 1 / (1 + kl_div)  # Convert to 0-1 scale
+        
+        # 2. Sequential consistency
+        # Check if predictions maintain similar patterns as labels
+        pred_diffs = np.diff(pred_array, axis=-1)
+        label_diffs = np.diff(label_array, axis=-1)
+        sequence_score = np.mean(np.sign(pred_diffs) == np.sign(label_diffs))
+        
+        # 3. Response length consistency
+        pred_lengths = (pred_array != 0).sum(axis=-1)  # Assuming 0 is padding
+        label_lengths = (label_array != 0).sum(axis=-1)
+        length_ratio = np.minimum(pred_lengths, label_lengths) / np.maximum(pred_lengths, label_lengths)
+        length_score = np.mean(length_ratio)
+        
+        # Combine scores with weights
+        final_score = (
+            0.4 * distribution_score +
+            0.4 * sequence_score +
+            0.2 * length_score
+        )
+        
+        return float(final_score)
+    except Exception as e:
+        logger.warning(f"Error calculating response consistency: {e}")
+        return 0.0
+
+def calculate_topic_adherence(tokenizer, predictions, labels):
+    """Calculate how well responses stick to the given topic using finance-specific metrics"""
+    try:
+        import numpy as np
+        
+        # Financial domain keywords (subset for efficiency)
+        finance_keywords = {
+            'high_relevance': {
+            'investment', 'stock', 'market', 'fund', 'portfolio', 'risk',
+            'return', 'asset', 'equity', 'bond', 'dividend', 'trading',
+            'financial', 'bank', 'interest', 'rate', 'profit', 'loss',
+            'capital', 'debt', 'credit', 'money', 'price', 'value',
+            'volatility', 'liquidity', 'derivative', 'futures', 'option',
+            'hedge', 'leverage', 'yield', 'commodity', 'forex', 'exchange',
+            'securities', 'inflation', 'bear', 'bull', 'margin', 'broker',
+            'valuation', 'arbitrage', 'collateral', 'mortgage', 'sector',
+            'etf', 'reit', 'mutual', 'index', 'shares', 'treasury'
+            },
+            'medium_relevance': {
+            'growth', 'performance', 'strategy', 'analysis', 'management',
+            'income', 'revenue', 'cost', 'expense', 'cash', 'flow', 'tax',
+            'fee', 'charge', 'account', 'balance', 'margin', 'trend',
+            'allocation', 'diversification', 'beta', 'alpha', 'ratio',
+            'earnings', 'capitalization', 'benchmark', 'correlation',
+            'maturity', 'premium', 'spread', 'portfolio', 'fundamental',
+            'technical', 'momentum', 'resistance', 'support', 'volume',
+            'fiscal', 'budget', 'quarter', 'annual', 'dividend', 'payout',
+            'sustainable', 'compliance', 'regulatory', 'audit', 'liability'
+            }
+        }
+        
+        def calculate_keyword_density(text, keywords):
+            """Calculate weighted keyword density in text"""
+            words = set(text.lower().split())
+            high_matches = len(words.intersection(keywords['high_relevance']))
+            med_matches = len(words.intersection(keywords['medium_relevance']))
+            total_words = len(words)
+            
+            if total_words == 0:
+                return 0.0
+                
+            return (high_matches * 1.5 + med_matches) / total_words
+        
+        # Convert token IDs to text using tokenizer
+        pred_texts = [tokenizer.decode(p, skip_special_tokens=True) for p in predictions]
+        label_texts = [tokenizer.decode(l, skip_special_tokens=True) for l in labels]
+        
+        # Calculate topic adherence scores
+        pred_scores = np.mean([calculate_keyword_density(text, finance_keywords) 
+                             for text in pred_texts])
+        label_scores = np.mean([calculate_keyword_density(text, finance_keywords) 
+                              for text in label_texts])
+        
+        # Compare prediction adherence to label adherence
+        relative_adherence = pred_scores / max(label_scores, 1e-5)
+        
+        # Additional checks for response structure
+        def check_response_structure(text):
+            """Check if response follows expected financial discussion structure"""
+            # Convert text to lowercase for checking
+            text = text.lower()
+            
+            # Check for common financial discussion patterns
+            has_numbers = bool(re.search(r'\d', text))
+            has_percentages = '%' in text
+            has_currency = bool(re.search(r'[\$€£¥]', text))
+            has_comparison = bool(re.search(r'(increase|decrease|higher|lower|more|less)', text))
+            
+            # Calculate structure score
+            structure_score = np.mean([
+                has_numbers,
+                has_percentages,
+                has_currency,
+                has_comparison
+            ])
+            
+            return structure_score
+        
+        # Calculate structure adherence
+        pred_structure = np.mean([check_response_structure(text) for text in pred_texts])
+        label_structure = np.mean([check_response_structure(text) for text in label_texts])
+        
+        structure_score = pred_structure / max(label_structure, 1e-5)
+        
+        # Combine scores with weights
+        final_score = (
+            0.6 * relative_adherence +
+            0.4 * structure_score
+        )
+        
+        # Clip to ensure score is between 0 and 1
+        return float(np.clip(final_score, 0, 1))
+        
+    except Exception as e:
+        logger.warning(f"Error calculating topic adherence: {e}")
+        return 0.0
 
 def train():
     # Initialize arguments
@@ -326,7 +549,7 @@ def train():
     # Add gradient checkpointing for memory efficiency
     model.gradient_checkpointing_enable()
     
-    # Initialize trainer with fewer evaluation steps
+    # Initialize trainer with corrected compute_metrics
     trainer = SFTTrainer(
         model=model,
         args=training_args,
@@ -339,7 +562,8 @@ def train():
                 early_stopping_threshold=0.05
             )
         ],
-        data_collator=None  # Let the trainer handle collation
+        compute_metrics=lambda eval_pred: compute_consistency_metrics(tokenizer, eval_pred),  # Add custom metrics
+        data_collator=None,
     )
 
     # Train
