@@ -5,9 +5,12 @@ This document outlines the methodology and design decisions used in implementing
 ## 1. Model Configuration and Architecture
 
 ### Base Model Selection
-- Using Large Language Models optimized for instruction following
+- **Primary Model**: HuggingFaceTB/SmolLM2-1.7B-Instruct
+  - Efficient size-to-performance ratio
+  - Strong instruction-following capabilities
+  - Optimized for financial knowledge adaptation
 - Support for Flash Attention 2 for improved performance
-- Models tested: Llama-2, Mistral, etc.
+- Multiple model tests to determine optimal base
 
 ### QLoRA Parameters
 - **LoRA Rank (r)**: 64
@@ -21,10 +24,18 @@ This document outlines the methodology and design decisions used in implementing
 
 ### Target Modules
 ```python
-target_modules = [
-    "q_proj", "k_proj", "v_proj",
-    "o_proj", "gate_proj", 
-    "up_proj", "down_proj"
+target_modules=[
+   "q_proj",
+   "k_proj", 
+   "v_proj",
+   "o_proj",
+   "gate_proj",
+   "up_proj",
+   "down_proj",
+   "down_proj",
+   "mixer_self_attention",  # Added for better attention
+   "mixer_cross_attention", # Added for better attention
+   "mixer_mlp",            # Added for better feature mixing
 ]
 ```
 - Comprehensive coverage of transformer components

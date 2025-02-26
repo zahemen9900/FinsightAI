@@ -61,14 +61,15 @@ class QLoRAConfig(SFTConfig):
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 400      
-    save_steps: int = 400
+    eval_steps: int = 750      
+    save_steps: int = 750
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 5   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
-    lower_is_better: bool = True # minimize loss
-    
+    # lower_is_better: bool = True # minimize loss
+    metric_for_best_model: str = "combined_score"
+    greater_is_better: bool = True
     # Optimized DeepSpeed config for faster training
     # DeepSpeed configs
     deepspeed = {
@@ -129,11 +130,6 @@ class QLoRAConfig(SFTConfig):
     optim: str = "paged_adamw_32bit"      # Memory efficient optimizer
     
     # Add evaluation optimization params
-    eval_batch_size: int = 2  # Reduced from 3
-    evaluation_strategy: str = "steps"
-    eval_steps: int = 500     # Increased from 400
-    metric_for_best_model: str = "combined_score"
-    greater_is_better: bool = True
     
     # Memory optimizations
     max_grad_norm: float = 0.2
