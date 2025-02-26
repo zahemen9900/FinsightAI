@@ -8,3 +8,4 @@ __pycache__/
 *.pyo
 *.pyd
 *.ipynb_checkpoints/
+reddit_data_preprocessing.log

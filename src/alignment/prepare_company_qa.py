@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Any
 import random
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import logging
 from rich.logging import RichHandler
 import hashlib
 import jsonlines
-from sympy import comp
 from tqdm import tqdm
+from create_intro_dataset import IntroDatasetGenerator
 
 # Configure logging
 logging.basicConfig(
@@ -302,33 +302,68 @@ class FinanceQAProcessor:
 
     def create_multi_turn_conversation(self, company_data: pd.DataFrame, num_turns: int) -> Conversation:
         """Modified to include fact-based questions and remove context"""
-        messages = []
-        greeting, response = self.create_greetings()
-        usr, ast = self.create_conversation_starter()
-        
-        # Add system message without context
-        messages.append(self.create_system_message())
-        messages.extend([greeting, response, usr, ast])
+        use_basic_starter = random.random() < 0.3
+        if use_basic_starter:
+            messages = []
+            greeting, response = self.create_greetings()
+            usr, ast = self.create_conversation_starter()
+            
+            # Add system message without context
+            messages.append(self.create_system_message())
+            messages.extend([greeting, response, usr, ast])
+        else:
+            intro_generator = IntroDatasetGenerator(None)
+            messages = intro_generator.generate_conversation()
         
         # Add a fact-based question about the company
         company_name = self.get_company_name(company_data['ticker'].iloc[0])
         fact_question = self.create_company_fact_question(company_name)
         
-        # Get 3-5 relevant facts as response
-        fact_indices = random.sample([
+        # Filter out answers containing "10-K" references
+        def is_valid_fact(idx):
+            answer = str(company_data.loc[idx, 'answer']).lower()
+            return (
+                self.can_use_sample(idx) and 
+                self.is_valid_list_item(answer) and
+                all(fin_term not in answer for fin_term in ["10-k", "10k", "form 10", "10-K", "10-Q", "10-Q"]) 
+            )
+        # Get filtered indices
+        valid_indices = [
             idx for idx in company_data.index 
-            if self.can_use_sample(idx) and self.is_valid_list_item(str(company_data.loc[idx, 'answer']))
-        ], min(random.randint(3, 5), len(company_data)))
+            if is_valid_fact(idx)
+        ]
         
-        fact_responses = [company_data.loc[idx, 'answer'] for idx in fact_indices]
-        fact_response = self.format_list_response(fact_responses, f"Facts about {company_name}")
+        if len(valid_indices) >= 3:
+            fact_indices = random.sample(
+                valid_indices, 
+                min(random.randint(3, 5), len(valid_indices))
+            )
+            fact_responses = [company_data.loc[idx, 'answer'] for idx in fact_indices]
+            fact_response = self.format_list_response(fact_responses, f"Facts about {company_name}")
+            
+            ending_vars = [
+                "I hope you found these facts helpful.",
+                "Any other questions you'd like to ask?",
+                "Feel free to inquire about any other details.",
+                "Let me know if you need more information.",
+                "I'm here to assist with any other queries.",
+                "Don't hesitate to ask if you need more insights"
+            ]
+
+            should_use_ending = random.random() < 0.5  # 50% chance to add ending
+
+            if should_use_ending:
+                fact_response += f"\n\n{random.choice(ending_vars)}"
+            messages.extend([
+                {"role": "user", "content": fact_question},
+                {"role": "assistant", "content": fact_response}
+            ])
+            
+            # Mark these facts as used
+            for idx in fact_indices:
+                self.mark_sample_used(idx)
         
-        messages.extend([
-            {"role": "user", "content": fact_question},
-            {"role": "assistant", "content": fact_response}
-        ])
-        
-        # Add remaining turns with company-specific questions
+        # Rest of the conversation remains unchanged
         available_indices = [idx for idx in company_data.index if self.can_use_sample(idx)]
         if len(available_indices) < num_turns:
             num_turns = len(available_indices)
@@ -354,7 +389,6 @@ class FinanceQAProcessor:
                 "conversation_id": self.generate_prompt_id()
             }
         )
-
     def create_cross_company_conversation(
         self,
         company1_data: pd.DataFrame,
@@ -585,7 +619,7 @@ class FinanceQAProcessor:
         
         return None  # Return None if we couldn't create a valid list conversation
 
-    def process_dataset(self, output_path: Path, max_samples_per_company: int = 15):
+    def process_dataset(self, output_path: Path, max_samples_per_company: int = 20):
         """Process the entire dataset and create variations"""
         processed_conversations = []
         
@@ -871,7 +905,7 @@ def main():
     output_path = Path('/home/zahemen/datasets/finance_qa_conversations.jsonl')
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=1000)
+    processor = FinanceQAProcessor(dataset_path, num_cross_company_samples=2000)
     processor.process_dataset(output_path)
 
 if __name__ == "__main__":

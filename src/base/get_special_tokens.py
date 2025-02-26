@@ -41,7 +41,7 @@ def test_chat_template(tokenizer=tokenizer):
         # Example conversation
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Hello!"},
+            {"role": "user", "content": "Hello!\n\nHow are you?"},
             {"role": "assistant", "content": "Hi there! How can I help you?"}
         ]
         
@@ -91,7 +91,7 @@ def check_special_tokens_after_tokenizing(tokenizer=tokenizer):
     test_messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello!"},
-        {"role": "assistant", "content": "Hi there! How can I help you?"}
+        {"role": "assistant", "content": "Hi there! 📌 How can I help you? ✅✔️"}
     ]
 
     formatted_text = tokenizer.apply_chat_template(test_messages, tokenize=False)

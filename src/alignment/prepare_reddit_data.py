@@ -21,6 +21,7 @@ import joblib
 from tqdm import tqdm
 from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine_similarity
 from time import time
+from create_intro_dataset import IntroDatasetGenerator
 
 # Configure logging
 logging.basicConfig(
@@ -290,7 +291,7 @@ class DatasetCleaner:
 
     @staticmethod
     def clean_text(text: str) -> str:
-        """Enhanced text cleaning for Reddit-style content"""
+        """Enhanced text cleaning for Reddit-style content with sentence grouping"""
         if not isinstance(text, str):
             return ""
         
@@ -344,15 +345,32 @@ class DatasetCleaner:
         
         # Ensure proper sentence structure
         sentences = []
+        current_group = []
+        
         for sent in text.split('.'):
             sent = sent.strip()
             if sent:
                 # Capitalize first letter if it's not already
                 if sent[0].islower():
                     sent = sent[0].upper() + sent[1:]
-                sentences.append(sent)
+                current_group.append(sent)
+                
+                # When we have 4 sentences, join them and add to final list
+                if len(current_group) == 4:
+                    sentences.append('. '.join(current_group) + '.')
+                    sentences.append('')  # Add empty string for \n\n
+                    current_group = []
         
-        text = '. '.join(sentences)
+        # Add any remaining sentences
+        if current_group:
+            sentences.append('. '.join(current_group) + '.')
+            
+        # Join with appropriate spacing
+        text = '\n\n'.join(sentences)
+        
+        # Ensure no excessive newlines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = text.strip()
         
         # Ensure proper ending punctuation
         if text and text[-1] not in '.!?':
@@ -541,32 +559,38 @@ class DatasetCleaner:
                 else:
                     question = cleaned_selftext if cleaned_selftext else cleaned_title
 
-                # Select a random conversational starter
-                starter = random.choice(self.conv_starters)
-                
-                # Create multi-turn conversation
-                messages = [
-                    {
-                        "role": "system",
-                        "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
-                    },
-                    {
-                        "role": "user",
-                        "content": starter["user"]
-                    },
-                    {
-                        "role": "assistant",
-                        "content": starter["assistant"]
-                    },
-                    {
-                        "role": "user",
-                        "content": question
-                    },
-                    {
-                        "role": "assistant",
-                        "content": cleaned_body
-                    }
-                ]
+                should_use_basic_starter = random.random() < 0.3
+
+                if should_use_basic_starter:
+                    # Select a random conversational starter
+                    starter = random.choice(self.conv_starters)
+                    
+                    # Create multi-turn conversation
+                    messages = [
+                        {
+                            "role": "system",
+                            "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
+                        },
+                        {
+                            "role": "user",
+                            "content": starter["user"]
+                        },
+                        {
+                            "role": "assistant",
+                            "content": starter["assistant"]
+                        },
+                        {
+                            "role": "user",
+                            "content": question
+                        },
+                        {
+                            "role": "assistant",
+                            "content": cleaned_body
+                        }
+                    ]
+                else:
+                    conv_starter = IntroDatasetGenerator(None)
+                    messages = conv_starter.generate_conversation()
                 
                 # Add additional turns
                 num_turns = random.randint(3, 7)
@@ -700,7 +724,7 @@ class DatasetCleaner:
             
         try:
             # Limit text length for processing and convert to lowercase once
-            text = text[:5000].lower()  # Reduced from 10000 to 5000 chars
+            text = text[:10_000].lower()  # Reduced from 10000 to 5000 chars
             
             # Quick keyword check first - if too few keywords, return early
             word_set = set(text.split())
@@ -717,7 +741,22 @@ class DatasetCleaner:
             doc = nlp(text)
             
             # Calculate entity score more efficiently
-            entity_weights = {'ORG': 1.0, 'MONEY': 1.2, 'PERCENT': 1.1}
+            entity_weights = {
+                'ORG': 1.0,        # Financial institutions, banks, companies
+                'MONEY': 1.2,      # Any mention of currency, salaries, profits, etc.
+                'PERCENT': 1.1,    # Interest rates, stock percentage changes, ROI
+                'DATE': 0.9,       # Financial reports, stock performance over time
+                'TIME': 0.8,       # Intraday trading, short-term vs long-term investing
+                'GPE': 1.0,        # Countries, financial markets, economic policies
+                'LOC': 0.7,        # Cities, stock exchanges, financial hubs
+                'PRODUCT': 1.0,    # Financial products like ETFs, bonds, derivatives
+                'LAW': 1.3,        # Tax laws, financial regulations, SEC rules
+                'EVENT': 1.2,      # Earnings reports, economic events, recessions
+                'CARDINAL': 1.1,   # Financial figures, budget values, revenue, expenses
+                'QUANTITY': 1.1,   # Financial metrics like P/E ratios, GDP, inflation rate
+                'PERSON': 0.9,     # CEOs, investors, economists, financial influencers
+                'WORK_OF_ART': 0.5 # Financial books, reports (lower weight)
+            }
             entity_score = sum(
                 entity_weights.get(ent.label_, 0)
                 for ent in doc.ents
@@ -863,7 +902,7 @@ class DatasetCleaner:
             # Score-based filtering
             def apply_score_filtering(data):
                 score_cols = ['z_score', 'combined_score', 'comment_normalized_score']
-                return data[np.all([data[col] > data[col].quantile(0.2) for col in score_cols], axis=0)]
+                return data[np.all([data[col] > data[col].quantile(0.2) for col in score_cols], axis=0)]    #select 
             
             df = self.load_or_compute('score_filtered', apply_score_filtering, df)
             score_filtered_size = len(df)

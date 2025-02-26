@@ -17,49 +17,68 @@ logging.basicConfig(
 logger = logging.getLogger("rich")
 console = Console()
 
-def extract_text_from_conversation(data: Dict) -> str:
-    """Extract all text from a conversation format"""
+def extract_text_from_conversation(data: Dict) -> List[Dict[str, str]]:
+    """Extract messages from a conversation format"""
     try:
         messages = data.get('messages', [])
-        texts = []
-        
-        for msg in messages:
-            if isinstance(msg, dict) and 'content' in msg:
-                content = msg['content']
-                if isinstance(content, str) and content.strip():
-                    texts.append(content.strip())
-        
-        return "\n".join(texts)
+        if isinstance(messages, list) and all(
+            isinstance(msg, dict) and 
+            isinstance(msg.get('content', ''), str) and 
+            isinstance(msg.get('role', ''), str)
+            for msg in messages
+        ):
+            return messages
+        return []
     except Exception as e:
-        logger.warning(f"Error extracting text from conversation: {e}")
-        return ""
+        logger.warning(f"Error extracting messages from conversation: {e}")
+        return []
 
 def count_tokens_in_file(file_path: str, tokenizer) -> Dict:
-    """Count tokens in a JSONL file containing conversations"""
+    """Count tokens in a JSONL file using the model's tokenizer"""
     total_tokens = 0
     line_count = 0
     token_counts = []
     total_conversations = 0
     skipped = 0
+    role_token_counts = {
+        'system': [],
+        'user': [],
+        'assistant': []
+    }
     
     try:
-        logger.info(f"Processing all conversations in {file_path}")
+        logger.info(f"Processing conversations in {file_path}")
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 try:
                     data = json.loads(line)
-                    text = extract_text_from_conversation(data)
+                    messages = extract_text_from_conversation(data)
                     
-                    if text:
-                        tokens = len(tokenizer.encode(text))
-                        total_tokens += tokens
-                        token_counts.append(tokens)
+                    if messages:
+                        # Count tokens in each message separately
+                        conversation_tokens = 0
+                        for msg in messages:
+                            role = msg.get('role', '')
+                            content = msg.get('content', '').strip()
+                            
+                            if content:
+                                # Apply chat template to get accurate token count
+                                formatted_msg = tokenizer.apply_chat_template(
+                                    [msg],
+                                    tokenize=False,
+                                    add_generation_prompt=False
+                                )
+                                tokens = len(tokenizer.encode(formatted_msg))
+                                
+                                conversation_tokens += tokens
+                                if role in role_token_counts:
+                                    role_token_counts[role].append(tokens)
+                        
+                        total_tokens += conversation_tokens
+                        token_counts.append(conversation_tokens)
                         line_count += 1
                         total_conversations += 1
                         
-                        # Log progress every 1000 conversations
-                        # if total_conversations % 1000 == 0:
-                        #     logger.info(f"Processed {total_conversations} conversations...")
                     else:
                         skipped += 1
                         
@@ -68,33 +87,35 @@ def count_tokens_in_file(file_path: str, tokenizer) -> Dict:
                     skipped += 1
                     continue
                     
-        # Log final processing details
-        logger.info(f"Finished processing {total_conversations} conversations")
-        if skipped > 0:
-            logger.warning(f"Skipped {skipped} invalid entries")
+        # Calculate statistics for each role
+        role_stats = {}
+        for role, counts in role_token_counts.items():
+            if counts:
+                role_stats[role] = {
+                    'avg': np.mean(counts),
+                    'min': min(counts),
+                    'max': max(counts),
+                    'median': np.median(counts),
+                    'total': sum(counts)
+                }
             
         return {
             "total_tokens": total_tokens,
-            "avg_tokens": total_tokens / line_count if line_count > 0 else 0,
+            "avg_tokens_per_conv": total_tokens / line_count if line_count > 0 else 0,
             "line_count": line_count,
             "token_distribution": {
                 "min": min(token_counts) if token_counts else 0,
                 "max": max(token_counts) if token_counts else 0,
-                "median": np.median(token_counts) if token_counts else 0
+                "median": np.median(token_counts) if token_counts else 0,
+                "p95": np.percentile(token_counts, 95) if token_counts else 0
             },
+            "role_statistics": role_stats,
             "conversations": total_conversations,
             "skipped": skipped
         }
     except FileNotFoundError:
         logger.error(f"File not found: {file_path}")
-        return {
-            "total_tokens": 0,
-            "avg_tokens": 0,
-            "line_count": 0,
-            "token_distribution": {"min": 0, "max": 0, "median": 0},
-            "conversations": 0,
-            "skipped": 0
-        }
+        return {}
 
 def main():
     # Your dataset paths
@@ -118,16 +139,16 @@ def main():
     logger.info(f"Loading tokenizer: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     
-    # Enhanced table with more columns
+    # Enhanced table with token breakdown
     table = Table(title="Dataset Token Statistics")
     table.add_column("Dataset", style="cyan")
     table.add_column("Total Tokens", style="green")
     table.add_column("Conversations", style="blue")
-    table.add_column("Valid %", style="yellow")
     table.add_column("Avg Tokens/Conv", style="yellow")
-    table.add_column("Min Tokens", style="magenta")
-    table.add_column("Max Tokens", style="magenta")
-    table.add_column("Median", style="magenta")
+    table.add_column("System Avg", style="magenta")
+    table.add_column("User Avg", style="magenta")
+    table.add_column("Assistant Avg", style="magenta")
+    table.add_column("95th %ile", style="red")
     
     grand_total = 0
     total_conversations = 0
@@ -146,21 +167,31 @@ def main():
         grand_total += stats["total_tokens"]
         total_conversations += stats["conversations"]
         
-        valid_percent = (stats["conversations"] / (stats["conversations"] + stats["skipped"]) * 100 
-                        if stats["conversations"] + stats["skipped"] > 0 else 0)
-        
         table.add_row(
             name,
             f"{stats['total_tokens']:,}",
             f"{stats['conversations']:,}",
-            f"{valid_percent:.1f}%",
-            f"{stats['avg_tokens']:.1f}",
-            f"{stats['token_distribution']['min']:,}",
-            f"{stats['token_distribution']['max']:,}",
-            f"{stats['token_distribution']['median']:,}"
+            f"{stats['avg_tokens_per_conv']:.1f}",
+            f"{stats['role_statistics'].get('system', {}).get('avg', 0):.1f}",
+            f"{stats['role_statistics'].get('user', {}).get('avg', 0):.1f}",
+            f"{stats['role_statistics'].get('assistant', {}).get('avg', 0):.1f}",
+            f"{stats['token_distribution']['p95']:,.0f}"
         )
     
     console.print(table)
+    
+    # Add detailed token analysis
+    logger.info("\nDetailed Token Analysis:")
+    for dataset in dataset_paths:
+        name = dataset["name"]
+        stats = count_tokens_in_file(dataset["path"], tokenizer)
+        
+        console.print(f"\n[cyan]{name}[/cyan] Role Breakdown:")
+        for role, role_stats in stats['role_statistics'].items():
+            console.print(f"  [yellow]{role}[/yellow]:")
+            console.print(f"    Average: {role_stats['avg']:.1f}")
+            console.print(f"    Range: {role_stats['min']}-{role_stats['max']}")
+            console.print(f"    Total: {role_stats['total']:,}")
     
     # Enhanced statistics
     logger.info(f"\nTotal tokens across all datasets: {grand_total:,}")
