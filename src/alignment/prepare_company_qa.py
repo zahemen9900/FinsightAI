@@ -33,14 +33,34 @@ class FinanceQAProcessor:
         self.num_cross_company_samples = num_cross_company_samples
         self.used_samples = set()  # Track used question-answer pairs
         self.all_tickers = None  # Will store all unique tickers
-        self.system_prompt = {
-            "role": "system",
-            "content": (
-                "You are FinSight, a professional financial advisor chatbot specialized in "
-                "company analysis and financial insights. Provide accurate, factual responses "
-                "and use lists when appropriate to organize information clearly."
-            )
-        }
+
+        #Generate a list of varying system_prompt dicts
+
+        self.system_prompt_variations = [
+            {
+                "role": "system",
+                "content": (
+                    "You are FinSight, a professional financial advisor chatbot specialized in "
+                    "company analysis and financial insights. Provide accurate, factual responses "
+                    "and use lists when appropriate to organize information clearly."
+                )
+            },
+            {
+                "role": "system",
+                "content": (
+                    "You are FinSight, an AI trained to provide clear, structured financial opinions & advice. "
+                    "When appropriate, present information in well-organized lists."
+                )
+            },
+            {
+                "role": "system",
+                "content": (
+                    "You are a finance AI Assistant called FinSight, specializing in delivering financial insights through structured responses, including organized lists when beneficial."
+                )
+            }
+        ]
+
+
 
         self.conversation_counter = 0  # Add counter for unique IDs
         self.sample_usage_counter = {}  # Track how many times each sample is used
@@ -285,7 +305,7 @@ class FinanceQAProcessor:
 
     def create_system_message(self) -> Dict[str, str]:
         """Create a consistent system message without context"""
-        return self.system_prompt
+        return random.choice(self.system_prompt_variations)
 
     def create_company_fact_question(self, company_name: str) -> str:
         """Create a question asking for facts about a company"""
@@ -425,14 +445,16 @@ class FinanceQAProcessor:
         greeting, response = self.create_greetings()
         usr, ast = self.create_conversation_starter()
         
-        # Decide whether to use context and validate context exists
-        use_context = random.random() < 0.8
-        context1 = company1_data['context'].iloc[0]
-        context2 = company2_data['context'].iloc[0]
-        
-            
-        messages.append(self.create_system_message())
-        
+        # Decide whether to add intro messages or not
+
+        should_add_intro = random.random() < 0.5  # 50% chance to add intro messages
+        if should_add_intro:
+            intro_generator = IntroDatasetGenerator(None)
+            messages.extend(intro_generator.generate_conversation())
+        else:
+            #Just add a basic system message
+            messages.append(self.create_system_message())
+
         # Rest of conversation without context in questions
         company1_indices = [idx for idx in company1_data.index if self.can_use_sample(idx)]
         company2_indices = [idx for idx in company2_data.index if self.can_use_sample(idx)]
@@ -761,7 +783,7 @@ class FinanceQAProcessor:
                 
                 # Check if answer is substantial (more than 5 words)
                 word_count = len(answer.split())
-                if word_count > 5 and not answer.startswith('$') and not answer.endswith('%'):
+                if word_count > 10 and not answer.startswith('$') and not answer.endswith('%'):
                     self.mark_sample_used(idx)
                     return answer
                 
@@ -817,7 +839,8 @@ class FinanceQAProcessor:
             f"What would be a good investment strategy if I want exposure to both {selected_company} and {other_company}?",
             f"How would you recommend I allocate my portfolio between {selected_company} and {other_company}?",
             f"What time horizon would you recommend for investing in these companies?",
-            f"Should I consider dollar-cost averaging into either of these stocks?"
+            f"Should I consider dollar-cost averaging into either of these stocks?",
+            f"Ultimately, I wanna decide between {selected_company} and {other_company}. What's your take?"
         ]
         
         final_q = random.choice(final_questions)
@@ -829,7 +852,13 @@ class FinanceQAProcessor:
             
             f"Given the strengths and challenges of both companies, you might consider a phased approach to investing. Start with a position in your preferred company ({selected_company} based on our analysis), and monitor its performance for 3-6 months. Then gradually build a smaller position in {other_company} to diversify. This strategy allows you to average into positions while staying responsive to changing market conditions and company developments.",
             
-            f"For a balanced approach, consider allocating investments proportionally to your conviction level for each company. Based on our discussion, perhaps 65% to {selected_company} and 35% to {other_company} would be reasonable. However, your personal financial situation, investment timeline, and risk tolerance should ultimately guide this decision. Remember that regular portfolio review is essential regardless of your initial allocation."
+            f"For a balanced approach, consider allocating investments proportionally to your conviction level for each company. Based on our discussion, perhaps 65% to {selected_company} and 35% to {other_company} would be reasonable. However, your personal financial situation, investment timeline, and risk tolerance should ultimately guide this decision. Remember that regular portfolio review is essential regardless of your initial allocation.",
+
+            f"Given the information we've discussed, a diversified approach might be beneficial. Consider allocating a larger portion of your investment to {selected_company} due to its growth potential and market position. A smaller allocation to {other_company} could provide diversification benefits and help manage sector-specific risks. Regularly review your portfolio to ensure it aligns with your investment goals and risk tolerance.",
+
+            f"Based on our analysis, a balanced approach could be effective. Allocate a larger portion of your investment to {selected_company} to capitalize on its growth potential. A smaller allocation to {other_company} could provide diversification benefits. Regularly review your portfolio to ensure it aligns with your investment goals and risk tolerance.",
+
+            f"Considering the information we've discussed, a balanced approach might be suitable. Allocate a larger portion of your investment to {selected_company} to benefit from its growth potential. A smaller allocation to {other_company} could provide diversification benefits. Regularly review your portfolio to ensure it aligns with your investment goals and risk tolerance."
         ]
         
         final_a = random.choice(final_responses)

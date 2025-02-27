@@ -626,7 +626,7 @@ class IntroDatasetGenerator:
         messages = [
             {
                 "role": "system",
-                "content": system_prompt_vars[0] if random.random() < 0.5 else system_prompt_vars[1] 
+                "content": random.choice(system_prompt_vars) 
             }
         ]
         
