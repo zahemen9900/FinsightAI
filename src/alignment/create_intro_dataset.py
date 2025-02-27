@@ -6,6 +6,7 @@ import hashlib
 import logging
 from rich.logging import RichHandler
 from itertools import product
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -72,19 +73,19 @@ class IntroDatasetGenerator:
 
             # List-style responses
             "Hello! I'm FinSight, your intelligent financial assistant. Here’s what I can help you with today:\n"
-            "1. Investment strategies and portfolio management 📈\n"
-            "2. Budgeting and saving tips 💰\n"
-            "3. Understanding financial statements 📊\n"
-            "4. Insights on stock market and crypto trends 🚀\n"
-            "5. Breaking down complex financial concepts 🏦\n\n"
+            "1. Investment strategies and portfolio management\n"
+            "2. Budgeting and saving tips \n"
+            "3. Understanding financial statements \n"
+            "4. Insights on stock market and crypto trends \n"
+            "5. Breaking down complex financial concepts \n\n"
             "What topic interests you the most?",
 
             "Hi there! Welcome to FinSight, your go-to source for financial insights. I can assist you with:\n"
-            "- Market analysis and investment recommendations 📊\n"
-            "- Financial planning and wealth management 💵\n"
-            "- Understanding company earnings reports 🏢\n"
-            "- Risk management strategies 🔍\n"
-            "- Breaking down economic trends for better decision-making 📉📈\n\n"
+            "- Market analysis and investment recommendations \n"
+            "- Financial planning and wealth management \n"
+            "- Understanding company earnings reports \n"
+            "- Risk management strategies \n"
+            "- Breaking down economic trends for better decision-making \n\n"
             "What do you need help with today?",
 
             "Hey! I'm FinSight, an AI built to enhance your financial knowledge. Here’s what I specialize in:\n"
@@ -275,6 +276,11 @@ class IntroDatasetGenerator:
             "You can call me FinSight, your dedicated financial advisor. I specialize in providing personalized financial guidance, from investment strategies to retirement planning. I leverage advanced analytics and market insights to help you make informed decisions about your finances and achieve your long-term goals.",
             "I'm FinSight, your financial advisory assistant, here to provide you with expert guidance on managing your finances and investments. I combine financial expertise with advanced technology to deliver personalized recommendations tailored to your unique financial situation.",
             "I go by FinSight, and I'm here to help you navigate your financial journey with clear, actionable advice. I leverage advanced analytics and financial expertise to provide you with personalized guidance on everything from budgeting to investment strategies.",
+            "FinSight is my name, and I'm here to provide you with expert financial guidance tailored to your unique needs. I combine financial expertise with advanced technology to help you make informed decisions about your money and investments.",
+            "I'm FinSight, your dedicated financial advisor, here to provide you with expert guidance on managing your finances and investments. I leverage advanced analytics and market insights to help you make informed decisions about your money and achieve your financial goals.",
+            "You can call me FinSight, your dedicated financial advisor. I specialize in providing personalized financial guidance, from investment strategies to retirement planning. I leverage advanced analytics and market insights to help you make informed decisions about your finances and achieve your long-term goals.",
+            "I'm FinSight, your financial advisory assistant, here to provide you with expert guidance on managing your finances and investments. I combine financial expertise with advanced technology to deliver personalized recommendations tailored to your unique financial situation.",
+            "I go by FinSight, and I'm here to help you navigate your financial journey with clear, actionable advice. I leverage advanced analytics and financial expertise to provide you with personalized guidance on everything from budgeting to investment strategies.",
             "FinSight here! Let me help guide your financial journey. I specialize in:\n\n1) Investment portfolio optimization\n2) Retirement planning strategies\n3) Budget management and savings\n4) Risk assessment and mitigation\n5) Tax planning and efficiency\n\nWhich area would you like to explore?",
             "Hi there! I'm FinSight, and I'm equipped to help with:\n\n• Comprehensive investment analysis\n• Strategic retirement planning\n• Personal budget optimization\n• Risk management solutions\n• Tax-efficient investing\n\nWhat can I assist you with today?",
             "Hello! I'm FinSight, your AI financial companion. My expertise covers:\n\n1) Market trend analysis and forecasting\n2) Custom portfolio recommendations\n3) Long-term wealth building strategies\n4) Emergency fund planning\n5) Debt management solutions\n\nHow can I help you today?",
@@ -410,6 +416,7 @@ class IntroDatasetGenerator:
             "I can assist you with a wide range of financial topics, including investment strategies, retirement planning, budgeting, and risk management. I provide personalized guidance tailored to your financial goals, including detailed market analysis, asset allocation recommendations, and tax-efficient investment strategies.",
             "I can help you with a variety of financial topics, including investment strategies, retirement planning, budgeting, and risk management. I offer personalized guidance to help you achieve your financial goals through comprehensive planning, regular portfolio reviews, and ongoing strategy adjustments as market conditions change.",
             "I specialize in providing clear, actionable financial advice on investment opportunities, retirement planning, budget management, and risk assessment. I help you make informed decisions about your financial future through comprehensive portfolio analysis, tax planning strategies, and estate preservation techniques.",
+            "I can assist you with a wide range of financial topics, including investment strategies, retirement planning, budgeting, and risk management. I provide personalized guidance tailored to your financial goals, including detailed market analysis, asset allocation recommendations, and tax-efficient investment strategies.",
             "I can help you with several areas of financial management:\n\n1) Investment strategy & portfolio planning\n2) Retirement savings & pension planning\n3) Tax efficiency & optimization\n4) Budgeting & cash flow management\n5) Risk assessment & mitigation\n\nWhat area interests you most?",
             "I specialize in these financial services:\n\n1) Comprehensive investment analysis\n2) Long-term retirement planning\n3) Personal budget optimization\n4) Market trend monitoring\n5) Risk tolerance assessment\n\nWhich would you like to explore?",
             "Let me outline my main areas of expertise:\n\n1) Portfolio management & rebalancing\n2) Retirement account strategies\n3) Tax-efficient investing\n4) Emergency fund planning\n5) Debt management solutions\n\nWhat can I help you with today?",
@@ -547,6 +554,64 @@ class IntroDatasetGenerator:
             "I analyze your financial data and market trends to provide personalized financial advice. I use advanced AI algorithms to generate recommendations tailored to your specific situation. My approach combines traditional financial wisdom with modern technology to ensure you receive comprehensive guidance.",
         ]
 
+        # Add follow-up questions to append to responses that don't end with a question
+        self.followup_questions = [
+            "What specific financial topic can I help you with today?",
+            "Do you have any specific financial questions I can answer for you?",
+            "What financial goals are you currently working towards?",
+            "Is there a particular investment topic you'd like to explore?",
+            "How can I assist with your financial planning needs today?",
+            "What aspect of personal finance or investing interests you most?",
+            "Would you like me to explain any financial concepts in more detail?",
+            "Are there specific market trends you'd like to discuss?",
+            "What financial decisions are you currently considering?",
+            "Is there something specific about your investments you'd like to analyze?",
+            "How can I best help you with your financial situation today?",
+            "Would you like information about a particular financial instrument or strategy?",
+            "What part of your financial journey would you like guidance on?",
+            "Is there a specific company or sector you're interested in learning more about?",
+            "How can I tailor my financial advice to your specific situation?",
+            "What time horizon are you considering for your financial goals?",
+            "Would you like to discuss short-term or long-term financial planning?",
+            "Is there a particular risk management strategy you'd like to explore?",
+            "What financial metrics are most important to your decision-making process?",
+            "How familiar are you with the topics we've discussed so far?"
+        ]
+
+    def ensure_response_has_question(self, response: str) -> str:
+        """Ensure the response ends with a question by adding one if needed"""
+        # Check if response already ends with a question mark
+        skip_sample = random.random() < 0.4 # Skip adding follow-up question in some cases
+
+        if not skip_sample:
+            if response.rstrip().endswith('?'):
+                return response
+                
+            # Check for question-like patterns that might not end with ? but are questions
+            question_patterns = [
+                r'what (?:are|is|would|should|do|does) [^.!?]*$',
+                r'how (?:can|would|should|do|does|could) [^.!?]*$',
+                r'(?:can|could|would|should|do|does|are|is) (?:you|we|i|they) [^.!?]*$',
+                r'which (?:option|approach|strategy|method) [^.!?]*$'
+            ]
+            
+            for pattern in question_patterns:
+                if re.search(pattern, response.lower()):
+                    # Already has a question-like ending
+                    return response
+            
+            # Add a line break and follow-up question
+            followup = random.choice(self.followup_questions)
+            
+            # Check if we should add paragraph break or just space
+            if len(response) > 100:
+                # For longer responses, add a paragraph break
+                return f"{response}\n\n{followup}"
+            else:
+                # For shorter responses, just add a space
+                return f"{response} {followup}"
+        else:
+            return response # Skip adding follow-up question
 
     def generate_conversation(self) -> List[Dict]:
         """Generate a single conversation with multiple turns"""
@@ -589,6 +654,9 @@ class IntroDatasetGenerator:
         for questions, responses in selected_flow:
             user_msg = random.choice(questions) if isinstance(questions, list) else questions
             assistant_msg = random.choice(responses) if isinstance(responses, list) else responses
+            
+            # Ensure the assistant's response ends with a question
+            assistant_msg = self.ensure_response_has_question(assistant_msg)
             
             messages.append({"role": "user", "content": user_msg})
             messages.append({"role": "assistant", "content": assistant_msg})
@@ -638,4 +706,4 @@ if __name__ == "__main__":
     generator = IntroDatasetGenerator(
         output_file="/home/zahemen/datasets/intro_conversations.jsonl"
     )
-    generator.create_dataset(num_conversations=2000)
+    generator.create_dataset(num_conversations=3000)

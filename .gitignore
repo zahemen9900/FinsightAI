@@ -3,7 +3,6 @@ qlora_output/
 .qodo/
 wandb/
 .vscode/
-__pycache__/
 *.pyc
 *.pyo
 *.pyd

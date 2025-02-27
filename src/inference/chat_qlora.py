@@ -1,5 +1,6 @@
 import re
 import sys
+from tkinter import FALSE
 import torch
 import logging
 from pathlib import Path
@@ -315,7 +316,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1500")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1362")
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--max_length", type=int, default=2048)
     # parser.add_argument("--analyze_question", action=False)

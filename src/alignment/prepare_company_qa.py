@@ -79,6 +79,7 @@ class FinanceQAProcessor:
             "What advantages does {company1} have over {company2} in {aspect}?",
             "How do {company1}'s {aspect} stack up against {company2}?",
             "Analyze the strengths of both {company1} and {company2} in {aspect}.",
+            "Which company should I invest in: {company1} or {company2}?",
         ]
         
         self.comparison_aspects = [
@@ -154,6 +155,30 @@ class FinanceQAProcessor:
         
         # Load company names mapping
         self.company_names = self.load_company_names()
+        
+        # Add investment comparison questions templates
+        self.investment_preference_questions = [
+            "Which company should I invest in: {company1} or {company2}?",
+            "Is {company1} or {company2} a better investment choice right now?",
+            "If you had to pick between {company1} and {company2} for investing, which would you choose?",
+            "Should I put my money in {company1} or {company2}?",
+            "For long-term growth, would you recommend {company1} or {company2}?",
+            "Between {company1} and {company2}, which stock has more potential?",
+            "I'm torn between investing in {company1} and {company2}. Which would you suggest?",
+            "As an investor, should I focus on {company1} or {company2}?",
+            "From an investment standpoint, is {company1} or {company2} the stronger option?"
+        ]
+        
+        # Add investment preference response templates
+        self.investment_preference_responses = [
+            "Both {company1} and {company2} have their strengths, but {selected_company} might be more suitable based on these factors:\n\n{selected_facts}\n\nThat said, {other_company} also offers some compelling points:\n\n{other_facts}\n\nUltimately, your investment choice should align with your personal financial goals, risk tolerance, and investment timeline. Which aspects are most important to you?",
+            
+            "When comparing {company1} and {company2}, I would highlight these advantages for {selected_company}:\n\n{selected_facts}\n\nHowever, {other_company} also has notable strengths:\n\n{other_facts}\n\nYour investment decision should reflect your specific financial objectives and risk profile. What particular factors matter most for your investment strategy?",
+            
+            "While both companies have merit, {selected_company} stands out for these reasons:\n\n{selected_facts}\n\nThat's not to dismiss {other_company}, which offers these potential benefits:\n\n{other_facts}\n\nThe best choice depends entirely on your investment goals and time horizon. What are you primarily looking for in this investment?",
+            
+            "From an analysis perspective, {selected_company} shows these promising aspects:\n\n{selected_facts}\n\nAlthough {other_company} also demonstrates these positive qualities:\n\n{other_facts}\n\nRemember that past performance doesn't guarantee future results, and your personal investment strategy should guide your decision. What specific outcomes are you hoping to achieve?"
+        ]
         
     def load_company_names(self) -> Dict[str, str]:
         """Load company ticker to name mapping"""
@@ -619,6 +644,211 @@ class FinanceQAProcessor:
         
         return None  # Return None if we couldn't create a valid list conversation
 
+    def create_investment_preference_conversation(
+        self,
+        company1_data: pd.DataFrame,
+        company2_data: pd.DataFrame
+    ) -> Conversation:
+        """Create a conversation focused on investment preference between two companies"""
+        # Start with system prompt
+        messages = [self.create_system_message()]
+        
+        # Get company names
+        company1_name = self.get_company_name(company1_data['ticker'].iloc[0])
+        company2_name = self.get_company_name(company2_data['ticker'].iloc[0])
+        
+        # Create investment preference question
+        question = random.choice(self.investment_preference_questions).format(
+            company1=company1_name,
+            company2=company2_name
+        )
+        
+        # Randomly select which company to favor
+        selected_company = random.choice([company1_name, company2_name])
+        other_company = company2_name if selected_company == company1_name else company1_name
+        
+        selected_data = company1_data if selected_company == company1_name else company2_data
+        other_data = company2_data if selected_company == company1_name else company1_data
+        
+        # Find good fact candidates for both companies
+        def get_valid_facts(company_data, num_facts=5):
+            valid_indices = [
+                idx for idx in company_data.index 
+                if self.can_use_sample(idx) and 
+                self.is_valid_list_item(str(company_data.loc[idx, 'answer']))
+            ]
+            
+            if len(valid_indices) < num_facts:
+                num_facts = max(2, len(valid_indices))
+                
+            if not valid_indices:
+                return []
+                
+            selected_indices = random.sample(valid_indices, min(num_facts, len(valid_indices)))
+            facts = [company_data.loc[idx, 'answer'] for idx in selected_indices]
+            
+            # Mark as used
+            for idx in selected_indices:
+                self.mark_sample_used(idx)
+                
+            return facts
+            
+        # Get facts for both companies
+        selected_company_facts = get_valid_facts(selected_data, random.randint(3, 5))
+        other_company_facts = get_valid_facts(other_data, random.randint(2, 4))
+        
+        if not selected_company_facts or not other_company_facts:
+            # Fallback to creating a cross-company conversation if we don't have enough facts
+            return self.create_cross_company_conversation(company1_data, company2_data, 3)
+        
+        # Format facts into bullet points
+        def format_facts(facts):
+            return "\n".join([f"• {fact}" for fact in facts])
+            
+        selected_facts_formatted = format_facts(selected_company_facts)
+        other_facts_formatted = format_facts(other_company_facts)
+        
+        # Create response using template
+        response_template = random.choice(self.investment_preference_responses)
+        response = response_template.format(
+            company1=company1_name,
+            company2=company2_name,
+            selected_company=selected_company,
+            other_company=other_company,
+            selected_facts=selected_facts_formatted,
+            other_facts=other_facts_formatted
+        )
+        
+        # Add the question and response to messages
+        messages.extend([
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": response}
+        ])
+        
+        # Define followup questions for both companies
+        selected_company_questions = [
+            f"Why do you think {selected_company} has better growth potential?",
+            f"What makes {selected_company} stand out compared to other companies in the sector?",
+            f"What risks should I be aware of when investing in {selected_company}?",
+            f"How has {selected_company} performed in recent quarters?",
+            f"What factors might affect {selected_company}'s stock price in the near future?"
+        ]
+        
+        other_company_questions = [
+            f"What about {other_company}? What are its strengths?",
+            f"Are there any reasons I might prefer {other_company} instead?",
+            f"What risks would I face investing in {other_company}?",
+            f"How has {other_company} been performing recently?",
+            f"What market factors would benefit {other_company}?",
+            f"Are there any upcoming catalysts for {other_company}?"
+        ]
+        
+        # Determine how many follow-up pairs to include (2-5 pairs)
+        num_followups = random.randint(2, 5)
+        
+        # Function to get valid answer that's more than 5 words
+        def get_valid_answer(data_df):
+            max_attempts = 10
+            attempts = 0
+            
+            while attempts < max_attempts:
+                remaining_indices = [idx for idx in data_df.index if self.can_use_sample(idx)]
+                if not remaining_indices:
+                    return "Based on the company's financial statements and market position, they've demonstrated consistent performance in key metrics that investors typically look for. Their strategic initiatives and management approach suggest potential for continued growth and adaptation to market changes."
+                
+                idx = random.choice(remaining_indices)
+                answer = str(data_df.loc[idx, 'answer'])
+                
+                # Check if answer is substantial (more than 5 words)
+                word_count = len(answer.split())
+                if word_count > 5 and not answer.startswith('$') and not answer.endswith('%'):
+                    self.mark_sample_used(idx)
+                    return answer
+                
+                attempts += 1
+            
+            # Fallback response if we can't find a valid answer
+            return "The company has shown strong fundamentals in their financial reporting, with promising growth metrics across multiple quarters. Their strategic initiatives align well with current market trends, suggesting potential for continued expansion in their market segment."
+        
+        # First, add follow-ups for the selected company (always first)
+        selected_q = random.choice(selected_company_questions)
+        selected_a = get_valid_answer(selected_data)
+        
+        messages.extend([
+            {"role": "user", "content": selected_q},
+            {"role": "assistant", "content": selected_a}
+        ])
+        
+        # Then, add follow-ups for the other company
+        other_q = random.choice(other_company_questions)
+        other_a = get_valid_answer(other_data)
+        
+        messages.extend([
+            {"role": "user", "content": other_q},
+            {"role": "assistant", "content": other_a}
+        ])
+        
+        # Add additional follow-up pairs to reach desired conversation length
+        for _ in range(num_followups - 2):  # -2 because we already added one pair for each company
+            if random.random() < 0.5 and selected_company_questions:
+                # Add another selected company question
+                q = random.choice(selected_company_questions)
+                selected_company_questions.remove(q)  # Avoid repetition
+                a = get_valid_answer(selected_data)
+                
+                messages.extend([
+                    {"role": "user", "content": q},
+                    {"role": "assistant", "content": a}
+                ])
+            elif other_company_questions:
+                # Add another other company question
+                q = random.choice(other_company_questions)
+                other_company_questions.remove(q)  # Avoid repetition
+                a = get_valid_answer(other_data)
+                
+                messages.extend([
+                    {"role": "user", "content": q},
+                    {"role": "assistant", "content": a}
+                ])
+        
+        # Add a final question about overall investment strategy
+        final_questions = [
+            f"Given all this information, how would you recommend I approach investing in either {selected_company} or {other_company}?",
+            f"What would be a good investment strategy if I want exposure to both {selected_company} and {other_company}?",
+            f"How would you recommend I allocate my portfolio between {selected_company} and {other_company}?",
+            f"What time horizon would you recommend for investing in these companies?",
+            f"Should I consider dollar-cost averaging into either of these stocks?"
+        ]
+        
+        final_q = random.choice(final_questions)
+        
+        final_responses = [
+            f"Based on our discussion, a balanced approach might work well. {selected_company} appears to offer stronger growth potential, making it suitable for a larger portion of your investment (perhaps 60-70%), while allocating a smaller position (30-40%) to {other_company} could provide diversification benefits. Remember to align this strategy with your overall investment goals, risk tolerance, and time horizon. Regular portfolio reviews would be advisable as market conditions and company performances evolve over time.",
+            
+            f"I'd suggest considering your investment time horizon first. For long-term growth, {selected_company} might warrant a more substantial allocation in your portfolio. However, maintaining some exposure to {other_company} could help manage sector-specific risks. Consider starting with a 70/30 or 60/40 split favoring your preferred company, and rebalance periodically as their relative valuations and prospects change. Always ensure these investments align with your broader financial strategy.",
+            
+            f"Given the strengths and challenges of both companies, you might consider a phased approach to investing. Start with a position in your preferred company ({selected_company} based on our analysis), and monitor its performance for 3-6 months. Then gradually build a smaller position in {other_company} to diversify. This strategy allows you to average into positions while staying responsive to changing market conditions and company developments.",
+            
+            f"For a balanced approach, consider allocating investments proportionally to your conviction level for each company. Based on our discussion, perhaps 65% to {selected_company} and 35% to {other_company} would be reasonable. However, your personal financial situation, investment timeline, and risk tolerance should ultimately guide this decision. Remember that regular portfolio review is essential regardless of your initial allocation."
+        ]
+        
+        final_a = random.choice(final_responses)
+        
+        messages.extend([
+            {"role": "user", "content": final_q},
+            {"role": "assistant", "content": final_a}
+        ])
+        
+        return Conversation(
+            messages=messages,
+            metadata={
+                "ticker": f"{company1_data['ticker'].iloc[0]}, {company2_data['ticker'].iloc[0]}",
+                "company_names": f"{company1_name}, {company2_name}",
+                "investment_comparison": True,
+                "conversation_id": self.generate_prompt_id()
+            }
+        )
+
     def process_dataset(self, output_path: Path, max_samples_per_company: int = 20):
         """Process the entire dataset and create variations"""
         processed_conversations = []
@@ -644,8 +874,7 @@ class FinanceQAProcessor:
                         # Decide whether to use context
                         use_context = random.random() < 0.8
                         system_msg = self.create_system_message()
-                            # self.combined_context if use_context else None,
-                            # use_context)
+
                         
                         greeting, response = self.create_greetings()
                         usr, ast = self.create_conversation_starter()
@@ -656,7 +885,7 @@ class FinanceQAProcessor:
                             usr, ast,
                             {"role": "user", "content": q},
                             {"role": "assistant", "content": a}
-                        ] if np.random.rand() < 0.8 else [
+                        ] if random.random() < 0.8 else [
                             system_msg,
                             usr, ast,
                             {"role": "user", "content": q},
@@ -710,7 +939,12 @@ class FinanceQAProcessor:
         logger.info("Generating cross-company conversations...")
         num_cross_company = self.num_cross_company_samples  # Number of cross-company conversations to generate
         
-        for _ in range(num_cross_company):
+        # Split the cross-company samples between regular cross-company and investment preference
+        num_investment_preference = int(num_cross_company * 0.35)  # Allocate 35% to investment preference
+        num_regular_cross = num_cross_company - num_investment_preference
+        
+        logger.info(f"Generating {num_regular_cross} regular cross-company conversations...")
+        for _ in range(num_regular_cross):
             # Select two random companies
             company1_ticker, company2_ticker = random.sample(self.all_tickers, 2)
             company1_data = self.data[self.data['ticker'] == company1_ticker]
@@ -730,9 +964,31 @@ class FinanceQAProcessor:
                     processed_conversations.append(conv)
             except (ValueError, IndexError):
                 continue
+            
+            if _ % 20 == 0:  # Log progress every 20 conversations
+                logger.info(f"Generated {_}/{num_regular_cross} regular cross-company conversations")
+        
+        logger.info(f"Generating {num_investment_preference} investment preference conversations...")
+        for _ in range(num_investment_preference):
+            # Select two random companies
+            company1_ticker, company2_ticker = random.sample(self.all_tickers, 2)
+            company1_data = self.data[self.data['ticker'] == company1_ticker]
+            company2_data = self.data[self.data['ticker'] == company2_ticker]
+            
+            try:
+                available1 = [idx for idx in company1_data.index if self.can_use_sample(idx)]
+                available2 = [idx for idx in company2_data.index if self.can_use_sample(idx)]
+                if len(available1) >= 3 and len(available2) >= 2:  # Minimum required facts
+                    conv = self.create_investment_preference_conversation(
+                        company1_data,
+                        company2_data
+                    )
+                    processed_conversations.append(conv)
+            except (ValueError, IndexError):
+                continue
                 
             if _ % 20 == 0:  # Log progress every 20 conversations
-                logger.info(f"Generated {_}/{num_cross_company} cross-company conversations")
+                logger.info(f"Generated {_}/{num_investment_preference} investment preference conversations")
         
         # Save processed conversations
         logger.info(f"Generated {len(processed_conversations)} conversations")

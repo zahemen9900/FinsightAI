@@ -1,4 +1,3 @@
-from calendar import c
 import json
 import random
 import pandas as pd
