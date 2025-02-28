@@ -66,7 +66,8 @@ class QLoRAConfig(SFTConfig):
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # minimize loss
     # Pause duration in minutes
-    pause_minutes: int = 45
+    pause_minutes: int = 30
+    max_steps: Optional[int] = 3000  
     
     # DeepSpeed configs
     deepspeed = {
@@ -291,7 +292,7 @@ def train():
         help="Path to checkpoint directory to resume training from"
     )
     parser.add_argument(
-        "--pause_minutes", type=int, default=30,
+        "--pause_minutes", type=int, default=45,
         help="Number of minutes to pause training at halfway point"
     )
     args, _ = parser.parse_known_args()

@@ -28,6 +28,7 @@ class Conversation:
     metadata: Dict
 
 class FinanceQAProcessor:
+
     def __init__(self, dataset_path: Path, num_cross_company_samples: int = 2000):
         self.data = pd.read_csv(dataset_path)
         self.num_cross_company_samples = num_cross_company_samples
@@ -780,10 +781,17 @@ class FinanceQAProcessor:
                 
                 idx = random.choice(remaining_indices)
                 answer = str(data_df.loc[idx, 'answer'])
+
+                company_terms = [
+                    "company", "business", "firm", "enterprise", "organization", 
+                    "corporation", "industry", "market", "sector"
+                ]
                 
-                # Check if answer is substantial (more than 5 words)
+                company_relevant = any(term in answer.lower() for term in company_terms)
+
+                # Check if answer is substantial (more than 5 words), relevant to company, and not raw financial data
                 word_count = len(answer.split())
-                if word_count > 10 and not answer.startswith('$') and not answer.endswith('%'):
+                if word_count > 10 and company_relevant and not answer.startswith('$'):
                     self.mark_sample_used(idx)
                     return answer
                 
