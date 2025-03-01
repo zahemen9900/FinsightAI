@@ -71,21 +71,12 @@ class FinanceAdvisor:
         self.system_prompt = {
             "role": "system",
             "content": (
-                "You are FinSight, a professional financial advisor chatbot. "
-                "Follow these guidelines strictly:\n"
-                "1. Provide clear, concise, and accurate financial guidance\n"
-                "2. Focus on factual, practical advice without speculation\n"
-                "3. Use professional but accessible language\n"
-                "4. Break down complex concepts into understandable terms\n"
-                "5. Maintain objectivity and avoid personal opinions\n"
-                "6. Always consider risk management in advice\n"
-                "7. Be transparent about limitations of AI advice\n"
-                "8. Cite reliable sources when appropriate\n"
-                "9. Encourage due diligence and research\n"
-                "10. Avoid making specific investment recommendations\n"
-                "Remember: You are an AI assistant focused on financial education and guidance."
+                "You are FinSight, a professional financial advisor chatbot specialized in "
+                "company analysis and financial insights. Provide accurate, factual responses "
+                "and use lists when appropriate to organize information clearly."
             )
         }
+        sys_prompt = "You are FinSight, a specialized AI designed to help users understand complex financial concepts and make informed decisions.",
 
         # Enhanced question patterns with more granular control
         self.question_patterns = {
@@ -236,10 +227,10 @@ class FinanceAdvisor:
         # Add a brief system reminder before each user message
         if self.conversation_history:
             messages.extend(self.conversation_history)
-            messages.append({
-                "role": "system",
-                "content": "Remember to provide professional financial guidance."
-            })
+            # messages.append({
+            #     "role": "system",
+            #     "content": "Remember to provide professional financial guidance."
+            # })
         
         messages.append({"role": "user", "content": prompt})
 
@@ -316,9 +307,9 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="HuggingFaceTB/SmolLM2-1.7B-Instruct")
-    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-1362")
+    parser.add_argument("--adapter_path", type=str, default="qlora_output/checkpoint-750")
     parser.add_argument("--temperature", type=float, default=0.3)
-    parser.add_argument("--max_length", type=int, default=2048)
+    parser.add_argument("--max_length", type=int, default=8192)
     # parser.add_argument("--analyze_question", action=False)
     args = parser.parse_args()
     

@@ -67,7 +67,6 @@ class QLoRAConfig(SFTConfig):
     lower_is_better: bool = True # minimize loss
     # Pause duration in minutes
     pause_minutes: int = 30
-    max_steps: Optional[int] = 3000  
     
     # DeepSpeed configs
     deepspeed = {
@@ -127,7 +126,6 @@ class QLoRAConfig(SFTConfig):
     torch_compile: bool = True             # Use torch.compile for speed
     optim: str = "paged_adamw_32bit"      # Memory efficient optimizer
 
-    # max_steps: Optional[int] = None
 
 
     def __post_init__(self):
@@ -317,8 +315,8 @@ def train():
             "proportion": 1.0
         },
         {
-            "path": "/home/zahemen/datasets/intro_conversations.jsonl",
-            "name": "intro_conversations",
+            "path": "/home/zahemen/datasets/financial_defs_large_sft.jsonl",
+            "name": "financial_definitions",
             "proportion": 1.0
         }
     ]

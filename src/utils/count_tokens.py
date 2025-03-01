@@ -129,8 +129,8 @@ def main():
             "name": "finance_qa",
         },
         {
-            "path": "/home/zahemen/datasets/intro_conversations.jsonl",
-            "name": "intro_conversations",
+            "path": "/home/zahemen/datasets/financial_defs_large_sft.jsonl",
+            "name": "financial_definitions",
         }
     ]
     
