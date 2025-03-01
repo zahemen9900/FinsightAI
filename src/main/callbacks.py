@@ -75,7 +75,7 @@ class PauseResumeCallback(TrainerCallback):
                     if int(remaining) % 60 == 0 and int(remaining) > 0 and int(elapsed) > 0:
                         mins_remaining = int(remaining // 60)
                         if mins_remaining > 0 and mins_remaining % 10 == 0:  # Avoid duplicate 0 minute messages
-                            self.console.print(f"[yellow]Still paused. {mins_remaining} minutes remaining until training resumes.[/yellow]")
+                            self.console.print(f"[yellow] {mins_remaining} minutes remaining until training resumes.[/yellow]")
             
             self.console.print("")
             self.console.print("[bold green]╔════════════════════════════════════════╗[/bold green]")

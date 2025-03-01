@@ -47,7 +47,7 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.05 
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 3
+    num_train_epochs: int = 2
     learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
@@ -58,8 +58,8 @@ class QLoRAConfig(SFTConfig):
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 750      
-    save_steps: int = 750
+    eval_steps: int = 700      
+    save_steps: int = 700
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming

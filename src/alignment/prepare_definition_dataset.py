@@ -205,6 +205,142 @@ class DefinitionsDatasetGenerator:
             logger.error(f"Error loading definitions: {e}")
             raise
 
+    def is_suitable_for_conversation(self, term: str, definition: str) -> bool:
+        """Determine if a term is suitable for conversational elaboration."""
+        # Terms that are too technical or abstract may not work well with conversational examples
+        unsuitable_patterns = [
+            r'\b(ratio|equation|formula|calculation|coefficient|theorem|algorithm)\b',
+            r'\b(index|curve|yield curve|function|factor|variable|parameter)\b',
+            r'\b(technical indicator|statistical|regression|correlation|variance)\b',
+            r'^[A-Z0-9\-]+$',  # Acronyms or abbreviations (all caps)
+            r'[\u00D7\u00F7\u2212\u00B1\u221A\u222B\u2211\u220F\u03A3\u03C0\u03BC\u03C3]'  # Mathematical symbols
+        ]
+        
+        # Check if the term or definition matches any unsuitable patterns
+        for pattern in unsuitable_patterns:
+            if re.search(pattern, term, re.IGNORECASE) or re.search(pattern, definition, re.IGNORECASE):
+                return False
+        
+        # Terms that are more conceptual or relate to everyday financial activities work better
+        suitable_patterns = [
+            r'\b(investment|saving|budget|planning|strategy|risk|return|income)\b',
+            r'\b(portfolio|account|loan|debt|credit|mortgage|retirement|insurance)\b',
+            r'\b(market|trading|buying|selling|investor|consumer|customer)\b',
+            r'\b(money|cash|fund|payment|transaction|fee|expense|tax|interest)\b'
+        ]
+        
+        # Check if the term or definition matches any suitable patterns
+        for pattern in suitable_patterns:
+            if re.search(pattern, term, re.IGNORECASE) or re.search(pattern, definition, re.IGNORECASE):
+                return True
+        
+        # Check term length - very short terms are often acronyms or technical terms
+        if len(term.split()) <= 1 and len(term) <= 3:
+            return False
+            
+        # Check if definition is too short for elaboration
+        if len(definition.split()) < 15:
+            return False
+            
+        # Default to conservative approach - only use conversational examples 
+        # when we're reasonably confident they'll work well
+        return False
+
+    def generate_term_specific_example(self, term: str, definition: str) -> str:
+        """Generate a more relevant conversational example based on the term category."""
+        # Categorize the term into different financial domains
+        investment_terms = [
+            'portfolio', 'stock', 'bond', 'mutual fund', 'etf', 'asset', 'security', 
+            'dividend', 'yield', 'return', 'capital gain', 'diversification', 'risk',
+            'equity', 'fixed income', 'hedge fund', 'reit', 'commodity', 'allocation',
+            'growth', 'value', 'appreciation', 'depreciation', 'roi', 'valuation',
+            'liquidity', 'private equity', 'venture capital', 'derivatives', 'options'
+        ]
+        
+        banking_terms = [
+            'account', 'deposit', 'withdrawal', 'bank', 'credit', 'debit', 'loan', 
+            'interest', 'mortgage', 'balance', 'transaction', 'payment', 'statement',
+            'overdraft', 'checking', 'savings', 'atm', 'fee', 'wire transfer', 'ach',
+            'direct deposit', 'refinance', 'collateral', 'escrow', 'principal',
+            'amortization', 'underwriting', 'credit score', 'apr', 'fintech'
+        ]
+        
+        planning_terms = [
+            'budget', 'saving', 'income', 'expense', 'retirement', 'plan', 'goal',
+            'insurance', 'tax', 'estate', 'will', 'trust', 'emergency fund',
+            'financial planning', 'cash flow', '401k', 'ira', 'pension', 'annuity',
+            'beneficiary', 'inheritance', 'net worth', 'liability', 'debt', 'solvency',
+            'wealth management', 'tax deferred', 'tax exempt', 'roth', 'social security'
+        ]
+        
+        market_terms = [
+            'market', 'exchange', 'trade', 'price', 'volatility', 'bull', 'bear',
+            'trend', 'index', 'sector', 'economy', 'recession', 'inflation',
+            'correction', 'crash', 'rally', 'liquidity', 'spread', 'bid', 'ask',
+            'margin', 'leverage', 'short selling', 'futures', 'forex', 'gdp',
+            'interest rate', 'federal reserve', 'monetary policy', 'fiscal policy',
+            'market cap', 'volume', 'technical analysis', 'fundamental analysis'
+        ]
+        
+        # Determine which category the term belongs to
+        term_lower = term.lower()
+        
+        if any(keyword in term_lower or keyword in definition.lower() for keyword in investment_terms):
+            category = "investment"
+        elif any(keyword in term_lower or keyword in definition.lower() for keyword in banking_terms):
+            category = "banking"
+        elif any(keyword in term_lower or keyword in definition.lower() for keyword in planning_terms):
+            category = "planning"
+        elif any(keyword in term_lower or keyword in definition.lower() for keyword in market_terms):
+            category = "market"
+        else:
+            category = "general"
+        
+        # Generate category-specific examples
+        examples = {
+            "investment": [
+                f"\n\nTo illustrate how {term} works in real life: When investors review their portfolios, they often consider {term} to determine if their investments are properly balanced. For example, someone planning for retirement might look at {term} to ensure they're not taking on too much risk as they get closer to their retirement date.",
+                
+                f"\n\nLet me give you a practical example of {term}: Imagine you're deciding between two different investment opportunities. Understanding {term} would help you evaluate which option better aligns with your financial goals and risk tolerance. This is exactly what professional investors do when analyzing potential investments.",
+                
+                f"\n\nHere's how {term} applies in practice: When reviewing quarterly investment reports, you might notice references to {term} as part of the performance metrics. This gives you insight into how well your investments are doing relative to your goals and the broader market conditions."
+            ],
+            
+            "banking": [
+                f"\n\nHere's a real-world application of {term}: When you're reviewing your bank statements or applying for a loan, {term} often comes into play. For instance, loan officers evaluate {term} when determining loan approval and interest rates for applicants.",
+                
+                f"\n\nTo put {term} in context: Think about the last time you visited your bank or used online banking. {term} was likely involved in transactions you made, even if you weren't aware of the technical term. Understanding this concept can help you make better decisions about your banking activities.",
+                
+                f"\n\nLet me illustrate with an everyday example: When managing your checking and savings accounts, {term} influences how your money flows and grows. Being aware of how {term} works can help you maximize the benefits of your banking relationships."
+            ],
+            
+            "planning": [
+                f"\n\nHere's a practical example of {term} in action: When creating a monthly household budget, understanding {term} helps you allocate your resources more effectively. Many financial planners emphasize the importance of {term} when helping clients establish sustainable spending and saving habits.",
+                
+                f"\n\nTo see how {term} works in real life: Consider someone planning for retirement. They would use {term} as part of their strategy to ensure financial security in their later years. This might involve calculating how much to save now to maintain their desired lifestyle later.",
+                
+                f"\n\nLet me put {term} in everyday context: When you're planning major life events like buying a home, paying for education, or preparing for retirement, {term} becomes a crucial factor in your decision-making process. Understanding this concept helps you create more realistic and achievable financial plans."
+            ],
+            
+            "market": [
+                f"\n\nHere's how {term} affects everyday investors: When major economic news breaks, you might notice market movements related to {term}. For instance, during quarterly earnings seasons, {term} often influences how stock prices respond to company performance reports.",
+                
+                f"\n\nTo illustrate {term} with a real example: Consider how financial news often discusses {term} when explaining market trends. Understanding this concept helps you interpret these reports more accurately and make better-informed decisions about your investments during different market cycles.",
+                
+                f"\n\nLet me put {term} in context: When you hear about market volatility on the news, {term} is often one of the underlying factors being discussed. Investors who understand {term} can often navigate market fluctuations with more confidence and less emotional reaction."
+            ],
+            
+            "general": [
+                f"\n\nTo see {term} in everyday financial life: This concept comes up frequently when making important money decisions. Understanding {term} gives you a clearer picture of your financial situation and helps you communicate more effectively with financial professionals.",
+                
+                f"\n\nHere's a practical application of {term}: When reviewing your overall financial health, {term} provides valuable insight into your progress toward your goals. Many financial advisors use {term} as part of their comprehensive assessment of a client's financial situation.",
+                
+                f"\n\nLet me illustrate with a common scenario: When comparing different financial options or products, understanding {term} helps you evaluate which choice best matches your needs and circumstances. This knowledge empowers you to ask better questions and make more informed decisions."
+            ]
+        }
+        
+        return random.choice(examples[category])
+
     def enhance_definition(self, term: str, definition: str) -> str:
         """Enhance a definition to make it more conversational and informative."""
         # Add a random starter phrase occasionally
@@ -226,7 +362,9 @@ class DefinitionsDatasetGenerator:
             f"I'm glad you asked about {term}. ",
             f"{term} is an important concept in finance. Essentially, it's ",
             f"Many people ask about {term}. In simple terms, it's ",
-            f"Don't worry, many people aren't familiar with {term}. It's "
+            f"Don't worry, many people aren't familiar with {term}. It's ",
+            f"Sure! {term} is ",
+            f"No problem! {term} is "
         ]
         
         # Add examples or additional context occasionally
@@ -238,31 +376,26 @@ class DefinitionsDatasetGenerator:
             f" This term is commonly used in discussions about corporate finance and investment strategy."
         ]
         
-        # More conversational example phrases
-        conversational_examples = [
-            f" To give you a real-world example, think about when you're {random.choice(['reviewing your investments', 'planning for retirement', 'looking at a company report', 'talking to a financial advisor'])} - that's where {term.lower()} comes into play.",
-            f" If you've ever {random.choice(['looked at investment options', 'checked your retirement account', 'reviewed a financial statement', 'wondered about market trends'])}, you've probably encountered {term.lower()} without realizing it.",
-            f" In everyday terms, it's like {random.choice(['saving for a rainy day', 'comparing prices before buying', 'understanding the value of what you own', 'planning ahead for expenses'])} but in the financial world.",
-            f" Many people use {term.lower()} when they're trying to {random.choice(['make smarter investment choices', 'understand market movements', 'plan their financial future', 'evaluate a company health'])}.",
-            f" You might encounter {term.lower()} when you're {random.choice(['reading financial news', 'checking your investment portfolio', 'talking with a financial planner', 'researching companies to invest in'])}."
-        ]
-        
         enhanced = definition
         
-        # 40% chance to add a starter phrase if definition doesn't already start with the term
-        if random.random() < 0.4 and not definition.lower().startswith(term.lower()):
+        # 75% chance to add a starter phrase if definition doesn't already start with the term
+        if random.random() < 0.75 and not definition.lower().startswith(term.lower()):
             # 50% chance to use conversational starter instead of traditional one
             if random.random() < 0.5:
                 enhanced = random.choice(conversational_starters) + enhanced
             else:
                 enhanced = random.choice(starter_phrases) + enhanced
         
+        # First determine if this term is suitable for conversational elaboration
+        is_suitable = self.is_suitable_for_conversation(term, definition)
+        
         # 40% chance to add an example or additional context
         if random.random() < 0.4:
-            # 50% chance to use conversational example
-            if random.random() < 0.5:
-                enhanced += random.choice(conversational_examples)
+            # If suitable, use a term-specific conversational example
+            if is_suitable:
+                enhanced += self.generate_term_specific_example(term, definition)
             else:
+                # Otherwise use a shorter, more generic example
                 enhanced += random.choice(example_phrases)
         
         # 40% chance to add a follow-up question
@@ -315,19 +448,14 @@ class DefinitionsDatasetGenerator:
             # Use conversation starter
             starter = random.choice(self.conversation_starters)
             
-            # 50% chance to use intro_generator 
-            if random.random() < 0.5:
-                messages = self.intro_generator.generate_conversation()
-                messages.append({"role": "user", "content": question})
-                messages.append({"role": "assistant", "content": answer})
-            else:
+            if random.random() < 0.2:  #chance of adding a starter
                 messages = [
                     {
                         "role": "system",
                         "content": random.choice(self.system_prompts)
                     },
                     {
-                        "role": "user", 
+                        "role": "user",
                         "content": starter["user"]
                     },
                     {
@@ -343,8 +471,23 @@ class DefinitionsDatasetGenerator:
                         "content": answer
                     }
                 ]
-            
-            # 30% chance to add a follow-up question
+            else:
+                messages = [
+                    {
+                        "role": "system",
+                        "content": random.choice(self.system_prompts)
+                    },
+                    {
+                        "role": "user",
+                        "content": question
+                    },
+                    {
+                        "role": "assistant",
+                        "content": answer
+                    }
+                ]
+
+          # 30% chance to add a follow-up question
             if random.random() < 0.3:
                 followup_questions = [
                     f"Which is more important to understand, {term1} or {term2}?",

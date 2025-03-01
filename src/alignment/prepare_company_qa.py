@@ -348,19 +348,24 @@ class FinanceQAProcessor:
 
     def create_multi_turn_conversation(self, company_data: pd.DataFrame, num_turns: int) -> Conversation:
         """Modified to include fact-based questions and remove context"""
-        use_basic_starter = random.random() < 0.3
-        if use_basic_starter:
-            messages = []
-            greeting, response = self.create_greetings()
-            usr, ast = self.create_conversation_starter()
-            
-            # Add system message without context
-            messages.append(self.create_system_message())
-            messages.extend([greeting, response, usr, ast])
+
+        use_starter = random.random() < 0.5 # 50% chance to use starter messages
+        if use_starter:
+            use_basic_starter = random.random() < 0.3
+            if use_basic_starter:
+                messages = []
+                greeting, response = self.create_greetings()
+                usr, ast = self.create_conversation_starter()
+                
+                # Add system message without context
+                messages.append(self.create_system_message())
+                messages.extend([greeting, response, usr, ast])
+            else:
+                intro_generator = IntroDatasetGenerator(None)
+                messages = intro_generator.generate_conversation()
         else:
-            intro_generator = IntroDatasetGenerator(None)
-            messages = intro_generator.generate_conversation()
-        
+            messages = []
+
         # Add a fact-based question about the company
         company_name = self.get_company_name(company_data['ticker'].iloc[0])
         fact_question = self.create_company_fact_question(company_name)

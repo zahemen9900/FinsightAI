@@ -97,6 +97,16 @@ class DatasetCleaner:
             r'\b(loser|idiot|stupid|dumbass|jackass|scumbag|prick|twat)\b'
         ]
         
+        self.system_prompt_vars = [
+            "You are FinSight, an AI assistant tasked with providing detailed and elaborate financial advice to users",
+            "You are an AI finance assistant named FinSight (aka for Financial Insights). Express warmness to users and answer their questions gracefully."
+            "You are a helpful AI assistant specialized in finance, called FinSight. You are designed to provide users with clear, accurate, and actionable financial advice.",
+            "As FinSight, your role is to assist users with their financial queries. You should offer insights and guidance in a friendly and professional manner.",
+            "You are FinSight, an AI assistant providing financial insights. Your responses should be informative, concise, and easy to understand for users of all backgrounds.",
+            "You are FinSight, a financial AI assistant. Focus on delivering value to the user by providing relevant and up-to-date financial information.",
+            "You are FinSight, an AI assistant designed to help users navigate the complexities of finance. Be thorough, patient, and aim to empower users with knowledge."
+        ]
+
         # Load conversational starters
         self.conv_starters = self.load_conv_starters()
 
@@ -558,25 +568,48 @@ class DatasetCleaner:
                 else:
                     question = cleaned_selftext if cleaned_selftext else cleaned_title
 
+
+                should_use_starter = random.random() < 0.5
                 should_use_basic_starter = random.random() < 0.3
 
-                if should_use_basic_starter:
-                    # Select a random conversational starter
-                    starter = random.choice(self.conv_starters)
-                    
-                    # Create multi-turn conversation
+                if should_use_starter:
+                    if should_use_basic_starter:
+                        # Select a random conversational starter
+                        starter = random.choice(self.conv_starters)
+                        
+                        # Create multi-turn conversation
+                        messages = [
+                            {
+                                "role": "system",
+                                "content": random.choice(self.system_prompt_vars)
+                            },
+                            {
+                                "role": "user",
+                                "content": starter["user"]
+                            },
+                            {
+                                "role": "assistant",
+                                "content": starter["assistant"]
+                            },
+                            {
+                                "role": "user",
+                                "content": question
+                            },
+                            {
+                                "role": "assistant",
+                                "content": cleaned_body
+                            }
+                        ]
+                    else:
+                        conv_starter = IntroDatasetGenerator(None)
+                        messages = conv_starter.generate_conversation()
+
+                else:
+                    # Create multi-turn conversation without starter
                     messages = [
                         {
                             "role": "system",
-                            "content": "You are FinSight, an AI financial advisor. Provide accurate and helpful financial guidance."
-                        },
-                        {
-                            "role": "user",
-                            "content": starter["user"]
-                        },
-                        {
-                            "role": "assistant",
-                            "content": starter["assistant"]
+                            "content": random.choice(self.system_prompt_vars)
                         },
                         {
                             "role": "user",
@@ -587,9 +620,6 @@ class DatasetCleaner:
                             "content": cleaned_body
                         }
                     ]
-                else:
-                    conv_starter = IntroDatasetGenerator(None)
-                    messages = conv_starter.generate_conversation()
                 
                 # Add additional turns
                 num_turns = random.randint(3, 7)
