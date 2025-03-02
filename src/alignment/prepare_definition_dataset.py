@@ -568,6 +568,7 @@ class DefinitionsDatasetGenerator:
         
         # Select a format and add a follow-up question sometimes
         response = random.choice(formats)
+        
         if random.random() < 0.3:
             followup = random.choice([
                 f"Would you like me to elaborate on either {term1} or {term2} in more detail?",

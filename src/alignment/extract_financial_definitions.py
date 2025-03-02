@@ -52,7 +52,7 @@ class FinancialDefinitionsExtractor:
         ]
         
         # Apply each pattern
-        result = definition
+        result = definition.replace("1)", "\n1)")
         for pattern, replacement in patterns:
             result = re.sub(pattern, replacement, result)
             

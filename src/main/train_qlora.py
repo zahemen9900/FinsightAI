@@ -58,8 +58,8 @@ class QLoRAConfig(SFTConfig):
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 700      
-    save_steps: int = 700
+    eval_steps: int = 600      
+    save_steps: int = 600
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
