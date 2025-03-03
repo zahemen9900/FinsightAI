@@ -24,12 +24,14 @@ class FinancialDefinitionsExtractor:
     
     def __init__(
         self, 
-        input_dir: str = "/home/zahemen/datasets/all_finance_definitions_in_txt",
-        output_file: str = "/home/zahemen/datasets/financial_definitions.jsonl"
+        input_dir: str = "/home/zahemen/datasets/enhanced_q_and_a",
+        output_file: str = "/home/zahemen/datasets/financial_definitions.jsonl",
+        exclude_files: List[str] = ["finance_questions.txt"]
     ):
         self.input_dir = Path(input_dir)
         self.output_file = Path(output_file)
         self.definitions = []
+        self.exclude_files = exclude_files
         
         # Ensure input directory exists
         if not self.input_dir.exists() or not self.input_dir.is_dir():
@@ -64,47 +66,82 @@ class FinancialDefinitionsExtractor:
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+                content = f.read().strip()
                 
-            # Split content by newlines followed by a word and colon
-            # This pattern looks for entries that start with a term followed by a colon
-            pattern = r'([^:\n]+):\s+(.*?)(?=\n\n|\n[A-Za-z][^:\n]*:|$)'
-            matches = re.findall(pattern, content, re.DOTALL)
+            # Split content into potential definition blocks
+            # This pattern looks for text blocks that start with a term followed by a colon
             
-            # Check if this is the special file with all lowercase definitions
-            is_special_file = "Thomas-Willing-financial-history-glossary2.txt" in str(file_path)
+            # First, normalize newlines
+            content = content.replace('\r\n', '\n').replace('\r', '\n')
             
+            # Add a newline at the end to help with parsing
+            if not content.endswith('\n'):
+                content = content + '\n'
+            
+            # This regex pattern looks for:
+            # 1. A term at the start of a line
+            # 2. Followed by a colon
+            # 3. Capture everything until either:
+            #    a) Another term followed by a colon at the start of a line, or
+            #    b) End of the file
+            term_pattern = r'(?:^|\n)([^:\n]+):\s*(.+?)(?=\n[^:\n]+:|$)'
+            matches = re.findall(term_pattern, content, re.DOTALL)
+            
+            # Process each match
             for term, definition in matches:
                 # Clean up the term and definition
                 term = term.strip()
-                definition = definition.strip()
-                
-                # Clean up any extra whitespace, tabs, or multiple spaces
-                definition = re.sub(r'\s+', ' ', definition)
-                
-                # Format numbered lists with newlines
-                definition = self.format_numbered_lists(definition)
-
-                if not definition.endswith('.'):
-                    definition += '.'
+                definition = self.cleanup_definition(definition)
                 
                 # Skip if either term or definition is empty
                 if not term or not definition:
                     continue
-                    
-                # Skip terms that start with lowercase unless it's from the special file
-                if not is_special_file and term[0].islower():
+                
+                # Skip very short definitions (likely errors)
+                if len(definition.split()) < 3:
                     continue
-                    
+                
                 extracted_defs.append({
                     "term": term,
                     "definition": definition
                 })
                 
+            logger.info(f"Extracted {len(extracted_defs)} definitions from {file_path.name}")
+                
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             
         return extracted_defs
+
+    def cleanup_definition(self, definition: str) -> str:
+        """Clean up and format a definition while preserving structure."""
+        # Remove any leading/trailing whitespace
+        definition = definition.strip()
+        
+        # Preserve bullet points and lists but clean up excessive whitespace
+        lines = []
+        for line in definition.split('\n'):
+            line = line.strip()
+            if line.startswith('-') or line.startswith('•') or re.match(r'^\d+\.', line):
+                # This is a bullet/list item - preserve indentation
+                lines.append(line)
+            elif line:  # Only add non-empty lines
+                lines.append(line)
+        
+        # Join with appropriate spacing
+        # If there are bullet points or numbered lists, preserve the newlines
+        if any(line.startswith('-') or line.startswith('•') or re.match(r'^\d+\.', line) for line in lines):
+            # Join with newlines for lists
+            cleaned = '\n'.join(lines)
+        else:
+            # Join with spaces for regular text
+            cleaned = ' '.join(lines)
+        
+        # Ensure the definition ends with a period if it doesn't already
+        if not cleaned.endswith('.') and not cleaned.endswith('?') and not cleaned.endswith('!'):
+            cleaned += '.'
+            
+        return cleaned
 
     def is_similar_definition(self, def1: str, def2: str, threshold: float = 0.85) -> bool:
         """Check if two definitions are similar."""
@@ -254,28 +291,49 @@ class FinancialDefinitionsExtractor:
 
     def process_all_files(self) -> None:
         """Process all text files in the input directory."""
-        all_files = list(self.input_dir.glob("*.txt"))
+        all_files = [f for f in self.input_dir.glob("*.txt") if f.name not in self.exclude_files]
         logger.info(f"Found {len(all_files)} text files to process")
         
         for file_path in tqdm(all_files, desc="Processing files"):
             file_definitions = self.extract_definitions_from_file(file_path)
-            self.definitions.extend(file_definitions)
+            if file_definitions:
+                self.definitions.extend(file_definitions)
+            else:
+                logger.warning(f"No definitions extracted from {file_path}")
             
-        logger.info(f"Extracted {len(self.definitions)} financial definitions")
+        logger.info(f"Extracted {len(self.definitions)} financial definitions in total")
 
     def save_to_jsonl(self) -> None:
         """Save the extracted definitions to a JSONL file."""
         with open(self.output_file, 'w', encoding='utf-8') as f:
             for definition in self.definitions:
-                f.write(json.dumps(definition) + '\n')
+                f.write(json.dumps(definition, ensure_ascii=False) + '\n')
                 
         logger.info(f"Saved {len(self.definitions)} definitions to {self.output_file}")
+
+    # def deduplicate_definitions(self) -> None:
+    #     """Remove duplicate definitions based on term names."""
+    #     term_dict = {}
+    #     for item in self.definitions:
+    #         term = item['term'].lower()  # Case-insensitive comparison
+    #         if term not in term_dict:
+    #             term_dict[term] = item
+    #         else:
+    #             # If definition already exists, keep the longer one
+    #             existing_def = term_dict[term]['definition']
+    #             new_def = item['definition']
+    #             if len(new_def) > len(existing_def):
+    #                 term_dict[term] = item
+        
+    #     original_count = len(self.definitions)
+    #     self.definitions = list(term_dict.values())
+    #     logger.info(f"Deduplicated definitions: {original_count} → {len(self.definitions)}")
 
     def run(self) -> None:
         """Execute the full extraction process."""
         logger.info("Starting financial definitions extraction")
         self.process_all_files()
-        self.group_duplicate_terms()  # Group duplicate terms with improved handling
+        # self.deduplicate_definitions()
         self.save_to_jsonl()
         logger.info("Extraction complete!")
         
@@ -288,5 +346,21 @@ class FinancialDefinitionsExtractor:
             logger.info("")
 
 if __name__ == "__main__":
-    extractor = FinancialDefinitionsExtractor()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Extract financial definitions from text files')
+    parser.add_argument('--input', default="/home/zahemen/datasets/enhanced_q_and_a", 
+                        help='Directory containing definition files')
+    parser.add_argument('--output', default="/home/zahemen/datasets/sft_datasets/financial_definitions.jsonl",
+                        help='Output JSONL file path')
+    parser.add_argument('--exclude', nargs='*', default=['finance_questions.txt'],
+                        help='Files to exclude from processing')
+    
+    args = parser.parse_args()
+    
+    extractor = FinancialDefinitionsExtractor(
+        input_dir=args.input,
+        output_file=args.output,
+        exclude_files=args.exclude
+    )
     extractor.run()

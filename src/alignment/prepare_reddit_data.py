@@ -1032,7 +1032,7 @@ if __name__ == "__main__":
     try:
         cleaner = DatasetCleaner(
             input_file='/home/zahemen/datasets/reddit-finance-250k/Data.jsonl',
-            output_file='/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl',
+            output_file='/home/zahemen/datasets/sft_datasets/sft_cleaned_reddit_data.jsonl',
             conv_starters_file='/home/zahemen/datasets/reddit-finance-250k/conv_starter_pairs.txt',
             silent_warnings=True  # Set to True to silence warnings
         )
