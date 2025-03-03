@@ -31,7 +31,8 @@ class FinanceConversationExtractor:
         min_turns: int = 3,
         max_turns: int = 10,
         max_reuses: int = 20,  # Increased from 10 to 20
-        target_conversations: int = 1000  # Added target number of conversations
+        target_conversations: int = 1000,  # Added target number of conversations
+        use_progress: bool = True  # Add parameter to control progress bars
     ):
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
@@ -44,6 +45,7 @@ class FinanceConversationExtractor:
         self.target_conversations = target_conversations
         self.qa_usage_counter = {}  # Track how many times each QA pair is used
         self.intro_generator = IntroDatasetGenerator(None)  # Initialize intro generator
+        self.use_progress = use_progress  # Whether to use progress bars
         
         # System prompt variations
         self.system_prompt_variations = [
@@ -94,7 +96,10 @@ class FinanceConversationExtractor:
             qa_pairs = []
             skipped = 0
             
-            for part in tqdm(parts, desc="Extracting QA pairs"):
+            # Use tqdm conditionally based on use_progress flag
+            parts_iter = tqdm(parts, desc="Extracting QA pairs") if self.use_progress else parts
+            
+            for part in parts_iter:
                 # Use regex to extract the user question and assistant response
                 match = re.match(r'User:\s*(.*?)\s*\nAssistant:\s*(.*?)(?=\n\s*User:|$)', 
                                 part, re.DOTALL)
@@ -409,8 +414,17 @@ class FinanceConversationExtractor:
         max_attempts = total_target * 2
         
         # Create conversations until we reach the target or max attempts
+        # Use tqdm conditionally based on use_progress flag
+        loop_range = tqdm(range(attempts, max_attempts), 
+                         desc="Creating conversations", 
+                         initial=0, 
+                         total=total_target) if self.use_progress else range(attempts, max_attempts)
+        
         while sum(variation_counts.values()) < total_target and attempts < max_attempts:
             attempts += 1
+            if self.use_progress and attempts % 10 == 0:  # Update progress bar every 10 attempts
+                loop_range.update(10)
+                loop_range.set_description(f"Created {sum(variation_counts.values())}/{total_target}")
             
             # Choose variation type prioritizing those that need more conversations
             remaining_by_type = {
@@ -448,9 +462,9 @@ class FinanceConversationExtractor:
                 conversations.append(conversation)
                 variation_counts[variation_type] += 1
                 
-                # Log progress periodically
+                # Log progress periodically without progress bar
                 total_created = sum(variation_counts.values())
-                if total_created % 50 == 0:
+                if total_created % 50 == 0 and not self.use_progress:
                     logger.info(f"Created {total_created}/{total_target} conversations")
             
             # Check if we've used up all QA pairs beyond their reuse limit
@@ -463,6 +477,10 @@ class FinanceConversationExtractor:
                     logger.warning("All QA pairs have reached maximum usage")
                     break
         
+        # Close progress bar if using it
+        if self.use_progress:
+            loop_range.close()
+            
         # Log final distribution
         logger.info(f"Conversations created by variation type: {variation_counts}")
         logger.info(f"Total conversations created: {sum(variation_counts.values())}/{total_target}")
@@ -512,48 +530,61 @@ class FinanceConversationExtractor:
         logger.info(f"Starting finance conversation extraction from {self.input_file}")
         logger.info(f"Target number of conversations: {self.target_conversations}")
         
-        with Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn()
-        ) as progress:
-            extract_task = progress.add_task("[green]Extracting QA pairs...", total=1)
-            create_task = progress.add_task("[cyan]Creating conversations...", total=1, visible=False)
-            save_task = progress.add_task("[magenta]Saving conversations...", total=1, visible=False)
-            
-            # Extract QA pairs
+        # Only use Progress if use_progress is True
+        if self.use_progress:
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn()
+            ) as progress:
+                extract_task = progress.add_task("[green]Extracting QA pairs...", total=1)
+                create_task = progress.add_task("[cyan]Creating conversations...", total=1, visible=False)
+                save_task = progress.add_task("[magenta]Saving conversations...", total=1, visible=False)
+                
+                # Extract QA pairs
+                qa_pairs = self.extract_qa_pairs()
+                progress.update(extract_task, completed=1)
+                
+                if qa_pairs:
+                    progress.update(create_task, visible=True)
+                    # Create multi-turn conversations with strategic approach
+                    self.conversations = self.generate_conversations_with_strategy(qa_pairs)
+                    progress.update(create_task, completed=1)
+                    
+                    if self.conversations:
+                        progress.update(save_task, visible=True)
+                        # Save conversations
+                        self.save_conversations()
+                        progress.update(save_task, completed=1)
+        else:
+            # Simple execution without progress bars
+            logger.info("Extracting QA pairs...")
             qa_pairs = self.extract_qa_pairs()
-            progress.update(extract_task, completed=1)
             
             if qa_pairs:
-                progress.update(create_task, visible=True)
-                # Create multi-turn conversations with strategic approach
+                logger.info("Creating conversations...")
                 self.conversations = self.generate_conversations_with_strategy(qa_pairs)
-                progress.update(create_task, completed=1)
                 
                 if self.conversations:
-                    progress.update(save_task, visible=True)
-                    # Save conversations
+                    logger.info("Saving conversations...")
                     self.save_conversations()
-                    progress.update(save_task, completed=1)
-                    
-                    # Print a sample conversation
-                    sample = random.choice(self.conversations)
-                    logger.info("\nSample conversation:")
-                    for msg in sample["messages"]:
-                        if msg["role"] == "system":
-                            logger.info(f"System: {msg['content']}")
-                        elif msg["role"] == "user":
-                            logger.info(f"User: {msg['content']}")
-                        elif msg["role"] == "assistant":
-                            logger.info(f"Assistant: {msg['content'][:100]}...")  # Truncate long responses
-                    
-                    logger.info(f"Metadata: {sample['metadata']}")
-                else:
-                    logger.warning("No conversations were created")
-            else:
-                logger.warning("No QA pairs were extracted")
+        
+        # Print sample conversation regardless of progress bar usage
+        if self.conversations:
+            sample = random.choice(self.conversations)
+            logger.info("\nSample conversation:")
+            for msg in sample["messages"]:
+                if msg["role"] == "system":
+                    logger.info(f"System: {msg['content']}")
+                elif msg["role"] == "user":
+                    logger.info(f"User: {msg['content']}")
+                elif msg["role"] == "assistant":
+                    logger.info(f"Assistant: {msg['content'][:100]}...")  # Truncate long responses
+            
+            logger.info(f"Metadata: {sample['metadata']}")
+        else:
+            logger.warning("No conversations were created")
 
 def main():
     import argparse
@@ -602,6 +633,12 @@ def main():
         help="Maximum times a QA pair can be reused"
     )
     
+    parser.add_argument(
+        "--use-progress",
+        action="store_true",
+        help="Use progress bars (default: True)"
+    )
+    
     args = parser.parse_args()
     
     extractor = FinanceConversationExtractor(
@@ -610,7 +647,8 @@ def main():
         min_turns=args.min_turns,
         max_turns=args.max_turns,
         max_reuses=args.max_reuses,
-        target_conversations=args.num_conversations
+        target_conversations=args.num_conversations,
+        use_progress=args.use_progress
     )
     
     extractor.run()
