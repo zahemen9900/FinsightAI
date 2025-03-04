@@ -73,12 +73,10 @@ def apply_chat_template(
             add_generation_prompt=True if task == "generation" else False,
         )
         
-        if use_metadata:
-            # Preserve metadata
-            if "metadata" in example:
-                for key in ["source", "conversation_id", "type"]:
-                    if key in example["metadata"]:
-                        example[key] = example["metadata"][key]
+        if use_metadata and "metadata" in example:
+            # Copy ALL metadata fields directly to the example
+            for key, value in example["metadata"].items():
+                example[key] = value
 
         return example
     except Exception as e:
@@ -159,7 +157,6 @@ def train():
         gradient_checkpointing=True,
         do_eval=True,
         dataset_num_proc=1,
-        use_cache=False  # Add this to fix gradient checkpointing warning
     )
 
     # Set seed for reproducibility
@@ -180,7 +177,7 @@ def train():
     )
 
     # Load and prepare dataset
-    dataset = prepare_dataset("/home/zahemen/datasets/reddit-finance-250k/sft_format_data.jsonl", tokenizer)
+    dataset = prepare_dataset("/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250304_121951.jsonl", tokenizer)
 
     # Log samples
     with training_args.main_process_first(desc="Log samples from training set"):
