@@ -41,6 +41,7 @@ def test_chat_template(tokenizer=tokenizer):
         # Example conversation
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
+            messages
             {"role": "user", "content": "Hello!\n\nHow are you?"},
             {"role": "assistant", "content": "Hi there! How can I help you?"}
         ]

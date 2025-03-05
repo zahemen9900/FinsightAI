@@ -25,8 +25,9 @@ class FinanceAdvisorBot:
     def __init__(
         self,
         base_model: str = "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        adapter_path: str = "qlora_output/checkpoint-1500",
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        adapter_path: str = "qlora_output",
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        should_analyze_question: bool = True
     ):
         self.device = device
         logger.info(f"Using device: {self.device}")
@@ -61,6 +62,8 @@ class FinanceAdvisorBot:
             self.model = base
         
         self.model.eval()
+
+        self.should_analyze_question = should_analyze_question
         
         # Enable memory efficient optimizations
         if hasattr(self.model, "set_gradient_checkpointing"):
@@ -262,7 +265,7 @@ class FinanceAdvisorBot:
             # Align streaming configuration with chat_qlora.py
             streamer = TextIteratorStreamer(
                 self.tokenizer,
-                timeout=20.0,
+                timeout=30.0,
                 skip_prompt=True,
                 skip_special_tokens=True
             )
@@ -270,7 +273,7 @@ class FinanceAdvisorBot:
             generation_kwargs = dict(
                 **inputs,
                 streamer=streamer,
-                max_new_tokens=self.analyze_question(message),
+                max_new_tokens=self.analyze_question(message) if self.should_analyze_question else 512,
                 temperature=0.3,
                 top_p=0.9,
                 do_sample=True,
@@ -279,7 +282,7 @@ class FinanceAdvisorBot:
                 num_beams=1,
                 pad_token_id=self.tokenizer.eos_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
-                early_stopping=False,
+                early_stopping=True,
                 length_penalty=1.0,
                 use_cache=True
             )
@@ -291,7 +294,7 @@ class FinanceAdvisorBot:
             partial_text = ""
             for new_text in streamer:
                 partial_text += new_text
-                cleaned = partial_text.strip()
+                cleaned = partial_text.strip() if self.analyze_question else partial_text
                 if cleaned:
                     # Clean up response formatting
                     if "***" in cleaned or "Your Query" in cleaned:
@@ -306,7 +309,7 @@ class FinanceAdvisorBot:
 
 def create_demo():
     # Initialize bot
-    bot = FinanceAdvisorBot()
+    bot = FinanceAdvisorBot(should_analyze_question=False)
     
     with gr.Blocks(theme=gr.themes.Ocean(),
                   css="""

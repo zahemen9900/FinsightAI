@@ -1,5 +1,0 @@
-Metric,Base Model,QLora Model,Improvement %
-rouge1,0.1566,0.1869,19.34%
-rouge2,0.0151,0.0301,99.43%
-rougeL,0.0807,0.1036,28.44%
-bleu,0.0052,0.0161,210.76%

@@ -120,17 +120,21 @@ def count_tokens_in_file(file_path: str, tokenizer) -> Dict:
 def main():
     # Your dataset paths
     dataset_paths = [
+        # {
+        #     "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
+        #     "name": "reddit_finance",
+        # },
+        # {
+        #     "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
+        #     "name": "finance_qa",
+        # },
+        # {
+        #     "path": "/home/zahemen/datasets/financial_defs_large_sft.jsonl",
+        #     "name": "financial_definitions",
+        # },
         {
-            "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
-            "name": "reddit_finance",
-        },
-        {
-            "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
-            "name": "finance_qa",
-        },
-        {
-            "path": "/home/zahemen/datasets/financial_defs_large_sft.jsonl",
-            "name": "financial_definitions",
+            "path": "/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250303_210949.jsonl",
+            "name": "finsight_combined"
         }
     ]
     

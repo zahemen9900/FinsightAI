@@ -372,6 +372,15 @@ class DatasetPipeline:
                                         # Add source file information
                                         entry["metadata"]["source_file"] = file_name
                                         
+                                        # Convert metadata arrays to strings
+                                        for key, value in entry["metadata"].items():
+                                            if isinstance(value, list):
+                                                # Join array elements into a comma-separated string
+                                                entry["metadata"][key] = ", ".join(str(item) for item in value)
+                                            elif value is None or value == []:
+                                                # Replace None values with empty strings
+                                                entry["metadata"][key] = ""
+                                        
                                         # Write back
                                         outfile.write(json.dumps(entry) + '\n')
                                         written_records += 1

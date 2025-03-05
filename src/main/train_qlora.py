@@ -47,7 +47,7 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.05 
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 2
+    num_train_epochs: int = 1
     learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
@@ -305,20 +305,35 @@ def train():
     # Updated dataset paths with names and proportions
     dataset_paths = [
         {
-            "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
+            "path": "/home/zahemen/datasets/sft_datasets/intro_conversations.jsonl",
+            "name": "finsight_intro",
+            "proportion": 1.0
+        },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
             "name": "reddit_finance",
             "proportion": 1.0
         },
         {
-            "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
+            "path": "/home/zahemen/datasets/sft_datasets/company_conversations.jsonl",
             "name": "finance_qa",
             "proportion": 1.0
         },
         {
-            "path": "/home/zahemen/datasets/financial_defs_large_sft.jsonl",
+            "path": "/home/zahemen/datasets/sft_datasets/financial_definitions_dataset.jsonl",
             "name": "financial_definitions",
             "proportion": 1.0
-        }
+        },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/finance_conversations.jsonl",
+            "name": "finance_conversations",
+            "proportion": 1.0
+        },
+        # {
+        #     "path": "/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250303_210949.jsonl",
+        #     "name": "finsight_combined"
+        # }
+
     ]
 
     # Set seed for reproducibility 

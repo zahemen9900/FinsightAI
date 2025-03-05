@@ -95,9 +95,14 @@ def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
         # Load dataset
         dataset = datasets.load_dataset('json', data_files=dataset_path)['train']
         
-        # Get columns to preserve
-        metadata_columns = ['source', 'conversation_id', 'type']
-        columns_to_remove = [col for col in dataset.column_names if col not in metadata_columns]
+        # Log dataset columns before processing
+        logger.info(f"Dataset columns: {dataset.column_names}")
+        
+        # Only keep metadata columns that actually exist in the dataset
+        available_metadata_columns = [
+            col for col in dataset.column_names 
+            if col in ['source', 'conversation_id', 'type'] or col == 'messages'
+        ]
         
         # Apply chat template with parallel processing
         dataset = dataset.map(
@@ -108,9 +113,16 @@ def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
                 "auto_insert_empty_system_msg": False,
             },
             num_proc=num_proc,
-            remove_columns=columns_to_remove,
+            # Keep all columns initially to avoid schema issues
+            # We'll select just what we need after processing
             desc="Applying chat template"
         )
+        
+        # Now remove unnecessary columns, keeping only text and metadata
+        columns_to_keep = ['text'] + available_metadata_columns
+        columns_to_remove = [col for col in dataset.column_names if col not in columns_to_keep]
+        if columns_to_remove:
+            dataset = dataset.remove_columns(columns_to_remove)
         
         # Log dataset statistics
         logger.info("\nDataset Statistics:")
@@ -131,7 +143,7 @@ def prepare_dataset(dataset_path: str, tokenizer, num_proc: int = 4) -> Dataset:
     except Exception as e:
         logger.error(f"Failed to load or process dataset: {e}")
         raise
-
+    
 def train():
     # Initialize arguments
     model_args = ModelArguments() 

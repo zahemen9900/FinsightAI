@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import torch
 import logging
 import numpy as np
@@ -370,17 +371,25 @@ def main():
     # Define datasets to evaluate (same as in compute_qlora_metrics.py)
     dataset_paths = [
         {
-            "path": "/home/zahemen/datasets/reddit-finance-250k/sft_cleaned_data.jsonl",
-            "name": "reddit_finance"
+            "path": "/home/zahemen/datasets/sft_datasets/intro_conversations.jsonl",
+            "name": "finsight_intro",
         },
         {
-            "path": "/home/zahemen/datasets/finance_qa_conversations.jsonl",
-            "name": "finance_qa"
+            "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
+            "name": "reddit_finance",
         },
         {
-            "path": "/home/zahemen/datasets/intro_conversations.jsonl",
-            "name": "intro_conversations"
-        }
+            "path": "/home/zahemen/datasets/sft_datasets/company_conversations.jsonl",
+            "name": "finance_qa",
+        },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/financial_definitions_dataset.jsonl",
+            "name": "financial_definitions",
+        },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/finance_conversations.jsonl",
+            "name": "finance_conversations",
+        },
     ]
 
     # Run evaluation
