@@ -415,7 +415,7 @@ def main():
         },
         {
             "path": "/home/zahemen/datasets/sft_datasets/company_conversations.jsonl",
-            "name": "finance_qa",
+            "name": "company_specific_qa",
         },
         {
             "path": "/home/zahemen/datasets/sft_datasets/financial_definitions_dataset.jsonl",
