@@ -47,7 +47,7 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.05 
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 1
+    num_train_epochs: int = 2
     learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
@@ -67,6 +67,7 @@ class QLoRAConfig(SFTConfig):
     lower_is_better: bool = True # minimize loss
     # Pause duration in minutes
     pause_minutes: int = 30
+    max_steps: int = 1500
     
     # DeepSpeed configs
     deepspeed = {

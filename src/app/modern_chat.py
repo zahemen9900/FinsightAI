@@ -1,4 +1,5 @@
 import re
+from tkinter import FALSE
 import gradio as gr
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
@@ -252,7 +253,7 @@ class FinanceAdvisorBot:
             add_generation_prompt=True
         )
 
-        with torch.inference_mode(), torch.amp.autocast(enabled=True, dtype=self.precision, device_type=self.device, cache_enabled=True):
+        with torch.inference_mode():#, torch.amp.autocast(enabled=True, dtype=self.precision, device_type=self.device, cache_enabled=True):
             inputs = self.tokenizer(
                 formatted_prompt,
                 return_tensors="pt",
@@ -282,7 +283,7 @@ class FinanceAdvisorBot:
                 num_beams=1,
                 pad_token_id=self.tokenizer.eos_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
-                early_stopping=True,
+                early_stopping=False,
                 length_penalty=1.0,
                 use_cache=True
             )

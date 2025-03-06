@@ -215,7 +215,7 @@ class FinanceAdvisor:
         top_p: float = 0.9,
     ) -> str:
         """Generate a response using enhanced prompt handling"""
-        max_new_tokens = 256 if not self.should_analyze_question else self.analyze_question(prompt)
+        max_new_tokens = 512 if not self.should_analyze_question else self.analyze_question(prompt)
 
         # Keep conversation history manageable
         if len(self.conversation_history) > 4:
