@@ -13,92 +13,175 @@ Your intelligent financial companion, powered by advanced AI.
 
 </div>
 
+## 📋 Overview
+
+FinSight AI is a specialized financial advisory assistant built by fine-tuning SmolLM2-1.7B-Instruct using QLoRA (Quantized Low-Rank Adaptation). The model has been trained on a comprehensive dataset of financial conversations to provide accurate, concise, and helpful information across various financial domains including personal finance, investing, market analysis, and financial planning.
+
+## 🏆 Key Results
+
+- **Substantial Performance Improvements**:
+  - 135.36% improvement in BLEU score
+  - 79.48% improvement in ROUGE-2 score
+  - 24.00% improvement in ROUGE-L score
+  - 12.57% improvement in ROUGE-1 score
+
+- **Enhanced Capabilities**:
+  - 90.3% increase in financial terminology usage
+  - More precise and structured responses
+  - Better handling of numerical information
+  - Improved technical accuracy in finance domains
+
 ## 🚀 Features
 
-- **Fast and Efficient**: Optimized QLoRA training with mixed precision and DeepSpeed integration
-- **Interactive Chat Interface**: Modern, responsive UI with Gradio
-- **Smart Dataset Processing**: Advanced filtering and cleaning of financial conversations
-- **Memory Efficient**: Optimized for both training and inference
-- **Rich Conversation History**: Support for multi-turn financial discussions
-- **Enhanced Response Formatting**: Improved readability with automatic paragraph breaks
+- **Domain Expert**: Trained specifically for financial advisory conversations
+- **Efficient Architecture**: Small yet capable 1.7B parameter model
+- **Resource-Friendly**: Designed to run on consumer hardware
+- **Interactive UI**: Modern, responsive Gradio interface
+- **Adaptive Responses**: Dynamically adjusts response length based on query complexity
+- **Contextual Awareness**: Maintains conversation history for coherent multi-turn discussions
+- **Financial Terminology**: Enhanced recognition and use of domain-specific financial terms
 
-## 🛠 Recent Updates
+## 🧠 Technical Architecture
 
-- **Improved Response Formatting**: Added intelligent paragraph grouping for enhanced readability
-- **Advanced Data Cleaning**: Enhanced cleaning pipeline with sophisticated financial relevance scoring
-- **Cross-Company Conversations**: Added support for comparative financial discussions across companies
-- **List-Based Responses**: Implemented structured list formatting in responses for better organization
-- **Expanded Financial Dictionary**: Enhanced keyword recognition with 600+ domain-specific terms
-- **Comprehensive Documentation**: Updated data cleaning methodology with detailed technical specifications
-- Added proportion-based dataset merging for better control over training data
-- Improved model response conciseness with enhanced generation parameters
-- Optimized training speed with ZeRO-2 and efficient batch sizes
-- Enhanced UI with gradient header and modern styling
-- Added flash attention support for faster inference
-- Improved memory management during both training and inference
+- **Base Model**: HuggingFaceTB/SmolLM2-1.7B-Instruct
+- **Fine-tuning Method**: QLoRA (4-bit quantization)
+- **LoRA Configuration**:
+  - Rank: 64
+  - Alpha: 16
+  - Target modules: Query, Key, Value projections, MLP layers
+- **Training Data**: 10,896 conversations (16.5M tokens)
+- **Hardware Requirements**:
+  - Training: Consumer GPU (tested on NVIDIA RTX 3050)
+  - Inference: CPU or GPU with 6GB+ VRAM
 
-## 🏗️ Dataset Features
+## 📊 Training Dataset
 
-- **Rich Financial Content**: Expertly curated financial conversations from multiple sources
-- **Multi-Turn Interactions**: Natural conversational flow with multi-turn context awareness
-- **Enhanced Readability**: Automatic sentence grouping for improved text structure
-- **Cross-Domain Expertise**: Coverage of stocks, crypto, personal finance, and market analysis
-- **Structured Information**: List-based formatting for complex financial explanations
-- **Company-Specific Knowledge**: Dedicated QA pairs for company financial insights
-- **Natural Conversation Flow**: Professionally designed greeting and introduction templates
+The model was trained on a carefully curated dataset comprising:
 
-## 🔧 Installation
+| Dataset Type | Conversations | Tokens | Description |
+|--------------|---------------|--------|-------------|
+| Financial Introductions | 1,000 | 381K | Opening dialogues establishing financial advisory context |
+| Reddit Finance | 4,542 | 7.0M | Filtered discussions from financial subreddits |
+| Company-Specific Q&A | 1,354 | 1.0M | Financial information about specific companies |
+| Financial Definitions | 2,000 | 1.2M | Explanations of financial terms and concepts |
+| Finance Conversations | 2,000 | 7.0M | Detailed financial discussions on various topics |
+
+## 🛠️ Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/zahemen9900/FinsightAI.git
 cd FinsightAI
-#create a custom conda environment for the project (recommended)
-conda env create -f conda_config/transformer_LM.yml                                                                                                           
+
+# Create a conda environment (recommended)
+conda env create -f conda_config/transformer_LM.yml
+
+# Activate the environment
+conda activate transformer_LM
+
+# Install additional dependencies
+pip install -r requirements.txt
 ```
 
 ## 💻 Usage
 
-### Data Preparation
+### Running the Chat Interface
+
 ```bash
-python src/alignment/prepare_finetune_data.py
+# Launch the Gradio web interface
+python src/app/modern_chat.py
+
+# For Streamlit interface (alternative)
+python src/app/streamlit_chat.py
 ```
 
-### Training
+### Command-Line Chat
+
 ```bash
-# Full precision training
+# For quick command-line interaction
+python src/inference/chat_qlora.py --adapter_path="qlora_output"
+```
+
+### Training Your Own Model
+
+```bash
+# Generate and process dataset
+python src/alignment/run_dataset_pipeline.py --all
+
+# Run QLoRA fine-tuning
 python src/main/train.py
 
-# QLoRA training (recommended)
-python src/main/train_qlora.py
+# Evaluate model performance
+python src/evaluation/compute_base_metrics.py
+python src/evaluation/compute_qlora_metrics.py
+python src/evaluation/visualize_metrics.py --base_dir="metrics/base_model_evaluation_results" --qlora_dir="metrics/qlora_evaluation_results"
 ```
 
-## 📊 Training Details
+## 📈 Performance Evaluation
 
-- **Base Model**: HuggingFaceTB/SmolLM2-1.7B-Instruct
-- **Training Data**: Curated financial discussions from 43 subreddits
-- **Optimization**: QLoRA with 4-bit quantization
-- **Training Parameters**:
-  - Learning Rate: 2e-4
-  - Batch Size: 2 (effective 16 with gradient accumulation)
-  - LoRA Rank: 64
-  - LoRA Alpha: 16
-  - Training Steps: 1000
+The model was evaluated using standard NLP metrics across multiple financial datasets:
 
-## 📈 Performance
+![Metrics Comparison](visualizations/radar_chart_20250306_121621.png)
 
-*Coming soon - Model evaluation metrics and comparisons*
+For detailed metrics and visualizations, see the [research paper](metrics/research_paper.md) in this repository.
+
+## 🔍 Example Interactions
+
+**Query**: "What is dollar-cost averaging?"
+
+**FinSight Response**:
+
+
+
+## ⚙️ Advanced Configuration
+
+The model offers several configuration options for inference:
+
+- **Question Analysis**: Dynamically determines appropriate response length based on query complexity
+- **Context Window**: Configurable history length for multi-turn conversations
+- **Generation Parameters**: Adjustable temperature, top_p, and other parameters for response generation
+- **Deploy Modes**: Options for CPU, GPU, or quantized inference for different hardware capabilities
+
+## 🚧 Limitations
+
+- Financial data and knowledge is current as of training data cutoff
+- Not connected to the internet for real-time information
+- Cannot provide personalized financial advice tailored to specific individual circumstances
+- Model has not been extensively tested with non-English financial terminology
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Areas that could benefit from community involvement:
+
+- Data collection for additional financial domains
+- Multilingual support for financial conversations
+- Model optimizations for faster inference on mobile devices
+- Extended evaluation on specialized financial use cases
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📚 Citation
+
+If you use FinSight AI in your research, please cite:
+
+```
+@misc{FinSightAI2025,
+  author = {Zahemen, FinsightAI Team},
+  title = {FinSight AI: Enhancing Financial Domain Performance of Small Language Models Through QLoRA Fine-tuning},
+  year = {2025},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/zahemen9900/FinsightAI}}
+}
+```
+
 ## 🙏 Acknowledgments
 
-- HuggingFace team for SmolLM2
-- Reddit financial communities for training data
-- QLoRA paper authors for efficient fine-tuning techniques
-
+- HuggingFace team for SmolLM2 and Transformers library
+- QLoRA authors (Dettmers et al.) for the efficient fine-tuning technique
+- Financial domain experts who validated response quality
+- Open source community for tools and libraries used in this project

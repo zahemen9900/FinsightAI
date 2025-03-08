@@ -1,4 +1,4 @@
-# Enhancing Financial Domain Performance of Small Language Models Through QLoRA Fine-tuning
+# FinSight AI: Enhancing Financial Domain Performance of Small Language Models Through QLoRA Fine-tuning
 
 ## Abstract
 
