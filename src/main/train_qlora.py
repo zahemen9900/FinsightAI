@@ -181,7 +181,6 @@ def setup_quantized_model(model_args, training_args):
             "gate_proj",
             "up_proj",
             "down_proj",
-            "down_proj",
             "mixer_self_attention",  # Added for better attention
             "mixer_cross_attention", # Added for better attention
             "mixer_mlp",            # Added for better feature mixing

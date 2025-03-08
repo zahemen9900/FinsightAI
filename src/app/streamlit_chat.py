@@ -221,13 +221,13 @@ class StreamlitChat:
         # Set up streaming
         streamer = TextIteratorStreamer(
             self.tokenizer,
-            timeout=20.0,
+            timeout=30.0,
             skip_prompt=True,
             skip_special_tokens=True
         )
         
         # Generation configuration
-        max_new_tokens = self.analyze_question(message)
+        max_new_tokens = 512  #self.analyze_question(message)
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
