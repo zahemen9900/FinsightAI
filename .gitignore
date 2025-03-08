@@ -8,5 +8,8 @@ wandb/
 *.pyd
 *.ipynb_checkpoints/
 reddit_data_preprocessing.log
-metrics/
+metrics/base_model_evaluation_results
+metrics/other_visuals
+metrics/qlora_evaluation_results
+metrics/visualizations
 logs/
