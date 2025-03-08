@@ -274,7 +274,7 @@ class FinanceAdvisorBot:
             generation_kwargs = dict(
                 **inputs,
                 streamer=streamer,
-                max_new_tokens=self.analyze_question(message) if self.should_analyze_question else 512,
+                max_new_tokens= 2 * self.analyze_question(message) if self.should_analyze_question else 512,
                 temperature=0.3,
                 top_p=0.9,
                 do_sample=True,
@@ -310,9 +310,9 @@ class FinanceAdvisorBot:
 
 def create_demo():
     # Initialize bot
-    bot = FinanceAdvisorBot(should_analyze_question=False)
+    bot = FinanceAdvisorBot(should_analyze_question=True)
     
-    with gr.Blocks(theme=gr.themes.Ocean(),
+    with gr.Blocks(theme=gr.themes.Default(),
                   css="""
         /* Base container styling */
         .gradio-container {
@@ -322,9 +322,9 @@ def create_demo():
 
         /* Chat bubble styling */
         .chat-bubble {
-            border-radius: 15px !important;
+            border-radius: 12px !important;
             padding: 15px 20px !important;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
         }
         .chat-bubble.user {
             background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%) !important;
@@ -335,99 +335,109 @@ def create_demo():
             border: 1px solid #E0E0E0 !important;
         }
         
-        /* Modern Header Styling */
-        .custom-header {
+        /* Improved Header Styling with nerdy-yet-elegant look */
+        .header-container {
             text-align: center;
-            margin: -10px -10px -20px -10px;
-            padding: 30px 20px;
-            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #01579b 100%);
-            position: relative;
-            overflow: hidden;
-            max-width: 900px;
+            margin: -5px -5px 15px -5px;
+            padding: 18px;
+            background: linear-gradient(135deg, #252940 0%, #232B3C 100%);
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Animated gradient overlay */
-        .custom-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, 
-                rgba(33, 150, 243, 0.15) 0%,
-                rgba(3, 169, 244, 0.15) 25%,
-                rgba(0, 188, 212, 0.15) 50%,
-                rgba(3, 169, 244, 0.15) 75%,
-                rgba(33, 150, 243, 0.15) 100%);
-            animation: gradient 15s ease infinite;
-            background-size: 400% 400%;
-        }
-
-        /* Header content styling */
         .header-content {
             position: relative;
             z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .header-logo {
+            font-size: 1.8em;
+            margin-right: 0.6em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
         }
 
-        .custom-header h1 {
-            font-family: 'Inter', sans-serif !important;
-            font-weight: 800 !important;
+        .header-title {
+            font-family: 'JetBrains Mono', 'Space Mono', 'Fira Code', monospace !important;
+            font-weight: 700 !important;
             color: white !important;
-            font-size: 3.8em !important;
-            margin-bottom: 0.3rem !important;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            font-size: 2.2em !important;
+            margin: 0 !important;
+            line-height: 1.2 !important;
             letter-spacing: -0.5px !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
         }
 
-        .custom-header .logo {
-            font-size: 2.5em;
-            margin-right: 0.3em;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-
-        .custom-header p {
+        .header-subtitle {
             font-family: 'Inter', sans-serif !important;
-            font-size: 1.25em !important;
-            line-height: 1.6 !important;
-            color: rgba(255,255,255,0.95) !important;
-            margin: 1.2rem auto 0 !important;
-            max-width: 700px !important;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+            font-size: 0.95em !important;
+            color: rgba(255,255,255,0.85) !important;
+            margin: 4px 0 0 1px !important;
+            font-weight: 400 !important;
+        }
+        
+        .header-topics {
+            margin-left: auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
-        /* Accent elements */
-        .accent-box {
+        /* Updated accent tags with more tech feel */
+        .tag {
             display: inline-block;
-            padding: 0.3em 0.8em;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            margin: 0.5em;
-            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.25em 0.7em;
+            margin: 0.2em;
+            border-radius: 4px;
+            background: rgba(78, 199, 244, 0.15);
+            border: 1px solid rgba(78, 199, 244, 0.3);
+            font-size: 0.75em;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+            color: rgba(255,255,255,0.95);
         }
-
-        /* Animation keyframes */
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        
+        /* Import fonts - added nerdy coding fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&family=Space+Mono:wght@400;700&family=Fira+Code:wght@400;700&display=swap');
+        
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .header-content {
+                flex-direction: column;
+            }
+            .header-topics {
+                margin-left: 0;
+                margin-top: 10px;
+                justify-content: center;
+            }
+            .header-title {
+                font-size: 1.8em !important;
+            }
         }
-
-        /* Import fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     """) as demo:
         
-        # Enhanced header HTML with accent elements
+        # Updated header HTML with improved structure
         gr.HTML("""
-            <div class="custom-header">
+            <div class="header-container">
                 <div class="header-content">
-                    <h1>💡FinSight AI</h1>
-                    <p>Your intelligent financial companion, powered by advanced AI</p>
-                    <div>
-                        <span class="accent-box">💼 Personal Finance</span>
-                        <span class="accent-box">📈 Investments</span>
-                        <span class="accent-box">🎯 Financial Planning</span>
+                    <div class="header-logo">⚡</div>
+                    <div class="header-text">
+                        <div class="header-title">FinSight</div>
+                        <div class="header-subtitle">Financial intelligence, analytically delivered</div>
+                    </div>
+                    <div class="header-topics">
+                        <span class="tag">📊 Analytics</span>
+                        <span class="tag">📈 Markets</span>
+                        <span class="tag">💻 FinTech</span>
                     </div>
                 </div>
             </div>
@@ -436,6 +446,7 @@ def create_demo():
         # Create the chat interface with proper history handling
         chat_interface = gr.ChatInterface(
             bot.chat,
+            type="tuples",
             chatbot=gr.Chatbot(
                 height=600,
                 show_copy_button=True,
@@ -481,19 +492,4 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         pwa=True,
         share=True,
-        # favicon_path=str(favicon_path)
-    )
-
-    # if not favicon_path.exists():
-    #     # Either create a symlink to an existing favicon
-    #     # os.symlink("/path/to/existing/favicon.ico", favicon_path)
-    #     # Or touch an empty file
-    #     favicon_path.touch()
-    
-    # # demo = create_demo()
-    # # demo.queue().launch(
-    # #     server_name="0.0.0.0",
-    # #     pwa=True,
-    # #     share=True,
-    # #     favicon_path=str(favicon_path)
-    # # )
+        )
