@@ -11,3 +11,5 @@ reddit_data_preprocessing.log
 metrics/base_model_evaluation_results
 metrics/qlora_evaluation_results
 logs/
+.qodo/
+.qodo

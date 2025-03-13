@@ -139,7 +139,7 @@ class FinanceAdvisorBot:
     def analyze_question(self, question: str) -> int:
         """Enhanced question analysis with context-aware token control"""
         if not isinstance(question, str) or not question.strip():
-            return 128  # Default moderate length
+            return 160  # Default moderate length, 25% more than the minimum of 128
             
         question = question.lower().strip()
         
@@ -157,11 +157,11 @@ class FinanceAdvisorBot:
         
         # Complexity factors
         if len(question.split()) >= 20:
-            context_multiplier *= 1.4  # Longer questions need more detailed responses
+            context_multiplier *= 1.7  # Longer questions need more detailed responses
         if question.count('?') > 1:
-            context_multiplier *= 1.3  # Multiple questions need longer responses
+            context_multiplier *= 1.5  # Multiple questions need longer responses
         if re.search(r'\d+', question):
-            context_multiplier *= 1.2  # Questions with numbers often need more explanation
+            context_multiplier *= 1.4  # Questions with numbers often need more explanation
             
         # Topic-based adjustments
         financial_terms = {
@@ -182,11 +182,11 @@ class FinanceAdvisorBot:
         
         words = set(question.split())
         if any(term in question for term in financial_terms['complex']):
-            context_multiplier *= 1.5
+            context_multiplier *= 1.75
         elif any(term in question for term in financial_terms['moderate']):
-            context_multiplier *= 1.25
+            context_multiplier *= 1.5
         elif any(term in question for term in financial_terms['basic']):
-            context_multiplier *= 1.0
+            context_multiplier *= 1.25
             
         # Depth indicators
         depth_markers = {
@@ -206,15 +206,15 @@ class FinanceAdvisorBot:
             # Smart fallback based on question length and structure
             words = len(question.split())
             if words <= 5:
-                base_tokens = 64
-            elif words <= 10:
                 base_tokens = 96
-            elif words <= 15:
+            elif words <= 10:
                 base_tokens = 128
-            elif words <= 20:
+            elif words <= 15:
                 base_tokens = 160
-            else:
+            elif words <= 20:
                 base_tokens = 192
+            else:
+                base_tokens = 216
         
         final_tokens = int(base_tokens * context_multiplier)
         
