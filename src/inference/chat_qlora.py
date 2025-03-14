@@ -30,7 +30,7 @@ class FinanceAdvisor:
         max_length: int = 512,
         num_beams: int = 1,
         stream: bool = True,
-        should_analyze_question: bool = False  # Renamed from analyze_question
+        should_analyze_question: bool = True  # Renamed from analyze_question
     ):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
@@ -124,9 +124,9 @@ class FinanceAdvisor:
         }
 
     def analyze_question(self, question: str) -> int:
-        """Enhanced question analysis with context-aware token control"""
+        """Enhanced question analysis with context-aware token control for longer responses"""
         if not isinstance(question, str) or not question.strip():
-            return 128  # Default moderate length
+            return 192  # Increased default length
             
         question = question.lower().strip()
         
@@ -135,31 +135,34 @@ class FinanceAdvisor:
         primary_pattern = None
         for pattern_name, (pattern, tokens) in self.question_patterns.items():
             if re.search(pattern, question):
-                matched_tokens.append(tokens)
+                # Increase token count by 40% for each match to ensure longer responses
+                matched_tokens.append(int(tokens * 1.4))
                 if not primary_pattern:
                     primary_pattern = pattern_name
         
-        # Context-based adjustments
-        context_multiplier = 1.0
+        # Context-based adjustments with increased multipliers
+        context_multiplier = 1.3  # Start with higher base multiplier
         
-        # Complexity factors
+        # Complexity factors with enhanced multipliers
         if len(question.split()) >= 20:
-            context_multiplier *= 1.4  # Longer questions need more detailed responses
+            context_multiplier *= 1.9  # Increased from 1.7
+        elif len(question.split()) >= 10:
+            context_multiplier *= 1.6  # Added mid-length question handling
         if question.count('?') > 1:
-            context_multiplier *= 1.3  # Multiple questions need longer responses
+            context_multiplier *= 1.8  # Increased from 1.6
         if re.search(r'\d+', question):
-            context_multiplier *= 1.2  # Questions with numbers often need more explanation
+            context_multiplier *= 1.5  # Increased from 1.4
             
         # Topic-based adjustments
         financial_terms = {
             'complex': {
                 'derivatives', 'options', 'futures', 'hedge', 'swap', 'volatility',
                 'correlation', 'beta', 'alpha', 'sharpe', 'portfolio', 'risk',
-                'technical analysis', 'fundamental analysis'
+                'technical analysis', 'fundamental analysis', 'arbitrage', 'liquidity'
             },
             'moderate': {
                 'stock', 'bond', 'fund', 'etf', 'dividend', 'interest', 'market',
-                'investment', 'trading', 'price', 'trend', 'chart'
+                'investment', 'trading', 'price', 'trend', 'chart', 'valuation', 'sector'
             },
             'basic': {
                 'money', 'save', 'spend', 'buy', 'sell', 'profit', 'loss',
@@ -169,44 +172,48 @@ class FinanceAdvisor:
         
         words = set(question.split())
         if any(term in question for term in financial_terms['complex']):
-            context_multiplier *= 1.5
+            context_multiplier *= 2.0  # Increased from 1.8
         elif any(term in question for term in financial_terms['moderate']):
-            context_multiplier *= 1.25
+            context_multiplier *= 1.7  # Increased from 1.4
         elif any(term in question for term in financial_terms['basic']):
-            context_multiplier *= 1.0
+            context_multiplier *= 1.4  # Increased from 1.25
             
         # Depth indicators
         depth_markers = {
-            'detailed': {'explain', 'detail', 'elaborate', 'analyze', 'describe'},
+            'detailed': {'explain', 'detail', 'elaborate', 'analyze', 'describe', 'comprehensive', 'thorough'},
             'brief': {'quick', 'brief', 'shortly', 'summary', 'tldr'}
         }
         
         if any(marker in words for marker in depth_markers['detailed']):
-            context_multiplier *= 1.3
+            context_multiplier *= 1.9  # Increased from 1.7
         elif any(marker in words for marker in depth_markers['brief']):
-            context_multiplier *= 0.7
-            
+            context_multiplier *= 1.0  # Changed from 0.9 to ensure even brief responses aren't too short
+        
+        # Conversation history context adjustment - provide longer responses as conversation deepens
+        if len(self.conversation_history) >= 2:
+            context_multiplier *= 1.2
+        
         # Calculate final token count
         if matched_tokens:
             base_tokens = max(matched_tokens)
         else:
-            # Smart fallback based on question length and structure
+            # Smart fallback based on question length and structure with increased baselines
             words = len(question.split())
             if words <= 5:
-                base_tokens = 64
+                base_tokens = 128  # Increased from 96
             elif words <= 10:
-                base_tokens = 96
+                base_tokens = 160  # Increased from 128
             elif words <= 15:
-                base_tokens = 128
+                base_tokens = 192  # Increased from 160
             elif words <= 20:
-                base_tokens = 160
+                base_tokens = 224  # Increased from 192
             else:
-                base_tokens = 192
+                base_tokens = 256  # Increased from 216
         
         final_tokens = int(base_tokens * context_multiplier)
         
-        # Ensure tokens stay within reasonable bounds
-        return max(48, min(final_tokens, 512))
+        # Ensure tokens stay within reasonable bounds but with higher minimum
+        return max(96, min(final_tokens, 512))
 
     def generate_response(
         self,
@@ -219,7 +226,7 @@ class FinanceAdvisor:
 
         # Keep conversation history manageable
         if len(self.conversation_history) > 4:
-            self.conversation_history = self.conversation_history[-4:]
+            self.conversation_history = self.conversation_history[-2:]
 
         # Format messages with system prompt reinforcement
         messages = [self.system_prompt]
@@ -227,10 +234,6 @@ class FinanceAdvisor:
         # Add a brief system reminder before each user message
         if self.conversation_history:
             messages.extend(self.conversation_history)
-            # messages.append({
-            #     "role": "system",
-            #     "content": "Remember to provide professional financial guidance."
-            # })
         
         messages.append({"role": "user", "content": prompt})
 
