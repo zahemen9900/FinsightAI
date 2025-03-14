@@ -13,23 +13,16 @@ Your intelligent financial companion, powered by advanced AI.
 
 </div>
 
+<div align="center">
+  <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/97d7cacfff62e7b6099ef3bb0af9cf3d044a5b35/metrics/model_paper.md" target="_blank">Read Model Paper 📄</a></h4>
+</div>
+
+
 ## 📋 Overview
 
 FinSight AI is a specialized financial advisory assistant built by fine-tuning SmolLM2-1.7B-Instruct using QLoRA (Quantized Low-Rank Adaptation). The model has been trained on a comprehensive dataset of financial conversations to provide accurate, concise, and helpful information across various financial domains including personal finance, investing, market analysis, and financial planning.
 
-## 🏆 Key Results
-
-- **Substantial Performance Improvements**:
-  - 135.36% improvement in BLEU score
-  - 79.48% improvement in ROUGE-2 score
-  - 24.00% improvement in ROUGE-L score
-  - 12.57% improvement in ROUGE-1 score
-
-- **Enhanced Capabilities**:
-  - 90.3% increase in financial terminology usage
-  - More precise and structured responses
-  - Better handling of numerical information
-  - Improved technical accuracy in finance domains
+Our evaluation demonstrates significant performance improvements across all standard NLP metrics **(ROUGE-1 , ROUGE-2, ROUGE-L & BLEU)**, showcasing the effectiveness of our domain-specific training approach. The model exhibits enhanced capabilities with richer financial terminology usage, more precise responses, improved handling of numerical data, and greater technical accuracy - all while maintaining a compact, resource-efficient architecture suitable for deployment on consumer hardware.
 
 ## 🚀 Features
 
@@ -56,15 +49,7 @@ FinSight AI is a specialized financial advisory assistant built by fine-tuning S
 
 ## 📊 Training Dataset
 
-The model was trained on a carefully curated dataset comprising:
-
-| Dataset Type | Conversations | Tokens | Description |
-|--------------|---------------|--------|-------------|
-| Financial Introductions | 1,000 | 381K | Opening dialogues establishing financial advisory context |
-| Reddit Finance | 4,542 | 7.0M | Filtered discussions from financial subreddits |
-| Company-Specific Q&A | 1,354 | 1.0M | Financial information about specific companies |
-| Financial Definitions | 2,000 | 1.2M | Explanations of financial terms and concepts |
-| Finance Conversations | 2,000 | 7.0M | Detailed financial discussions on various topics |
+the details of the datasets used can be found [here](https://github.com/zahemen9900/Datasets-for-Finsight.git). The scripts for generating these datasets can be found at `src/alignment`.
 
 ## 🛠️ Installation
 
@@ -119,11 +104,7 @@ python src/evaluation/visualize_metrics.py --base_dir="metrics/base_model_evalua
 
 ## 📈 Performance Evaluation
 
-The model was evaluated using standard NLP metrics across multiple financial datasets:
-
-![Metrics Comparison](visualizations/radar_chart_20250306_121621.png)
-
-For detailed metrics and visualizations, see the [research paper](metrics/research_paper.md) in this repository.
+The model was evaluated using standard NLP metrics across multiple financial datasets. More details [here](https://github.com/zahemen9900/Datasets-for-Finsight.git).
 
 ## 🔍 Example Interactions
 
