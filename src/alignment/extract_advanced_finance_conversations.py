@@ -176,34 +176,19 @@ class AdvancedFinanceConversationExtractor:
     def extract_qa_pairs(self) -> List[AdvancedQAPair]:
         """Extract Q&A pairs while preserving formatting and structure."""
         qa_pairs = []
-        current_question = None
-        current_answer = []
-        question_pattern = re.compile(r"Question \d+:(.*?)(?=Answer:)", re.DOTALL)
         
         try:
             with open(self.input_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 
-            # Split by delimiter (the line of dashes)
-            sections = content.split("-" * 80)
+            # More robust pattern to extract QA pairs
+            qa_pattern = re.compile(r'Question\s+\d+:(.*?)Answer:(.*?)(?=-{80}|\Z)', re.DOTALL)
+            matches = qa_pattern.findall(content)
             
-            for section in tqdm(sections, desc="Extracting QA pairs"):
-                if not section.strip():
-                    continue
-                    
-                # Extract question
-                question_match = question_pattern.search(section)
-                if not question_match:
-                    continue
-                    
-                question = question_match.group(1).strip()
-                
-                # Extract answer
-                answer_start = section.find("Answer:")
-                if answer_start == -1:
-                    continue
-                    
-                answer = section[answer_start + 7:].strip()
+            # Process extracted matches
+            for question_text, answer_text in tqdm(matches, desc="Extracting QA pairs"):
+                question = question_text.strip()
+                answer = answer_text.strip()
                 
                 # Skip empty pairs
                 if not question or not answer:
@@ -225,12 +210,23 @@ class AdvancedFinanceConversationExtractor:
                     complexity=complexity,
                     topics=topics
                 ))
-        
+            
         except Exception as e:
             logger.error(f"Error extracting QA pairs: {e}")
+            logger.error("Try running fix_question_format.py on the input file first")
             return []
         
-        logger.info(f"Extracted {len(qa_pairs)} QA pairs")
+        if not qa_pairs:
+            logger.warning("No QA pairs extracted. Check input file format or run fix_question_format.py")
+            try:
+                with open(self.input_file, 'r', encoding='utf-8') as f:
+                    sample = f.read(500)  # Read first 500 chars for debugging
+                    logger.debug(f"Sample of file content:\n{sample}")
+            except Exception as e:
+                logger.error(f"Error reading sample: {e}")
+        else:
+            logger.info(f"Extracted {len(qa_pairs)} QA pairs")
+        
         return qa_pairs
 
     def _detect_category(self, text: str) -> str:
@@ -341,30 +337,72 @@ class AdvancedFinanceConversationExtractor:
                                       complexity_preference: str = None,
                                       category_focus: str = None) -> Dict:
         """Create a structured conversation with controlled complexity and focus."""
+        # Special case for single QA pair - create a simple conversation
+        if len(qa_pairs) == 1:
+            logger.warning("Only one QA pair available - creating single-turn conversation")
+            qa = qa_pairs[0]
+            system_prompt = random.choice(self.system_prompt_variations)
+            
+            conversation = {
+                "id": self.generate_conversation_id(),
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": qa.question},
+                    {"role": "assistant", "content": qa.answer}
+                ],
+                "metadata": {
+                    "source": "advanced_finance_qa",
+                    "turns": 1,
+                    "categories": [qa.category],
+                    "complexity": qa.complexity,
+                    "topics": qa.topics,
+                    "has_formulas": qa.has_formula,
+                    "has_steps": qa.has_steps,
+                    "single_qa_mode": True
+                }
+            }
+            return conversation
+        
+        # Normal case - multiple QA pairs
         # Filter QA pairs based on preferences
-        filtered_pairs = qa_pairs
+        filtered_pairs = qa_pairs.copy()
         
-        if complexity_preference:
-            filtered_pairs = [qa for qa in filtered_pairs if qa.complexity == complexity_preference]
+        # If we have enough pairs total, apply filtering. Otherwise, skip filtering.
+        if len(filtered_pairs) >= self.min_turns * 2:
+            if complexity_preference:
+                complexity_filtered = [qa for qa in filtered_pairs if qa.complexity == complexity_preference]
+                if len(complexity_filtered) >= self.min_turns:
+                    filtered_pairs = complexity_filtered
+            
+            if category_focus:
+                category_filtered = [qa for qa in filtered_pairs if qa.category == category_focus 
+                                 or category_focus in qa.topics]
+                if len(category_filtered) >= self.min_turns:
+                    filtered_pairs = category_filtered
         
-        if category_focus:
-            filtered_pairs = [qa for qa in filtered_pairs if qa.category == category_focus 
-                             or category_focus in qa.topics]
-            
-        # If filters eliminated too many pairs, fall back to all pairs
-        if len(filtered_pairs) < self.min_turns:
-            filtered_pairs = qa_pairs
-            
-        # Select a random starting QA pair
+        # Select available QA pairs (not used too many times)
         available_indices = [i for i, qa in enumerate(filtered_pairs) 
                             if self.qa_usage_counter.get(i, 0) < self.max_reuses]
         
-        if not available_indices:
-            logger.warning("No available QA pairs for new conversation")
+        # If we don't have enough unused pairs, try using pairs that are less used
+        if len(available_indices) < self.min_turns:
+            # Fall back - use any pairs with the lowest usage count
+            if filtered_pairs:
+                min_usage = min(self.qa_usage_counter.get(i, 0) for i in range(len(filtered_pairs)))
+                available_indices = [i for i, qa in enumerate(filtered_pairs) 
+                                   if self.qa_usage_counter.get(i, 0) == min_usage]
+        
+        # If still not enough, just fail
+        if len(available_indices) < self.min_turns:
+            logger.debug(f"Only {len(available_indices)} QA pairs available, need at least {self.min_turns}")
             return None
         
         # Determine number of turns for this conversation
-        num_turns = random.randint(self.min_turns, min(self.max_turns, len(available_indices)))
+        adjusted_max_turns = min(self.max_turns, len(available_indices))
+        adjusted_min_turns = min(self.min_turns, adjusted_max_turns)
+        
+        # This will now always provide a valid range
+        num_turns = random.randint(adjusted_min_turns, adjusted_max_turns)
         
         # Choose system prompt
         system_prompt = random.choice(self.system_prompt_variations)
@@ -487,31 +525,41 @@ class AdvancedFinanceConversationExtractor:
                 "advanced": 0.2
             }
             
-            # Extract available categories from QA pairs
+            # Extract available categories from QA pairs and ensure we have more than one
             categories = list(set([qa.category for qa in qa_pairs]))
+            if not categories:
+                categories = ["general"]
+            
+            # Use equal distribution for available categories
             category_distribution = {cat: 1/len(categories) for cat in categories}
             
+            # Counter to avoid infinite loops
+            attempts = 0
+            max_attempts = self.target_conversations * 5  # Reasonable limit
+            
             # Generate conversations with varying complexity and focus
-            while len(conversations) < self.target_conversations:
-                # For 60% of conversations, choose specific complexity
-                if random.random() < 0.6:
+            while len(conversations) < self.target_conversations and attempts < max_attempts:
+                attempts += 1
+                
+                # For 40% of conversations, don't filter by complexity to increase success rate
+                if random.random() < 0.4:
+                    complexity = None
+                else:
                     complexity = random.choices(
                         list(complexity_distribution.keys()),
                         weights=list(complexity_distribution.values()),
                         k=1
                     )[0]
-                else:
-                    complexity = None
                 
-                # For 50% of conversations, focus on a specific category
-                if random.random() < 0.5:
-                    category = random.choices(
-                        list(category_distribution.keys()),
-                        weights=list(category_distribution.values()),
-                        k=1
-                    )[0]
-                else:
+                # For 60% of conversations, don't filter by category to increase success rate
+                if random.random() < 0.6 or not categories or len(categories) == 1:
                     category = None
+                else:
+                    # Safely handle the category selection
+                    try:
+                        category = random.choice(categories)  # Use simpler random.choice instead of choices
+                    except (IndexError, ValueError):
+                        category = None
                 
                 # Create the conversation
                 conversation = self.create_structured_conversation(
@@ -533,7 +581,7 @@ class AdvancedFinanceConversationExtractor:
                     logger.warning("All QA pairs have reached maximum reuse limit")
                     break
         
-        logger.info(f"Generated {len(conversations)} conversations")
+        logger.info(f"Generated {len(conversations)} conversations in {attempts} attempts")
         return conversations
 
     def save_conversations(self, conversations: List[Dict]) -> None:
