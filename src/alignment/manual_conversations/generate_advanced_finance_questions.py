@@ -49,7 +49,7 @@ class AdvancedFinanceQuestionGenerator:
     def _init_financial_data(self):
         """Initialize financial data for generating realistic scenarios."""
         self.income_brackets = [
-            (30000, 50000), (50001, 75000), (75001, 100000),
+           (10000, 30000) , (30001, 50000), (50001, 75000), (75001, 100000),
             (100001, 150000), (150001, 250000), (250001, 500000)
         ]
         
@@ -88,144 +88,152 @@ class AdvancedFinanceQuestionGenerator:
         # Personalized Financial Advice Templates
         self.personalized_advice_templates = [
             # Basic Financial Planning
-            "I make ${income} per month. How should I budget this for essential expenses, savings, and investments?",
-            "I have ${amount} saved up. What's the best way to start investing with this amount?",
-            "Making ${income} annually, how can I create an emergency fund while paying off ${debt_amount} in {debt_type}?",
-            "I'm {age} with ${savings} saved. How should I plan for retirement?",
+            "I make ${income} per month after taxes. How should I actually divide this between bills, saving some money, and maybe investing a little?",
+            "I've managed to save ${amount} and it's just sitting in my checking account. What should a regular person like me do with it?",
+            "I earn ${income} a year and have ${debt_amount} in {debt_type} that's stressing me out. How can I build an emergency fund while dealing with this debt?",
+            "I'm {age} and only have ${savings} put away so far. Am I behind on retirement savings and what can I do about it?",
             
             # Intermediate Planning
-            "With an annual income of ${income} and ${savings} in savings, how should I allocate my monthly budget "
-            "to reach my goal of {goal} in {timeframe} years?",
-            "I'm {age} years old, earning ${income}/year with ${debt_amount} in {debt_type} debt. "
-            "What's the most efficient strategy to become debt-free while still saving for retirement?",
-            "How should I restructure my budget after a salary increase from ${old_income} to ${new_income}?",
+            "I take home ${income} annually with ${savings} in the bank. How should I budget each month to achieve my {goal} within {timeframe} years without feeling deprived?",
+            "I'm {age}, make ${income}/year, and still have ${debt_amount} in {debt_type} hanging over me. What's a practical way to get debt-free while still saving something for retirement?",
+            "My salary just went up from ${old_income} to ${new_income} after taxes. How should I adjust my spending and saving so I don't waste this opportunity?",
             
             # Complex Planning
-            "With ${income} income, ${savings} savings, and ${debt_amount} total debt across {debt_types}, "
-            "how should I optimize my financial strategy for {goals}?",
-            "I'm {age} with {dependents} dependents, ${income} income, and a {risk_tolerance} risk tolerance. "
-            "How should I balance college savings, retirement, and ${debt_amount} mortgage debt?",
-            "Given my {risk_tolerance} risk profile and ${portfolio_size} portfolio, how should I rebalance "
-            "between {asset_types} considering my {timeframe}-year horizon and {goal}?",
+            "I bring home ${income}, have ${savings} saved up, and owe ${debt_amount} across {debt_types}. How should a normal person like me handle all this while working toward {goals}?",
+            "I'm {age} with {dependents} kids, making ${income}, and consider myself {risk_tolerance} with money. How do I juggle saving for college, retirement, and paying down my ${debt_amount} mortgage?",
+            "I have a ${portfolio_size} investment portfolio and a {risk_tolerance} approach to risk. Should I change how much I have in {asset_types} for my {timeframe}-year timeline to reach {goal}?",
             
             # Career-based Financial Planning
-            "As a {age}-year-old professional considering a career change from a ${income} position to entrepreneurship, "
-            "how should I adjust my finances with ${savings} in savings and {dependents} dependents?",
-            "I'm transitioning to a contract role paying ${income} from a salaried position. How should I manage taxes, "
-            "health insurance, and retirement with ${savings} saved and a {risk_tolerance} risk profile?",
+            "I'm {age} and thinking about quitting my ${income} job to start my own business. With ${savings} saved up and {dependents} people depending on me, what should I consider financially?",
+            "I'm switching from a steady paycheck to contract work making around ${income}. How should a regular person handle taxes, health insurance and retirement with ${savings} in savings and a {risk_tolerance} personality?",
             
             # Life Event Financial Planning
-            "I'm planning to buy a home in {timeframe} years with ${savings} saved. How should I prepare financially "
-            "while earning ${income} and managing ${debt_amount} in student loans?",
-            "I'm expecting a child in 6 months. With ${income} household income and ${savings} savings, how should "
-            "we adjust our financial plan, considering our {goal} and {timeframe}-year timeline?",
-            "I'm {age} years old and recently inherited ${savings}. How should I incorporate this into my financial plan "
-            "with my existing ${income} income and {risk_tolerance} risk tolerance?",
+            "I want to buy a house in {timeframe} years and have ${savings} saved. While making ${income} and still paying off ${debt_amount} in student loans, what's a realistic plan?",
+            "Baby on the way in 6 months! We make ${income} combined and have ${savings} saved up. How should we rethink our finances with {goal} in mind and {timeframe}-year timeline?",
+            "I'm {age} and just inherited ${savings} from a relative. As someone making ${income} with a {risk_tolerance} approach to money, what should I actually do with this inheritance?",
             
             # Geographic Financial Planning
-            "I'm relocating from a low-cost area to a high-cost city for a job paying ${income}. How should I adjust my "
-            "budget and investment strategy with ${savings} savings and ${debt_amount} remaining mortgage?",
-            "I'm planning to retire abroad in {timeframe} years. How should I restructure my ${portfolio_size} portfolio "
-            "and plan for currency exchange risks with {risk_tolerance} risk tolerance?"
+            "I'm moving to an expensive city for a job paying ${income}. With ${savings} saved and still owing ${debt_amount} on my old mortgage, how do I adjust my budget?",
+            "I'm hoping to retire in another country in {timeframe} years. How should I adjust my ${portfolio_size} investments to handle currency risks with my {risk_tolerance} risk tolerance?",
+            
+            # Crypto-Focused Planning
+            "I'm curious about Bitcoin and have ${amount} I could invest. Is crypto something a regular person like me should even consider with my ${income} salary?",
+            "I've heard people make money with crypto. With ${savings} saved and a {risk_tolerance} approach, should I put some money in Bitcoin or Ethereum alongside my regular investments?",
+            "Between my ${portfolio_size} traditional investments and growing interest in crypto, how much should someone making ${income} realistically put into digital currencies?",
+            "I have ${amount} I want to invest in crypto, but I'm {age} with {timeframe} years until retirement. Is this too risky for my situation?",
+            
+            # Stock Market Planning
+            "I want to try buying individual stocks with ${savings} of my savings. As someone making ${income}, should I do this or stick with safer options?",
+            "I keep hearing about index funds versus picking stocks. With my ${income} income and {risk_tolerance} personality, which approach makes more sense?",
+            "My friend says I should put my ${amount} bonus into tech stocks. With my {goal} and {timeframe}-year timeline, is this actually a good idea?",
+            "I'm {age} with ${savings} saved and wondering if dividend stocks are better than growth stocks for someone with my {risk_tolerance} approach to investing?"
         ]
 
         # Investment Strategy Templates
         self.investment_strategy_templates = [
             # Basic Investment
-            "What's the best way to invest ${amount} as a beginner?",
-            "Should I invest in individual stocks or stick to index funds with ${amount}?",
-            "How do I start building a dividend portfolio with ${amount}?",
-            "I've only got ${amount} to invest after paying bills. Is it even worth investing such a small amount?",
-            "I've never invested before and have ${amount} saved up. What's the safest way to start?",
+            "I'm a complete beginner and have ${amount} saved up. What's the easiest way to start investing?",
+            "Everyone talks about stocks vs. index funds. With my ${amount} savings, which one makes more sense for a regular person like me?",
+            "I keep hearing about dividend stocks. How can I build a simple dividend portfolio with my ${amount} savings?",
+            "After paying rent and bills, I only have ${amount} left each month. Is it even worth investing such a small amount or should I just save it?",
+            "I've never bought stocks before and have ${amount} I want to invest. What's the least risky way for a first-timer?",
             
             # Intermediate Investment
-            "How should I rebalance my portfolio of {assets} during {market_condition}?",
-            "What's the optimal asset allocation for a ${portfolio_size} portfolio with a {timeframe}-year horizon?",
-            "How should I diversify ${amount} across {num_assets} different asset classes?",
-            "I've been putting ${amount} monthly into my 401(k) but the balance seems stagnant. What am I doing wrong?",
-            "Between paying off my ${debt_amount} debt and investing ${amount}, which should I prioritize?",
+            "My portfolio has {assets} but I'm confused about rebalancing during this {market_condition}. What should a regular investor like me do?",
+            "I've saved up ${portfolio_size} for retirement. How should I spread this money around for a {timeframe}-year timeline?",
+            "I've got ${amount} and want to try diversifying across {num_assets} different things like stocks, bonds, and maybe some crypto. How would you split it up?",
+            "I contribute ${amount} monthly to my 401(k) but it doesn't seem to be growing. What am I doing wrong as an average investor?",
+            "I'm torn between paying off my ${debt_amount} credit card debt and investing ${amount} in stocks. Which should come first?",
             
             # Advanced Investment
-            "With a ${portfolio_size} portfolio focused on {strategy}, what adjustments would you recommend "
-            "given {market_condition} and {economic_indicators}?",
-            "How should I implement a factor investing strategy with ${amount} focusing on {factors}?",
-            "What options strategies would be suitable for a ${portfolio_size} portfolio during {market_condition}?",
+            "My ${portfolio_size} portfolio follows a {strategy} approach, but with this {market_condition} and {economic_indicators}, should I change anything?",
+            "I've been reading about factor investing. How can someone like me implement this strategy with ${amount} focusing on {factors}?",
+            "Are options trading strategies realistic for a regular person with a ${portfolio_size} portfolio during this {market_condition}, or is that too risky?",
+            
+            # Crypto-Focused Questions
+            "Is it smart for someone like me to put some of my ${amount} savings into Bitcoin or Ethereum, or is crypto still too risky for regular folks?",
+            "I've heard about staking crypto to earn passive income. Would it make sense to move ${amount} from my savings into staking platforms?",
+            "Between established cryptocurrencies and newer altcoins, where should a cautious investor with ${amount} focus?",
+            "How much of my ${portfolio_size} portfolio should realistically go into crypto as part of a balanced strategy?",
+            
+            # Stock-Focused Questions
+            "I want to try picking individual stocks with ${amount}. How many different companies should a beginner investor buy?",
+            "Everyone's talking about tech stocks. Should I put my ${amount} savings in big tech companies or spread it around different sectors?",
+            "Between growth stocks and value stocks, what makes more sense for my ${amount} investment and {timeframe}-year horizon?",
+            "How do I research stocks properly before investing my hard-earned ${amount}? What numbers should regular people focus on?",
             
             # Financial Hardship Scenarios
-            "I lost my job and only have ${amount} in savings. Should I keep it as cash or invest some portion?",
-            "After medical bills, I only have ${amount} left each month. Is investing even possible for me?",
-            "I'm working two jobs and can save ${amount} monthly. What's the best investment strategy for someone with limited time?",
-            "I'm behind on retirement at age {age} with only ${savings} saved. What aggressive but sensible investment approach should I take?",
+            "I got laid off and only have ${amount} in savings. Should I keep it all as emergency cash or still invest some portion?",
+            "After paying medical bills, I can only save ${amount} monthly. Is there any investment strategy that makes sense for my situation?",
+            "Between two part-time jobs, I manage to save ${amount} each month. What's the best way to invest when I'm stretched thin?",
+            "I'm {age} years old with only ${savings} saved for retirement. What catching-up strategy would work for a regular person in my shoes?",
             
             # Financial Abundance Scenarios
-            "I received a bonus of ${amount}. Should I add it to my existing investments or try something new?",
-            "My portfolio has grown to ${portfolio_size}. At what point should I consider hiring a financial advisor?",
-            "I've maxed out my 401(k) and IRA and still have ${amount} to invest monthly. Where should I put it?",
-            "After selling my business for ${amount}, how should I invest this windfall for long-term growth and tax efficiency?",
+            "I just got a ${amount} work bonus. Should I add it to my existing investments or try something new like crypto?",
+            "My portfolio surprisingly grew to ${portfolio_size}. At what point should an average person like me consider getting professional advice?",
+            "I've maxed out my retirement accounts and still have ${amount} left monthly. Where should a regular person put their extra money?",
+            "I sold my house and have ${amount} extra after buying a new one. How should I invest this windfall as someone who isn't a finance expert?",
             
             # Life Transition Scenarios
-            "I'm {age} and just inherited ${amount}. How should I invest it differently than my existing ${portfolio_size} portfolio?",
-            "I'm about to retire with ${portfolio_size}. How should I restructure my investments to generate ${amount} monthly income?",
-            "I'm a single parent with ${amount} to invest and need to prioritize both safety and my child's college fund. What's my best approach?",
-            "After divorce, I'm starting over with ${amount}. What investment strategy balances my need for growth and security?"
+            "I'm {age} and just inherited ${amount} from my grandparent. How should I invest it differently than my current ${portfolio_size} savings?",
+            "I'm preparing to retire with ${portfolio_size}. How do I restructure my investments to get ${amount} monthly income without complicated strategies?",
+            "As a single parent with ${amount} to invest, how can I balance building both an emergency fund and my child's college savings?",
+            "After my divorce, I'm basically starting over with ${amount}. What simple investment approach gives me both growth potential and security?"
         ]
-
         # Market Analysis Templates
         self.market_analysis_templates = [
             # Basic Analysis
-            "What does a P/E ratio of {pe_ratio} tell us about {company}?",
-            "How do I interpret {company}'s dividend yield of {dividend_yield}%?",
-            "What's the significance of {company}'s market cap of ${market_cap}?",
+            "I noticed {company} has a P/E ratio of {pe_ratio}. Is this considered overvalued for their sector?",
+            "As an income investor, is {company}'s {dividend_yield}% dividend yield sustainable based on their financials?",
+            "I'm researching {company} which has a market cap of ${market_cap}. What does this tell me about its stability and growth potential?",
             
             # Intermediate Analysis
-            "Compare {company1} and {company2}'s financial performance using their key metrics: {metrics}",
-            "How would {economic_event} impact {sector} stocks, particularly {company}?",
-            "Analyze {company}'s competitive position given {market_share}% market share and {growth_rate}% growth",
+            "I'm deciding between investing in {company1} or {company2}. How do they compare in terms of {metrics}?",
+            "How might the recent {economic_event} affect my investments in {sector} companies like {company}?",
+            "With {company} holding {market_share}% market share and growing at {growth_rate}%, is it likely to maintain its competitive edge?",
             
             # Advanced Analysis
-            "Given {company}'s latest earnings report showing {metrics}, evaluate its growth potential versus {competitor}",
-            "How would you value {company} using DCF analysis with {growth_rate}% growth and {wacc}% WACC?",
-            "Has {company}'s recently acquired {target_company} for ${deal_value}M considering {synergies}",
-            "Has {company} been undervalued or overvalued based on {ratios} compared to industry peers?",
-            "How would you assess {company}'s industry position and growth prospects in {industry}?"
+            "After reading {company}'s quarterly report showing {metrics}, should I consider it a better long-term investment than {competitor}?",
+            "I've tried valuing {company} using DCF with {growth_rate}% growth and {wacc}% WACC, but is this approach reliable given current market conditions?",
+            "{company} just acquired {target_company} for ${deal_value}M citing {synergies}. Will this actually create shareholder value?",
+            "Analysts say {company} is trading at {ratios} - are they getting a fair valuation compared to similar companies in their space?",
+            "I've been tracking {company} in the {industry} sector. Given current trends, does it make sense to invest for the next 3-5 years?"
         ]
 
         # Corporate Finance Templates
         self.corporate_finance_templates = [
             # Basic Corporate Finance
-            "How do you calculate a company's WACC?",
-            "What's the significance of a {de_ratio} debt-to-equity ratio?",
-            "How does a company's credit rating affect its cost of capital?",
+            "As an average investor, why should I care about {company}'s WACC and how would I calculate it?",
+            "When reading financial news about {company}, what does their {de_ratio} debt-to-equity ratio tell me about their financial health?",
+            "How does {company}'s recent credit rating change affect their ability to grow and potentially impact my investment?",
             
             # Intermediate Corporate Finance
-            "Calculate {company}'s enterprise value given: Market Cap=${market_cap}M, Debt=${debt}M, Cash=${cash}M",
-            "How should {company} finance a ${project_cost}M project given {metrics}?",
-            "Evaluate {company}'s dividend policy with {payout_ratio}% payout ratio and ${fcf}M free cash flow",
+            "I'm researching {company} for my portfolio - what's their true value considering Market Cap=${market_cap}M, Debt=${debt}M, and Cash=${cash}M?",
+            "If {company} announced a new ${project_cost}M expansion project with {metrics}, how might they pay for it and would this benefit shareholders?",
+            "As a dividend investor, should I be concerned about {company}'s {payout_ratio}% payout ratio with ${fcf}M free cash flow?",
             
             # Advanced Corporate Finance
-            "Calculate the enterprise value of {company} using DCF analysis, given: "
-            "Free Cash Flow=${fcf}M, Growth Rate={growth}%, WACC={wacc}%",
-            "Analyze {company}'s optimal capital structure given ${ebit}M EBIT, {tax_rate}% tax rate, and {metrics}",
-            "Value {company}'s IPO given {financials} and comparable companies trading at {multiples}"
+            "I'm considering investing in {company} long-term. Using their Free Cash Flow=${fcf}M, Growth Rate={growth}%, and WACC={wacc}%, what's a fair price for their stock?",
+            "Will {company}'s financing decisions benefit or hurt shareholders given their ${ebit}M annual earnings, {tax_rate}% tax rate, and {metrics}?",
+            "Is {company}'s upcoming IPO worth investing in based on {financials} when similar companies are valued at {multiples}?"
         ]
 
         # Tax Strategy Templates
         self.tax_strategy_templates = [
             # Basic Tax Planning
-            "How can I reduce my tax bill with a ${income} salary?",
-            "What tax deductions are available for a first-time homebuyer?",
-            "Should I choose a Traditional or Roth IRA given my ${income} income?",
+            "What tax strategies should someone with ${income} annual income consider to reduce their tax burden?",
+            "How can I optimize my tax situation with an annual income of ${income}?",
+            "What tax-advantaged accounts are recommended for someone making ${income} per year?",
             
             # Intermediate Tax Planning
-            "With ${income} income and ${investment_income} investment gains, how can I optimize my tax situation?",
-            "What's the most tax-efficient way to withdraw from my ${retirement_savings} retirement accounts?",
-            "How can I use tax-loss harvesting with my ${portfolio_size} portfolio?",
+            "If I make ${income} from my job and ${investment_income} from {income_type}, what tax planning strategies should I consider?",
+            "What's the most tax-efficient way to withdraw from my ${retirement_savings} in retirement?",
+            "How should I manage taxes on my ${portfolio_size} investment portfolio consisting of different asset types?",
             
             # Advanced Tax Planning
-            "With an income of ${income} and investments generating ${investment_income} "
-            "in {income_type}, what tax-optimization strategies would you recommend?",
-            "How can I minimize estate taxes on ${estate_value} assets using {strategies}?",
-            "What's the optimal structure for my ${business_value} business to minimize taxes while {goals}?"
+            "What tax strategies work best for someone with ${income} salary and ${investment_income} in {income_type}?",
+            "How can I protect my family's financial future and minimize taxes on my ${estate_value} estate using {strategies}?",
+            "I own a small business worth ${business_value} - what tax planning strategies should I consider for both business and personal taxes?"
         ]
 
     def generate_financial_profile(self) -> FinancialProfile:
@@ -469,13 +477,45 @@ class AdvancedFinanceQuestionGenerator:
         
         # Additional parameters needed for some templates
         company1 = random.choice([
-            "Apple", "Microsoft", "Amazon", "Google", "Meta",
-            "Tesla", "Nvidia", "JPMorgan", "Johnson & Johnson"
+            # Tech
+            "Apple", "Microsoft", "Amazon", "Google", "Meta", "Tesla", "Nvidia",
+            # Financial
+            "JPMorgan", "Goldman Sachs", "Visa", "Bank of America",
+            # Healthcare
+            "Johnson & Johnson", "UnitedHealth", "Pfizer",
+            # Retail
+            "Walmart", "Target", "Home Depot", "Costco",
+            # Energy
+            "ExxonMobil", "Chevron", "Shell", "BP",
+            # Industrial
+            "Boeing", "Caterpillar", "3M", "General Electric",
+            # Consumer Goods
+            "Procter & Gamble", "Coca-Cola", "PepsiCo", "Nike",
+            # International
+            "Toyota", "Samsung", "Alibaba", "HSBC", "Volkswagen", "Tencent", "Nestlé"
         ])
+
         company2 = random.choice([
-            "Intel", "AMD", "IBM", "Oracle", "Salesforce",
-            "Goldman Sachs", "Citigroup", "Pfizer", "Merck"
+            # Tech
+            "Intel", "AMD", "IBM", "Oracle", "Salesforce", "Adobe", "Dell", "PayPal",
+            # Financial
+            "Citigroup", "Wells Fargo", "American Express", "Morgan Stanley", "Mastercard",
+            # Healthcare
+            "Merck", "Novartis", "Eli Lilly", "AstraZeneca", "CVS Health",
+            # Retail
+            "Lowe's", "TJX", "Dollar General", "Best Buy", "Kroger",
+            # Energy
+            "ConocoPhillips", "Occidental", "Duke Energy", "NextEra Energy",
+            # Industrial
+            "Honeywell", "Lockheed Martin", "Union Pacific", "Deere & Company",
+            # Consumer Goods
+            "Unilever", "Colgate-Palmolive", "Kraft Heinz", "Adidas",
+            # Entertainment/Media
+            "Disney", "Netflix", "Warner Bros", "Spotify", "Sony",
+            # International
+            "Honda", "Siemens", "BASF", "JD.com", "Reliance Industries", "Roche"
         ])
+
         project_cost = random.randint(50, 500)
         interest_coverage = round(random.uniform(1.5, 8.0), 1)
         synergies = random.randint(50, 200)
@@ -579,7 +619,7 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default="/home/zahemen/datasets/advanced_finance_questions.txt",
+        default="/home/zahemen/datasets/advanced_finance_questions_.txt",
         help="Output file path"
     )
     
