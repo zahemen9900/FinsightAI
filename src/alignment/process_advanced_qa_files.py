@@ -30,7 +30,7 @@ def process_qa_files(
     output_dir: str = "/home/zahemen/datasets/sft_datasets",
     min_turns: int = 1,
     max_turns: int = 8,
-    num_conversations: int = 1000
+    num_conversations: int = 4000  # Updated default to 4000 as requested
 ) -> None:
     """
     Process QA files through the entire pipeline.

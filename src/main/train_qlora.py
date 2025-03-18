@@ -329,6 +329,11 @@ def train():
             "name": "finance_conversations",
             "proportion": 1.0
         },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_questions_conversations.jsonl",
+            "name": "advanced_finance_questions",
+            "proportion": 1.0
+        }
         # {
         #     "path": "/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250303_210949.jsonl",
         #     "name": "finsight_combined"

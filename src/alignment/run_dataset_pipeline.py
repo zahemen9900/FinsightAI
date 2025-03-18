@@ -73,6 +73,9 @@ class DatasetPipeline:
         if self.args.reddit:
             paths_to_check["Reddit dataset"] = self.data_dir / "reddit-finance-250k/Data.jsonl"
         
+        if self.args.advanced_finance:
+            paths_to_check["Advanced finance questions"] = self.data_dir / "advanced_finance_questions.txt"
+
         # Check paths
         missing_paths = []
         for name, path in paths_to_check.items():
@@ -324,6 +327,68 @@ class DatasetPipeline:
             self.results["errors"].append(error_msg)
             return None
     
+    def run_advanced_finance_conversations(self) -> Path:
+        """Generate advanced finance conversation dataset."""
+        console.rule("[bold cyan]Generating Advanced Finance Conversations Dataset")
+        
+        output_file = self.output_dir / "advanced_finance_conversations.jsonl"
+        
+        try:
+            # First verify the input file exists
+            input_file = self.data_dir / "advanced_finance_questions.txt"
+            if not input_file.exists():
+                raise FileNotFoundError(f"Advanced finance questions file not found: {input_file}")
+            
+            # Import the process_qa_files function from process_advanced_qa_files
+            from process_advanced_qa_files import process_qa_files
+            
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeElapsedColumn()
+            ) as progress:
+                task = progress.add_task("[green]Generating advanced finance conversations...", total=1)
+                
+                # Run the processing function
+                process_qa_files(
+                    input_file=str(input_file),
+                    output_dir=str(self.output_dir),
+                    min_turns=self.args.min_turns,
+                    max_turns=self.args.max_turns,
+                    num_conversations=self.args.num_advanced_finance_conversations
+                )
+                
+                progress.update(task, completed=1)
+            
+            # Verify the output was created (using the expected naming convention)
+            expected_output = self.output_dir / f"advanced_finance_conversations.jsonl"
+            if not expected_output.exists():
+                raise FileNotFoundError(f"Failed to generate advanced finance conversations output file: {expected_output}")
+            
+            # If file exists but has different name than our output_file, copy/rename it
+            if expected_output != output_file and expected_output.exists():
+                import shutil
+                shutil.copy2(expected_output, output_file)
+            
+            # Count number of records generated
+            count = self.count_jsonl_records(output_file)
+            if count == 0:
+                raise ValueError("Advanced finance conversations file was created but contains zero records")
+            
+            self.stats["advanced_finance_conversations"] = count
+            self.results["files_generated"].append({"file": str(output_file), "records": count})
+            
+            logger.info(f"✅ Advanced finance conversations dataset generated: {output_file} ({count:,} records)")
+            return output_file
+            
+        except Exception as e:
+            error_msg = f"Error generating advanced finance conversations: {e}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())  # Add detailed traceback
+            self.results["errors"].append(error_msg)
+            return None
+    
     def merge_datasets(self, input_files: List[Path]) -> Path:
         """Merge all generated datasets into one consolidated file."""
         console.rule("[bold cyan]Merging Datasets")
@@ -371,6 +436,13 @@ class DatasetPipeline:
                                         
                                         # Add source file information
                                         entry["metadata"]["source_file"] = file_name
+                                        
+                                        # Ensure "conversation_id" is present in metadata
+                                        if "id" in entry and "conversation_id" not in entry["metadata"]:
+                                            entry["metadata"]["conversation_id"] = entry["id"]
+                                            # Remove the top-level id field to maintain consistent schema
+                                            if "id" in entry:
+                                                del entry["id"]
                                         
                                         # Convert metadata arrays to strings
                                         for key, value in entry["metadata"].items():
@@ -500,6 +572,11 @@ class DatasetPipeline:
             generated_files.append(result)
             component_status["finance_convos"] = result is not None
         
+        if self.args.advanced_finance:
+            result = self.run_advanced_finance_conversations()
+            generated_files.append(result)
+            component_status["advanced_finance"] = result is not None
+        
         if self.args.company_qa:
             result = self.run_company_qa()
             generated_files.append(result)
@@ -580,6 +657,12 @@ def main():
     )
     
     parser.add_argument(
+        "--advanced-finance", 
+        action="store_true",
+        help="Generate advanced finance conversations dataset"
+    )
+    
+    parser.add_argument(
         "--company-qa", 
         action="store_true",
         help="Process company Q&A dataset"
@@ -626,6 +709,13 @@ def main():
     )
     
     parser.add_argument(
+        "--num-advanced-finance-conversations", 
+        type=int, 
+        default=4000,
+        help="Number of advanced finance conversations to generate"
+    )
+    
+    parser.add_argument(
         "--num-company-qa", 
         type=int, 
         default=2000,
@@ -653,13 +743,14 @@ def main():
         args.intro = True
         args.definitions = True
         args.finance_convos = True
+        args.advanced_finance = True
         args.company_qa = True
         args.reddit = True
         args.merge = True
     
     # If no components specified, show help and exit
     if not (args.intro or args.definitions or args.finance_convos or 
-            args.company_qa or args.reddit):
+            args.advanced_finance or args.company_qa or args.reddit):
         parser.print_help()
         console.print("\n[yellow]No dataset components selected. Use --all to run everything.[/]")
         sys.exit(1)

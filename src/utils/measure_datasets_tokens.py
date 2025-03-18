@@ -140,6 +140,10 @@ def main():
             "path": "/home/zahemen/datasets/sft_datasets/finance_conversations.jsonl",
             "name": "finance_conversations",
         },
+        {
+            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_questions_conversations.jsonl",
+            "name": "advanced_finance_questions",
+        }
         # {
         #     "path": "/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250303_210949.jsonl",
         #     "name": "finsight_combined"

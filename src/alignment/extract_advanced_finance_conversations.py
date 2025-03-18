@@ -42,7 +42,10 @@ class AdvancedFinanceConversationExtractor:
         max_turns: int = 8,
         max_reuses: int = 15,
         target_conversations: int = 1000,
-        use_progress: bool = True
+        use_progress: bool = True,
+        diversify_currency: bool = True,  # New parameter to control currency diversification
+        introduce_errors: bool = True,    # New parameter to control error introduction
+        error_rate: float = 0.3           # Percentage of questions that will have errors
     ):
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
@@ -172,6 +175,48 @@ class AdvancedFinanceConversationExtractor:
                 "Could you explain the underlying principles in more detail?"
             ]
         }
+
+        self.diversify_currency = diversify_currency
+        self.currency_options = [
+            {"name": "dollars", "symbol": "$", "regex": r'(\$|\bdollars?\b)'},
+            {"name": "pounds", "symbol": "£", "regex": r'(£|\bpounds?\b)'},
+            {"name": "euros", "symbol": "€", "regex": r'(€|\beuros?\b)'},
+            {"name": "cedis", "symbol": "₵", "regex": r'(₵|\bcedis\b)'},
+        ]
+        self.currency_distribution = {i: 0 for i, _ in enumerate(self.currency_options)}
+
+        self.introduce_errors = introduce_errors
+        self.error_rate = error_rate
+
+        # List of common company names to detect in questions
+        self.company_names = [
+            # Tech
+            "Apple", "Microsoft", "Amazon", "Google", "Meta", "Facebook", "Tesla", "Nvidia",
+            "Intel", "AMD", "IBM", "Oracle", "Salesforce", "Adobe", "Dell", "PayPal", "Qualcomm",
+            # Financial
+            "JPMorgan", "Goldman Sachs", "Visa", "Bank of America", "Citigroup", "Wells Fargo", 
+            "American Express", "Morgan Stanley", "Mastercard",
+            # Healthcare
+            "Johnson & Johnson", "UnitedHealth", "Pfizer", "Merck", "Novartis", "Eli Lilly", 
+            "AstraZeneca", "Moderna", "CVS Health",
+            # Retail
+            "Walmart", "Target", "Home Depot", "Costco", "Lowe's", "TJX", "Dollar General", 
+            "Best Buy", "Kroger",
+            # Energy
+            "ExxonMobil", "Chevron", "Shell", "BP", "ConocoPhillips", "Occidental", 
+            "Duke Energy", "NextEra Energy",
+            # Industrial
+            "Boeing", "Caterpillar", "3M", "General Electric", "Honeywell", "Lockheed Martin", 
+            "Airbus", "Union Pacific", "Deere & Company", "Ford", "GM",
+            # Consumer Goods
+            "Procter & Gamble", "Coca-Cola", "PepsiCo", "Nike", "Unilever", "Colgate-Palmolive", 
+            "Kraft Heinz", "Adidas", "McDonald's", "Starbucks",
+            # Entertainment/Media
+            "Disney", "Netflix", "Warner Bros", "Spotify", "Sony", "AT&T", "Verizon", "T-Mobile",
+            # International
+            "Toyota", "Samsung", "Alibaba", "HSBC", "Volkswagen", "Tencent", "Nestlé", "Honda", 
+            "Siemens", "BASF", "JD.com", "Reliance Industries", "Roche", "SAP"
+        ]
 
     def extract_qa_pairs(self) -> List[AdvancedQAPair]:
         """Extract Q&A pairs while preserving formatting and structure."""
@@ -332,6 +377,124 @@ class AdvancedFinanceConversationExtractor:
         
         return template
 
+    def _convert_currency(self, text: str, from_regex: str, to_symbol: str, to_name: str, use_symbol_in_question: bool) -> str:
+        """
+        Convert currency references in text from one currency to another.
+        With exceptions for "dollar-cost" and company-related questions.
+        
+        Args:
+            text: The text to modify
+            from_regex: Regex pattern to match the original currency
+            to_symbol: Target currency symbol
+            to_name: Target currency name
+            use_symbol_in_question: Whether to use symbol or name in questions
+            
+        Returns:
+            Modified text with new currency
+        """
+        # First check if this is a company-related question
+        # If it contains any company names, don't convert currency
+        if any(company.lower() in text.lower() for company in self.company_names):
+            return text
+        
+        # Check for special case "dollar-cost" which shouldn't be replaced
+        # Preserve "dollar-cost" term before any replacements
+        text = text.replace("dollar-cost", "DOLLARCOSTPLACEHOLDER")
+        text = text.replace("Dollar-cost", "DOLLARCOSTPLACEHOLDER_CAP")
+        text = text.replace("DOLLAR-COST", "DOLLARCOSTPLACEHOLDER_ALLCAP")
+        
+        # Check if this is a question (heuristic)
+        is_question = text.strip().endswith('?') or len(text.split()) < 30
+        
+        # For questions, use either symbol or name based on parameter
+        if is_question:
+            # Replace currency symbol/name with appropriate replacement
+            if use_symbol_in_question:
+                # Convert all currency references to symbol
+                text = re.sub(from_regex, to_symbol, text)
+            else:
+                # Special handling for "$X" format vs "X dollars" format
+                text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
+                text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
+        else:
+            # For answers, always use symbol
+            text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
+            text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_symbol + r'\1', text)  # 100 dollars -> €100
+            text = re.sub(r'\b(dollar|dollars)\b', to_name, text)  # dollars -> euros
+        
+        # Restore "dollar-cost" term in all its variations
+        text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
+        text = text.replace("DOLLARCOSTPLACEHOLDER_CAP", "Dollar-cost")
+        text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
+        
+        return text
+
+    def _introduce_random_errors(self, text: str) -> str:
+        """
+        Deliberately introduce errors to text to improve model robustness.
+        Applies up to 2 types of the following errors:
+        1. Remove punctuation
+        2. Convert to lowercase
+        3. Convert to uppercase
+        4. Distort spelling by omitting letters
+        
+        Args:
+            text: Original text to modify
+            
+        Returns:
+            Modified text with introduced errors
+        """
+        if not self.introduce_errors or random.random() > self.error_rate:
+            return text
+        
+        # Choose how many error types to apply (1 or 2)
+        num_errors = random.randint(1, 2)
+        
+        # Select random error types
+        error_types = random.sample([
+            "remove_punctuation",
+            "lowercase",
+            "uppercase",
+            "distort_spelling"
+        ], num_errors)
+        
+        modified_text = text
+        
+        for error_type in error_types:
+            if error_type == "remove_punctuation":
+                # Remove most punctuation except apostrophes in words
+                modified_text = re.sub(r'[.,?!;:"()\[\]{}]', '', modified_text)
+            
+            elif error_type == "lowercase":
+                modified_text = modified_text.lower()
+            
+            elif error_type == "uppercase":
+                modified_text = modified_text.upper()
+            
+            elif error_type == "distort_spelling":
+                words = modified_text.split()
+                distorted_words = []
+                
+                for word in words:
+                    # Only distort words that are at least 4 characters
+                    if len(word) >= 4 and random.random() < 0.4:
+                        # Remove 1-2 random letters (not first or last)
+                        if len(word) > 4:
+                            positions_to_remove = random.sample(range(1, len(word) - 1), min(2, len(word) - 2))
+                            distorted_word = ''.join([char for idx, char in enumerate(word) if idx not in positions_to_remove])
+                            distorted_words.append(distorted_word)
+                        else:
+                            # For shorter words, just remove one letter
+                            position = random.randint(1, len(word) - 2)
+                            distorted_word = word[:position] + word[position+1:]
+                            distorted_words.append(distorted_word)
+                    else:
+                        distorted_words.append(word)
+                        
+                modified_text = ' '.join(distorted_words)
+        
+        return modified_text
+
     def create_structured_conversation(self, 
                                       qa_pairs: List[AdvancedQAPair],
                                       complexity_preference: str = None,
@@ -343,15 +506,18 @@ class AdvancedFinanceConversationExtractor:
             qa = qa_pairs[0]
             system_prompt = random.choice(self.system_prompt_variations)
             
+            # Before applying currency conversion, apply error introduction to question
+            question = self._introduce_random_errors(qa.question)
+            
             conversation = {
-                "id": self.generate_conversation_id(),
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": qa.question},
+                    {"role": "user", "content": question},  # Use potentially modified question
                     {"role": "assistant", "content": qa.answer}
                 ],
                 "metadata": {
                     "source": "advanced_finance_qa",
+                    "conversation_id": self.generate_conversation_id(), # Move ID into metadata
                     "turns": 1,
                     "categories": [qa.category],
                     "complexity": qa.complexity,
@@ -361,6 +527,39 @@ class AdvancedFinanceConversationExtractor:
                     "single_qa_mode": True
                 }
             }
+            
+            # Add currency diversification if enabled
+            if self.diversify_currency:
+                # Select least used currency to maintain even distribution
+                currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
+                currency = self.currency_options[currency_idx]
+                self.currency_distribution[currency_idx] += 1
+                
+                # Decide whether to use symbol or name in questions (alternate)
+                use_symbol = random.choice([True, False])
+                
+                # Convert currency in question and answer
+                new_question = self._convert_currency(
+                    question,  # Use the potentially modified question
+                    r'(\$|\bdollars?\b)', 
+                    currency["symbol"], 
+                    currency["name"],
+                    use_symbol
+                )
+                
+                new_answer = self._convert_currency(
+                    qa.answer,
+                    r'(\$|\bdollars?\b)',
+                    currency["symbol"],
+                    currency["name"],
+                    False  # Always use symbols in answers
+                )
+                
+                # Update conversation with new currency
+                conversation["messages"][1]["content"] = new_question
+                conversation["messages"][2]["content"] = new_answer
+                conversation["metadata"]["currency"] = currency["name"]
+                
             return conversation
         
         # Normal case - multiple QA pairs
@@ -412,9 +611,12 @@ class AdvancedFinanceConversationExtractor:
         self.mark_qa_pair_used(start_idx)
         start_qa = filtered_pairs[start_idx]
         
+        # Apply error introduction to initial question
+        initial_question = self._introduce_random_errors(start_qa.question)
+        
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": start_qa.question},
+            {"role": "user", "content": initial_question},  # Use potentially modified question
             {"role": "assistant", "content": start_qa.answer}
         ]
         
@@ -423,8 +625,10 @@ class AdvancedFinanceConversationExtractor:
         
         # Add additional turns using follow-up questions
         for turn in range(num_turns - 1):
-            # Generate a follow-up based on the last QA pair
+            # Generate a follow-up and possibly introduce errors
             follow_up = self._generate_follow_up(start_qa)
+            follow_up = self._introduce_random_errors(follow_up)
+            
             messages.append({"role": "user", "content": follow_up})
             
             # Find an appropriate response from the QA pairs
@@ -477,10 +681,10 @@ class AdvancedFinanceConversationExtractor:
         
         # Create the conversation object
         conversation = {
-            "id": self.generate_conversation_id(),
             "messages": messages,
             "metadata": {
                 "source": "advanced_finance_qa",
+                "conversation_id": self.generate_conversation_id(), # Move ID into metadata
                 "turns": len(messages) // 2,  # Number of turns
                 "categories": list(set([qa.category for qa in [start_qa] + 
                                       [filtered_pairs[i] for i in used_in_conv if i != start_idx]])),
@@ -493,6 +697,44 @@ class AdvancedFinanceConversationExtractor:
                                 [filtered_pairs[i] for i in used_in_conv if i != start_idx])
             }
         }
+        
+        # Add currency diversification for multi-turn conversations if enabled
+        if self.diversify_currency:
+            # Select currency for this conversation
+            currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
+            currency = self.currency_options[currency_idx]
+            self.currency_distribution[currency_idx] += 1
+            
+            # Decide whether to use symbol or name in questions
+            use_symbol = random.choice([True, False])
+            
+            # Store original QA pairs for reference
+            original_pairs = []
+            for i in used_in_conv:
+                original_pairs.append((i, filtered_pairs[i].question, filtered_pairs[i].answer))
+            
+            # Update messages with converted currency
+            for i, msg in enumerate(messages):
+                if msg["role"] == "user":
+                    current_text = msg["content"]  # Already has errors introduced
+                    messages[i]["content"] = self._convert_currency(
+                        current_text,
+                        r'(\$|\bdollars?\b)',
+                        currency["symbol"],
+                        currency["name"],
+                        use_symbol
+                    )
+                elif msg["role"] == "assistant":
+                    messages[i]["content"] = self._convert_currency(
+                        msg["content"],
+                        r'(\$|\bdollars?\b)',
+                        currency["symbol"],
+                        currency["name"],
+                        False  # Always use symbols in answers
+                    )
+            
+            # Add currency information to metadata
+            conversation["metadata"]["currency"] = currency["name"]
         
         return conversation
 
@@ -626,6 +868,12 @@ class AdvancedFinanceConversationExtractor:
         logger.info(f"  Complexity distribution: {complexities}")
         logger.info(f"  Conversations with formulas: {has_formula_count} ({has_formula_count/len(conversations)*100:.1f}%)")
         logger.info(f"  Conversations with steps: {has_steps_count} ({has_steps_count/len(conversations)*100:.1f}%)")
+        
+        # Add currency distribution statistics if enabled
+        if self.diversify_currency:
+            currency_stats = {self.currency_options[idx]["name"]: count 
+                             for idx, count in self.currency_distribution.items()}
+            logger.info(f"Currency distribution in dataset: {currency_stats}")
 
     def run(self) -> None:
         """Execute the full extraction and conversation creation process."""
@@ -704,6 +952,25 @@ def main():
         help="Disable progress bars"
     )
     
+    parser.add_argument(
+        "--no-currency-diversity",
+        action="store_true",
+        help="Disable currency diversification in generated conversations"
+    )
+    
+    parser.add_argument(
+        "--no-error-introduction",
+        action="store_true",
+        help="Disable introduction of random errors in questions"
+    )
+    
+    parser.add_argument(
+        "--error-rate",
+        type=float,
+        default=0.3,
+        help="Percentage of questions to introduce errors to (0.0-1.0)"
+    )
+    
     args = parser.parse_args()
     
     extractor = AdvancedFinanceConversationExtractor(
@@ -713,7 +980,10 @@ def main():
         max_turns=args.max_turns,
         max_reuses=args.max_reuses,
         target_conversations=args.num_conversations,
-        use_progress=not args.no_progress
+        use_progress=not args.no_progress,
+        diversify_currency=not args.no_currency_diversity,
+        introduce_errors=not args.no_error_introduction,
+        error_rate=args.error_rate
     )
     
     extractor.run()

@@ -32,7 +32,8 @@ class FinanceConversationExtractor:
         max_turns: int = 10,
         max_reuses: int = 20,  # Increased from 10 to 20
         target_conversations: int = 1000,  # Added target number of conversations
-        use_progress: bool = True  # Add parameter to control progress bars
+        use_progress: bool = True,  # Add parameter to control progress bars
+        diversify_currency: bool = True  # Add currency diversification parameter
     ):
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
@@ -62,6 +63,45 @@ class FinanceConversationExtractor:
         # Verify input file exists
         if not self.input_file.exists():
             raise FileNotFoundError(f"Input file not found: {self.input_file}")
+        
+        # Add currency diversification settings
+        self.diversify_currency = diversify_currency
+        self.currency_options = [
+            {"name": "dollars", "symbol": "$", "regex": r'(\$|\bdollars?\b)'},
+            {"name": "pounds", "symbol": "£", "regex": r'(£|\bpounds?\b)'},
+            {"name": "euros", "symbol": "€", "regex": r'(€|\beuros?\b)'},
+            {"name": "cedis", "symbol": "₵", "regex": r'(₵|\bcedis\b)'},
+        ]
+        self.currency_distribution = {i: 0 for i, _ in enumerate(self.currency_options)}
+
+        self.company_names = [
+            # Tech
+            "Apple", "Microsoft", "Amazon", "Google", "Meta", "Facebook", "Tesla", "Nvidia",
+            "Intel", "AMD", "IBM", "Oracle", "Salesforce", "Adobe", "Dell", "PayPal", "Qualcomm",
+            # Financial
+            "JPMorgan", "Goldman Sachs", "Visa", "Bank of America", "Citigroup", "Wells Fargo", 
+            "American Express", "Morgan Stanley", "Mastercard",
+            # Healthcare
+            "Johnson & Johnson", "UnitedHealth", "Pfizer", "Merck", "Novartis", "Eli Lilly", 
+            "AstraZeneca", "Moderna", "CVS Health",
+            # Retail
+            "Walmart", "Target", "Home Depot", "Costco", "Lowe's", "TJX", "Dollar General", 
+            "Best Buy", "Kroger",
+            # Energy
+            "ExxonMobil", "Chevron", "Shell", "BP", "ConocoPhillips", "Occidental", 
+            "Duke Energy", "NextEra Energy",
+            # Industrial
+            "Boeing", "Caterpillar", "3M", "General Electric", "Honeywell", "Lockheed Martin", 
+            "Airbus", "Union Pacific", "Deere & Company", "Ford", "GM",
+            # Consumer Goods
+            "Procter & Gamble", "Coca-Cola", "PepsiCo", "Nike", "Unilever", "Colgate-Palmolive", 
+            "Kraft Heinz", "Adidas", "McDonald's", "Starbucks",
+            # Entertainment/Media
+            "Disney", "Netflix", "Warner Bros", "Spotify", "Sony", "AT&T", "Verizon", "T-Mobile",
+            # International
+            "Toyota", "Samsung", "Alibaba", "HSBC", "Volkswagen", "Tencent", "Nestlé", "Honda", 
+            "Siemens", "BASF", "JD.com", "Reliance Industries", "Roche", "SAP"
+        ]
     
     def generate_conversation_id(self) -> str:
         """Generate a unique identifier for a conversation."""
@@ -355,7 +395,7 @@ class FinanceConversationExtractor:
             all_topics.update(qa_pairs[idx]["topics"])
         unique_companies = list(set(all_companies))
         
-        return {
+        conversation = {
             "messages": messages,
             "metadata": {
                 "source": "finance_questions",
@@ -369,6 +409,96 @@ class FinanceConversationExtractor:
                 "has_intro": use_intro
             }
         }
+        
+        # Add currency diversification
+        if self.diversify_currency:
+            # Select least used currency to maintain even distribution
+            currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
+            currency = self.currency_options[currency_idx]
+            self.currency_distribution[currency_idx] += 1
+            
+            # Decide whether to use symbol or name in questions (alternate)
+            use_symbol = random.choice([True, False])
+            
+            # Update messages with converted currency
+            for i, msg in enumerate(conversation["messages"]):
+                if msg["role"] == "user":
+                    # Apply currency conversion to user messages
+                    conversation["messages"][i]["content"] = self._convert_currency(
+                        msg["content"],
+                        r'(\$|\bdollars?\b)',
+                        currency["symbol"],
+                        currency["name"],
+                        use_symbol
+                    )
+                elif msg["role"] == "assistant":
+                    # Apply currency conversion to assistant messages
+                    conversation["messages"][i]["content"] = self._convert_currency(
+                        msg["content"],
+                        r'(\$|\bdollars?\b)',
+                        currency["symbol"],
+                        currency["name"],
+                        False  # Always use symbols in answers
+                    )
+            
+            # Add currency information to metadata
+            if "metadata" not in conversation:
+                conversation["metadata"] = {}
+            conversation["metadata"]["currency"] = currency["name"]
+        
+        return conversation
+    
+    def _convert_currency(self, text: str, from_regex: str, to_symbol: str, to_name: str, use_symbol_in_question: bool) -> str:
+        """
+        Convert currency references in text from one currency to another.
+        With exceptions for "dollar-cost" and company-related questions.
+        
+        Args:
+            text: The text to modify
+            from_regex: Regex pattern to match the original currency
+            to_symbol: Target currency symbol
+            to_name: Target currency name
+            use_symbol_in_question: Whether to use symbol or name in questions
+            
+        Returns:
+            Modified text with new currency
+        """
+        # First check if this is a company-related question
+        # If it contains any company names, don't convert currency
+        if any(company.lower() in text.lower() for company in self.company_names):
+            return text
+        
+        # Check for special case "dollar-cost" which shouldn't be replaced
+        # Preserve "dollar-cost" term before any replacements
+        text = text.replace("dollar-cost", "DOLLARCOSTPLACEHOLDER")
+        text = text.replace("Dollar-cost", "DOLLARCOSTPLACEHOLDER_CAP")
+        text = text.replace("DOLLAR-COST", "DOLLARCOSTPLACEHOLDER_ALLCAP")
+        
+        # Check if this is a question (heuristic)
+        is_question = text.strip().endswith('?') or len(text.split()) < 30
+        
+        # For questions, use either symbol or name based on parameter
+        if is_question:
+            # Replace currency symbol/name with appropriate replacement
+            if use_symbol_in_question:
+                # Convert all currency references to symbol
+                text = re.sub(from_regex, to_symbol, text)
+            else:
+                # Special handling for "$X" format vs "X dollars" format
+                text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
+                text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
+        else:
+            # For answers, always use symbol
+            text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
+            text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_symbol + r'\1', text)  # 100 dollars -> €100
+            text = re.sub(r'\b(dollar|dollars)\b', to_name, text)  # dollars -> euros
+        
+        # Restore "dollar-cost" term in all its variations
+        text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
+        text = text.replace("DOLLARCOSTPLACEHOLDER_CAP", "Dollar-cost")
+        text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
+        
+        return text
     
     def generate_conversations_with_strategy(self, qa_pairs: List[Dict[str, str]]) -> List[Dict]:
         """Generate conversations with a strategic approach to maximize variety."""
@@ -519,6 +649,12 @@ class FinanceConversationExtractor:
             for topic, count in topic_counts.items():
                 logger.info(f"  {topic}: {count} ({count/len(self.conversations)*100:.1f}%)")
             
+            # Add currency distribution statistics if enabled
+            if self.diversify_currency:
+                currency_stats = {self.currency_options[idx]["name"]: count 
+                                 for idx, count in self.currency_distribution.items()}
+                logger.info(f"Currency distribution in dataset: {currency_stats}")
+            
         except Exception as e:
             logger.error(f"Error saving conversations: {e}")
     
@@ -601,7 +737,7 @@ def main():
     parser.add_argument(
         "--output", 
         type=str, 
-        default="/home/zahemen/datasets/sft_datasets/finance_conversations_multi_turn.jsonl",
+        default="/home/zahemen/datasets/sft_datasets/finance_conversations.jsonl",
         help="Output JSONL file path"
     )
     
@@ -639,6 +775,13 @@ def main():
         help="Use progress bars (default: True)"
     )
     
+    # Add currency diversification argument
+    parser.add_argument(
+        "--no-currency-diversity",
+        action="store_true",
+        help="Disable currency diversification in generated conversations"
+    )
+    
     args = parser.parse_args()
     
     extractor = FinanceConversationExtractor(
@@ -648,7 +791,8 @@ def main():
         max_turns=args.max_turns,
         max_reuses=args.max_reuses,
         target_conversations=args.num_conversations,
-        use_progress=args.use_progress
+        use_progress=args.use_progress,
+        diversify_currency=not args.no_currency_diversity
     )
     
     extractor.run()
