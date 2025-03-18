@@ -393,7 +393,10 @@ class FinanceConversationExtractor:
         for idx in selected_indices:
             all_companies.extend(qa_pairs[idx]["companies"])
             all_topics.update(qa_pairs[idx]["topics"])
-        unique_companies = list(set(all_companies))
+        
+        # Convert lists to comma-separated strings for metadata
+        unique_companies_str = ", ".join(set(all_companies)) if all_companies else ""
+        all_topics_str = ", ".join(all_topics) if all_topics else ""
         
         conversation = {
             "messages": messages,
@@ -402,11 +405,11 @@ class FinanceConversationExtractor:
                 "conversation_id": conversation_id,
                 "type": "finance_qa_multi_turn",
                 "topic": topic,
-                "subtopics": list(all_topics),
+                "subtopics": all_topics_str,  # Convert to string
                 "variation": variation_type,
                 "turns": len(messages) // 2,  # Count actual turns (user+assistant pairs)
-                "companies": unique_companies if unique_companies else [],
-                "has_intro": use_intro
+                "companies": unique_companies_str,  # Convert to string
+                "has_intro": str(use_intro).lower()  # Convert boolean to string
             }
         }
         

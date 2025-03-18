@@ -141,7 +141,7 @@ def main():
             "name": "finance_conversations",
         },
         {
-            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_questions_conversations.jsonl",
+            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_conversations.jsonl",
             "name": "advanced_finance_questions",
         }
         # {

@@ -44,10 +44,10 @@ class QLoRAConfig(SFTConfig):
     # LoRA specific parameters - optimized for speed
     lora_r: int = 64
     lora_alpha: int = 16
-    lora_dropout: float = 0.05 
+    lora_dropout: float = 0.1
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 2
+    num_train_epochs: int = 3
     learning_rate: float = 2e-4
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
@@ -58,17 +58,15 @@ class QLoRAConfig(SFTConfig):
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 600      
-    save_steps: int = 600
+    eval_steps: int = 1000      
+    save_steps: int = 1000
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # minimize loss
     # Pause duration in minutes
-    pause_minutes: int = 30
-    max_steps: int = 1500
-    
+    pause_minutes: int = 30    
     # DeepSpeed configs
     deepspeed = {
         "zero_optimization": {
@@ -115,7 +113,7 @@ class QLoRAConfig(SFTConfig):
     
     # Enhanced training parameters for consistency
     weight_decay: float = 0.05             # Added weight decay
-    num_cycles: int = 3                    # Number of LR cycles
+    num_cycles: int = 4                    # Number of LR cycles
     
     # Added focused attention params
     attn_dropout: float = 0.1
@@ -330,7 +328,7 @@ def train():
             "proportion": 1.0
         },
         {
-            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_questions_conversations.jsonl",
+            "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_conversations.jsonl",
             "name": "advanced_finance_questions",
             "proportion": 1.0
         }

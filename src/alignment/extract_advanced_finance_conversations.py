@@ -519,12 +519,12 @@ class AdvancedFinanceConversationExtractor:
                     "source": "advanced_finance_qa",
                     "conversation_id": self.generate_conversation_id(), # Move ID into metadata
                     "turns": 1,
-                    "categories": [qa.category],
+                    "categories": qa.category,  # Use string directly instead of list
                     "complexity": qa.complexity,
-                    "topics": qa.topics,
-                    "has_formulas": qa.has_formula,
-                    "has_steps": qa.has_steps,
-                    "single_qa_mode": True
+                    "topics": ", ".join(qa.topics),  # Convert list to string
+                    "has_formulas": str(qa.has_formula).lower(),  # Convert boolean to string
+                    "has_steps": str(qa.has_steps).lower(),  # Convert boolean to string
+                    "single_qa_mode": "true"  # Use string instead of boolean
                 }
             }
             
@@ -680,21 +680,32 @@ class AdvancedFinanceConversationExtractor:
             start_qa = next_qa
         
         # Create the conversation object
+        # Get categories and topics from all QA pairs in the conversation
+        categories_set = set([qa.category for qa in [start_qa] + 
+                            [filtered_pairs[i] for i in used_in_conv if i != start_idx]])
+        all_topics = sum([qa.topics for qa in [start_qa] + 
+                        [filtered_pairs[i] for i in used_in_conv if i != start_idx]], [])
+        has_formulas = any(qa.has_formula for qa in [start_qa] + 
+                         [filtered_pairs[i] for i in used_in_conv if i != start_idx])
+        has_steps = any(qa.has_steps for qa in [start_qa] + 
+                       [filtered_pairs[i] for i in used_in_conv if i != start_idx])
+        
+        # Convert to strings
+        categories_str = ", ".join(categories_set)
+        topics_str = ", ".join(set(all_topics))
+        
+        # Create the conversation object
         conversation = {
             "messages": messages,
             "metadata": {
                 "source": "advanced_finance_qa",
                 "conversation_id": self.generate_conversation_id(), # Move ID into metadata
                 "turns": len(messages) // 2,  # Number of turns
-                "categories": list(set([qa.category for qa in [start_qa] + 
-                                      [filtered_pairs[i] for i in used_in_conv if i != start_idx]])),
+                "categories": categories_str,  # String instead of list
                 "complexity": start_qa.complexity,
-                "topics": list(set(sum([qa.topics for qa in [start_qa] + 
-                                      [filtered_pairs[i] for i in used_in_conv if i != start_idx]], []))),
-                "has_formulas": any(qa.has_formula for qa in [start_qa] + 
-                                  [filtered_pairs[i] for i in used_in_conv if i != start_idx]),
-                "has_steps": any(qa.has_steps for qa in [start_qa] + 
-                                [filtered_pairs[i] for i in used_in_conv if i != start_idx])
+                "topics": topics_str,  # String instead of list
+                "has_formulas": str(has_formulas).lower(),  # String instead of boolean
+                "has_steps": str(has_steps).lower()  # String instead of boolean
             }
         }
         
@@ -848,16 +859,19 @@ class AdvancedFinanceConversationExtractor:
         
         for conv in conversations:
             metadata = conv["metadata"]
-            for cat in metadata["categories"]:
-                categories[cat] = categories.get(cat, 0) + 1
+            # Split the categories string to count individual categories
+            for cat in metadata["categories"].split(", "):
+                if cat:  # Only count non-empty categories
+                    categories[cat] = categories.get(cat, 0) + 1
             
             complexity = metadata["complexity"]
             complexities[complexity] = complexities.get(complexity, 0) + 1
             
-            if metadata["has_formulas"]:
+            # Parse the string boolean values back to actual booleans for counting
+            if metadata["has_formulas"] == "true":
                 has_formula_count += 1
                 
-            if metadata["has_steps"]:
+            if metadata["has_steps"] == "true":
                 has_steps_count += 1
         
         # Log statistics
