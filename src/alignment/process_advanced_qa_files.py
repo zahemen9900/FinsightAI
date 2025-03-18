@@ -63,7 +63,7 @@ def process_qa_files(
         
         # Step 2: Extract conversations
         logger.info("Step 2: Extracting conversations...")
-        output_jsonl = output_path / f"{input_path.stem}_conversations.jsonl"
+        output_jsonl = output_path / f"advanced_finance_conversations.jsonl"
         
         extract_cmd = [
             "python",

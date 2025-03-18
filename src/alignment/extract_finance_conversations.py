@@ -415,6 +415,26 @@ class FinanceConversationExtractor:
         
         # Add currency diversification
         if self.diversify_currency:
+            # First check if this is a company-specific conversation
+            # If it contains any company references, don't convert currency
+            contains_company_refs = False
+            
+            # Check messages and metadata for company references
+            if "company_specific" in conversation["metadata"]["variation"] or conversation["metadata"]["companies"]:
+                contains_company_refs = True
+                
+            if not contains_company_refs:
+                for msg in conversation["messages"]:
+                    if msg["role"] in ["user", "assistant"]:
+                        if any(company.lower() in msg["content"].lower() for company in self.company_names):
+                            contains_company_refs = True
+                            break
+            
+            # Skip currency conversion for company-related conversations
+            if contains_company_refs:
+                return conversation
+                
+            # Continue with regular currency diversification if not company-related
             # Select least used currency to maintain even distribution
             currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
             currency = self.currency_options[currency_idx]
@@ -434,6 +454,8 @@ class FinanceConversationExtractor:
                         currency["name"],
                         use_symbol
                     )
+                    # Fix any broken dollar-cost terms
+                    conversation["messages"][i]["content"] = self._fix_dollar_cost_terms(conversation["messages"][i]["content"])
                 elif msg["role"] == "assistant":
                     # Apply currency conversion to assistant messages
                     conversation["messages"][i]["content"] = self._convert_currency(
@@ -443,6 +465,8 @@ class FinanceConversationExtractor:
                         currency["name"],
                         False  # Always use symbols in answers
                     )
+                    # Fix any broken dollar-cost terms
+                    conversation["messages"][i]["content"] = self._fix_dollar_cost_terms(conversation["messages"][i]["content"])
             
             # Add currency information to metadata
             if "metadata" not in conversation:
@@ -467,7 +491,8 @@ class FinanceConversationExtractor:
             Modified text with new currency
         """
         # First check if this is a company-related question
-        # If it contains any company names, don't convert currency
+        # If it contains any company names, don't convert currency at all
+        # Note: Enhanced check to be more thorough
         if any(company.lower() in text.lower() for company in self.company_names):
             return text
         
@@ -501,6 +526,33 @@ class FinanceConversationExtractor:
         text = text.replace("DOLLARCOSTPLACEHOLDER_CAP", "Dollar-cost")
         text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
         
+        return text
+    
+    def _fix_dollar_cost_terms(self, text: str) -> str:
+        """
+        Fix any incorrectly converted 'dollar-cost' terms in the text.
+        This should be called at the final stage before using text in a conversation.
+        
+        Args:
+            text: The text to fix
+            
+        Returns:
+            Text with dollar-cost terms properly fixed
+        """
+        # Replace any incorrectly converted terms with the correct "dollar-cost" 
+        text = text.replace("cedis-cost", "dollar-cost")
+        text = text.replace("pounds-cost", "dollar-cost")
+        text = text.replace("euros-cost", "dollar-cost")
+        text = text.replace("Cedis-cost", "Dollar-cost")
+        text = text.replace("Pounds-cost", "Dollar-cost")
+        text = text.replace("Euros-cost", "Dollar-cost")
+        text = text.replace("CEDIS-COST", "DOLLAR-COST")
+        text = text.replace("POUNDS-COST", "DOLLAR-COST")
+        text = text.replace("EUROS-COST", "DOLLAR-COST")
+        text = text.replace("cedis-Cost", "Dollar-Cost")
+        text = text.replace("pounds-Cost", "Dollar-Cost")
+        text = text.replace("euros-Cost", "Dollar-Cost")
+                
         return text
     
     def generate_conversations_with_strategy(self, qa_pairs: List[Dict[str, str]]) -> List[Dict]:

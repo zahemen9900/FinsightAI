@@ -67,6 +67,21 @@ class AdvancedFinanceConversationExtractor:
             
             "You are FinSight, an AI financial expert that excels at explaining complex financial concepts. "
             "Present information in a clear, organized manner with numbered steps and formulas when relevant.",
+            
+            "You are FinSight, a financial education assistant. Explain concepts thoroughly using examples, "
+            "comparisons, and structured breakdowns. Include calculations and formulas when they help illustrate points.",
+            
+            "As FinSight, your goal is to make financial concepts accessible to everyone. Use clear language, "
+            "step-by-step explanations, and visual organization techniques like bullet points and numbered lists.",
+            
+            "You are FinSight, a data-driven financial analysis assistant. Present information with logical flow, "
+            "reference relevant metrics, and provide formulas that support your analysis when appropriate.",
+            
+            "As FinSight, focus on practical financial advice with clear reasoning. Structure your responses "
+            "with organized sections, highlight key points, and include calculations that demonstrate concepts.",
+            
+            "You are FinSight, a balanced financial advisor. Present multiple perspectives when relevant, "
+            "use structured explanations with clear headings, and include mathematical expressions when necessary."
         ]
         
         # Categories and their complexities
@@ -393,7 +408,7 @@ class AdvancedFinanceConversationExtractor:
             Modified text with new currency
         """
         # First check if this is a company-related question
-        # If it contains any company names, don't convert currency
+        # If it contains any company names, don't convert currency at all
         if any(company.lower() in text.lower() for company in self.company_names):
             return text
         
@@ -406,6 +421,15 @@ class AdvancedFinanceConversationExtractor:
         # Check if this is a question (heuristic)
         is_question = text.strip().endswith('?') or len(text.split()) < 30
         
+        # Preserve original text if no currency found (to avoid adding metadata for currency that isn't used)
+        has_currency_reference = bool(re.search(r'(\$|\bdollars?\b)', text))
+        if not has_currency_reference:
+            # Restore "dollar-cost" placeholders before returning
+            text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
+            text = text.replace("DOLLARCOSTPLACEHOLDER_CAP", "Dollar-cost")
+            text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
+            return text
+        
         # For questions, use either symbol or name based on parameter
         if is_question:
             # Replace currency symbol/name with appropriate replacement
@@ -417,7 +441,7 @@ class AdvancedFinanceConversationExtractor:
                 text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
                 text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
         else:
-            # For answers, always use symbol
+            # For answers, always use symbol - but match the currency from the question!
             text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
             text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_symbol + r'\1', text)  # 100 dollars -> €100
             text = re.sub(r'\b(dollar|dollars)\b', to_name, text)  # dollars -> euros
@@ -426,6 +450,33 @@ class AdvancedFinanceConversationExtractor:
         text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
         text = text.replace("DOLLARCOSTPLACEHOLDER_CAP", "Dollar-cost")
         text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
+        
+        return text
+
+    def _fix_dollar_cost_terms(self, text: str) -> str:
+        """
+        Fix any incorrectly converted 'dollar-cost' terms in the text.
+        This should be called at the final stage before using text in a conversation.
+        
+        Args:
+            text: The text to fix
+            
+        Returns:
+            Text with dollar-cost terms properly fixed
+        """
+        # Replace any incorrectly converted terms with the correct "dollar-cost" 
+        text = text.replace("cedis-cost", "dollar-cost")
+        text = text.replace("pounds-cost", "dollar-cost")
+        text = text.replace("euros-cost", "dollar-cost")
+        text = text.replace("Cedis-cost", "Dollar-cost")
+        text = text.replace("Pounds-cost", "Dollar-cost")
+        text = text.replace("Euros-cost", "Dollar-cost")
+        text = text.replace("CEDIS-COST", "DOLLAR-COST")
+        text = text.replace("POUNDS-COST", "DOLLAR-COST")
+        text = text.replace("EUROS-COST", "DOLLAR-COST")
+        text = text.replace("cedis-Cost", "Dollar-Cost")
+        text = text.replace("pounds-Cost", "Dollar-Cost")
+        text = text.replace("euros-Cost", "Dollar-Cost")
         
         return text
 
@@ -530,37 +581,43 @@ class AdvancedFinanceConversationExtractor:
             
             # Add currency diversification if enabled
             if self.diversify_currency:
-                # Select least used currency to maintain even distribution
-                currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
-                currency = self.currency_options[currency_idx]
-                self.currency_distribution[currency_idx] += 1
+                # Check if the question actually contains currency references before applying conversion
+                has_currency = bool(re.search(r'(\$|\bdollars?\b)', question))
                 
-                # Decide whether to use symbol or name in questions (alternate)
-                use_symbol = random.choice([True, False])
-                
-                # Convert currency in question and answer
-                new_question = self._convert_currency(
-                    question,  # Use the potentially modified question
-                    r'(\$|\bdollars?\b)', 
-                    currency["symbol"], 
-                    currency["name"],
-                    use_symbol
-                )
-                
-                new_answer = self._convert_currency(
-                    qa.answer,
-                    r'(\$|\bdollars?\b)',
-                    currency["symbol"],
-                    currency["name"],
-                    False  # Always use symbols in answers
-                )
-                
-                # Update conversation with new currency
-                conversation["messages"][1]["content"] = new_question
-                conversation["messages"][2]["content"] = new_answer
-                conversation["metadata"]["currency"] = currency["name"]
-                
-            return conversation
+                if has_currency:
+                    # Select least used currency to maintain even distribution
+                    currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
+                    currency = self.currency_options[currency_idx]
+                    self.currency_distribution[currency_idx] += 1
+                    
+                    # Decide whether to use symbol or name in questions (alternate)
+                    use_symbol = random.choice([True, False])
+                    
+                    # Convert currency in question and answer
+                    new_question = self._convert_currency(
+                        question,  # Use the potentially modified question
+                        r'(\$|\bdollars?\b)', 
+                        currency["symbol"], 
+                        currency["name"],
+                        use_symbol
+                    )
+                    
+                    new_answer = self._convert_currency(
+                        qa.answer,
+                        r'(\$|\bdollars?\b)',
+                        currency["symbol"],
+                        currency["name"],
+                        False  # Always use symbols in answers
+                    )
+                    
+                    # Only update metadata if we actually converted something
+                    if new_question != question or new_answer != qa.answer:
+                        # Update conversation with new currency
+                        conversation["messages"][1]["content"] = self._fix_dollar_cost_terms(new_question)
+                        conversation["messages"][2]["content"] = self._fix_dollar_cost_terms(new_answer)
+                        conversation["metadata"]["currency"] = currency["name"]
+                    
+                return conversation
         
         # Normal case - multiple QA pairs
         # Filter QA pairs based on preferences
@@ -711,47 +768,147 @@ class AdvancedFinanceConversationExtractor:
         
         # Add currency diversification for multi-turn conversations if enabled
         if self.diversify_currency:
-            # Select currency for this conversation
-            currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
-            currency = self.currency_options[currency_idx]
-            self.currency_distribution[currency_idx] += 1
+            # Check if any message in the conversation actually contains currency references
+            has_currency_refs = False
+            contains_company_refs = False
             
-            # Decide whether to use symbol or name in questions
-            use_symbol = random.choice([True, False])
+            # First check if any message contains company references
+            for msg in messages:
+                if msg["role"] in ["user", "assistant"]:
+                    if any(company.lower() in msg["content"].lower() for company in self.company_names):
+                        contains_company_refs = True
+                        break
+                        
+            # If the conversation mentions companies, skip currency diversification
+            if contains_company_refs:
+                return conversation
+                
+            # Otherwise continue with regular currency diversification
+            for msg in messages:
+                if msg["role"] == "user" and re.search(r'(\$|\bdollars?\b)', msg["content"]):
+                    has_currency_refs = True
+                    break
             
-            # Store original QA pairs for reference
-            original_pairs = []
-            for i in used_in_conv:
-                original_pairs.append((i, filtered_pairs[i].question, filtered_pairs[i].answer))
+            if has_currency_refs:
+                # Select currency for this conversation
+                currency_idx = min(self.currency_distribution, key=self.currency_distribution.get)
+                currency = self.currency_options[currency_idx]
+                self.currency_distribution[currency_idx] += 1
+                
+                # Decide whether to use symbol or name in questions
+                use_symbol = random.choice([True, False])
+                
+                # Track if any messages were actually converted
+                actually_converted = False
+                
+                # Update messages with converted currency
+                for i, msg in enumerate(messages):
+                    original_content = msg["content"]
+                    
+                    if msg["role"] == "user":
+                        current_text = msg["content"]  # Already has errors introduced
+                        messages[i]["content"] = self._convert_currency(
+                            current_text,
+                            r'(\$|\bdollars?\b)',
+                            currency["symbol"],
+                            currency["name"],
+                            use_symbol
+                        )
+                        # Apply dollar-cost term fixing
+                        messages[i]["content"] = self._fix_dollar_cost_terms(messages[i]["content"])
+                        # Check if any conversion happened
+                        if messages[i]["content"] != original_content:
+                            actually_converted = True
+                            
+                    elif msg["role"] == "assistant":
+                        messages[i]["content"] = self._convert_currency(
+                            msg["content"],
+                            r'(\$|\bdollars?\b)',
+                            currency["symbol"],
+                            currency["name"],
+                            False  # Always use symbols in answers
+                        )
+                        # Apply dollar-cost term fixing
+                        messages[i]["content"] = self._fix_dollar_cost_terms(messages[i]["content"])
+                        # Check if any conversion happened
+                        if messages[i]["content"] != original_content:
+                            actually_converted = True
+                
+                # Only add currency to metadata if conversions actually happened
+                if actually_converted:
+                    # Add currency information to metadata
+                    conversation["metadata"]["currency"] = currency["name"]
             
-            # Update messages with converted currency
-            for i, msg in enumerate(messages):
-                if msg["role"] == "user":
-                    current_text = msg["content"]  # Already has errors introduced
-                    messages[i]["content"] = self._convert_currency(
-                        current_text,
-                        r'(\$|\bdollars?\b)',
-                        currency["symbol"],
-                        currency["name"],
-                        use_symbol
-                    )
-                elif msg["role"] == "assistant":
-                    messages[i]["content"] = self._convert_currency(
-                        msg["content"],
-                        r'(\$|\bdollars?\b)',
-                        currency["symbol"],
-                        currency["name"],
-                        False  # Always use symbols in answers
-                    )
-            
-            # Add currency information to metadata
-            conversation["metadata"]["currency"] = currency["name"]
-        
         return conversation
 
     def mark_qa_pair_used(self, qa_index: int) -> None:
         """Mark a QA pair as used by incrementing its usage counter."""
         self.qa_usage_counter[qa_index] = self.qa_usage_counter.get(qa_index, 0) + 1
+
+    def validate_currency_consistency(self, conversation: Dict) -> Dict:
+        """
+        Check and fix currency consistency in a conversation.
+        Ensures currencies used in questions match those used in answers.
+        """
+        if "metadata" not in conversation or "currency" not in conversation["metadata"]:
+            return conversation  # No currency to validate
+        
+        messages = conversation["messages"]
+        currency_name = conversation["metadata"]["currency"]
+        currency_info = None
+        
+        # Find the currency info based on name
+        for idx, curr in enumerate(self.currency_options):
+            if curr["name"] == currency_name:
+                currency_info = curr
+                break
+                
+        if not currency_info:
+            # Currency not found in options, remove it from metadata
+            del conversation["metadata"]["currency"]
+            return conversation
+            
+        # Check if user messages actually contain the currency
+        has_user_currency = False
+        for msg in messages:
+            if msg["role"] == "user" and (
+                currency_info["symbol"] in msg["content"] or 
+                currency_info["name"] in msg["content"]
+            ):
+                has_user_currency = True
+                break
+        
+        if not has_user_currency:
+            # Currency not used in user messages, remove from metadata
+            del conversation["metadata"]["currency"]
+            return conversation
+            
+        # Ensure assistant responses use matching currency
+        for i, msg in enumerate(messages):
+            if msg["role"] == "assistant":
+                # Replace any dollar symbols with the correct currency symbol
+                if "$" in msg["content"] and currency_info["symbol"] != "$":
+                    # Replace dollar symbols with the correct currency symbol
+                    messages[i]["content"] = re.sub(
+                        r'\$(\d[\d,\.]*)', 
+                        currency_info["symbol"] + r'\1', 
+                        msg["content"]
+                    )
+                    
+                # Replace any "dollars" text with the correct currency name
+                if "dollar" in msg["content"].lower() and currency_info["name"] != "dollars":
+                    messages[i]["content"] = re.sub(
+                        r'\b(dollar|dollars)\b', 
+                        currency_info["name"], 
+                        messages[i]["content"], 
+                        flags=re.IGNORECASE
+                    )
+                    
+                # Fix any broken dollar-cost terms
+                messages[i]["content"] = self._fix_dollar_cost_terms(messages[i]["content"])
+        
+        conversation["messages"] = messages
+        return conversation
 
     def generate_conversations(self, qa_pairs: List[AdvancedQAPair]) -> List[Dict]:
         """Generate multiple conversations with varying characteristics."""
@@ -823,6 +980,18 @@ class AdvancedFinanceConversationExtractor:
                 
                 # Add valid conversation to the list
                 if conversation:
+                    # Check that the conversation doesn't end with a user message
+                    # (Which would indicate a question without an answer)
+                    messages = conversation["messages"]
+                    if messages and messages[-1]["role"] == "user":
+                        # Remove the last message
+                        messages.pop()
+                        # Update the metadata to reflect the actual number of turns
+                        conversation["metadata"]["turns"] = len(messages) // 2
+                    
+                    # Make sure currency is consistent between questions and answers
+                    conversation = self.validate_currency_consistency(conversation)
+                    
                     conversations.append(conversation)
                     
                     # Update progress
