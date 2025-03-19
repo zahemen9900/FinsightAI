@@ -60,6 +60,7 @@ class QLoRAConfig(SFTConfig):
     do_eval: bool = True
     eval_steps: int = 1000      
     save_steps: int = 1000
+    max_steps: int = 3999           #Latest run yielded ~4100 steps, I rounded down for consistency
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
