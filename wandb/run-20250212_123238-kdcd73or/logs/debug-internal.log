@@ -1,8 +1,0 @@
-{"time":"2025-02-12T12:32:38.791092749Z","level":"INFO","msg":"using version","core version":"0.19.1"}
-{"time":"2025-02-12T12:32:38.791103249Z","level":"INFO","msg":"created symlink","path":"/home/zahemen/projects/dl-lib/FinsightAI/wandb/run-20250212_123238-kdcd73or/logs/debug-core.log"}
-{"time":"2025-02-12T12:32:38.924341793Z","level":"INFO","msg":"created new stream","id":"kdcd73or"}
-{"time":"2025-02-12T12:32:38.924370206Z","level":"INFO","msg":"stream: started","id":"kdcd73or"}
-{"time":"2025-02-12T12:32:38.924411603Z","level":"INFO","msg":"writer: Do: started","stream_id":"kdcd73or"}
-{"time":"2025-02-12T12:32:38.924463543Z","level":"INFO","msg":"sender: started","stream_id":"kdcd73or"}
-{"time":"2025-02-12T12:32:38.924493254Z","level":"INFO","msg":"handler: started","stream_id":"kdcd73or"}
-{"time":"2025-02-12T12:32:44.972336083Z","level":"INFO","msg":"Starting system monitor"}

@@ -1,4 +1,0 @@
-  0%|                                                                                                                                                             | 0/987 [00:00<?, ?it/s]
-{'train_runtime': 2.7891, 'train_samples_per_second': 2830.664, 'train_steps_per_second': 353.878, 'train_loss': 0.0, 'epoch': 1.0}
-  0%|                                                                                                                                                             | 0/987 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
-  1%|█▊                                                                                                                                                | 12/987 [04:09<5:50:25, 21.56s/it]
