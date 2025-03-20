@@ -1,0 +1,11 @@
+# Memory optimization packages for PyTorch
+pytorch-memlab
+psutil
+# Make sure you have current versions of these libraries
+transformers>=4.38.0
+peft>=0.8.0
+accelerate>=0.26.0
+bitsandbytes>=0.41.0
+trl>=0.7.6
+# Environment variable helpers
+python-dotenv

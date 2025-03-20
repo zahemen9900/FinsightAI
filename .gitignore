@@ -13,3 +13,4 @@ metrics/qlora_evaluation_results/
 logs/
 wandb/debug-internal.log
 wandb/debug.log
+.qodo

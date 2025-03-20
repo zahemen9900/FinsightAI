@@ -1,0 +1,25 @@
+# Core requirements for Unsloth training
+unsloth>=0.5.2
+transformers>=4.38.0
+accelerate>=0.30.0
+bitsandbytes>=0.41.0
+peft>=0.8.0
+datasets>=2.16.0
+tokenizers>=0.15.0
+
+# Acceleration and optimization libraries
+torch>=2.1.0
+flash-attn>=2.5.0; platform_system!="Windows"
+einops>=0.7.0
+
+# Utilities
+rich
+tqdm
+psutil
+safetensors
+
+# Optional: For better performance with attention mechanisms
+xformers; platform_system=="Linux"
+
+# Optional: For experiment tracking
+wandb
