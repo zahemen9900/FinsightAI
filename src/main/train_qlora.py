@@ -48,7 +48,7 @@ class QLoRAConfig(SFTConfig):
     
     # Training parameters optimized for speed
     num_train_epochs: int = 3
-    learning_rate: float = 2e-4
+    learning_rate: float = 7e-6
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
     per_device_eval_batch_size: int = 2

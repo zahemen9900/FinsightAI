@@ -26,7 +26,7 @@ class DefinitionsDatasetGenerator:
     def __init__(
         self,
         definitions_dir: str = "/home/zahemen/datasets/enhanced_q_and_a",
-        output_file: str = "/home/zahemen/datasets/financial_definitions_dataset.jsonl",
+        output_file: str = "/home/zahemen/datasets/sft_datasets/financial_definitions_dataset.jsonl",
         num_samples: int = 3000  # Number of QA pairs to generate
     ):
         self.definitions_dir = Path(definitions_dir)
@@ -217,6 +217,70 @@ class DefinitionsDatasetGenerator:
         self.international_options6 = ['different accounting treatments', 'varying tax considerations', 'unique regulatory approaches', 'distinct reporting schedules']
         self.international_options7 = ['specialized expertise', 'localized compliance strategies', 'careful translation of financial information', 'adaptive reporting systems']
 
+        # Conversational introductions for definitions
+        self.conversational_intros = [
+            "{term} is ",
+            "In simple terms, {term} is ",
+            "To put it simply, {term} is ",
+            "Simply put, {term} is ",
+            "{term}, in financial terms, is ",
+            "In the financial world, {term} is ",
+            "At its core, {term} is ",
+            "Essentially, {term} is ",
+            "{term} basically means ",
+            "{term} represents ",
+        ]
+        
+        # Transition phrases for the second term in comparisons
+        self.comparison_transitions = [
+            "On the other hand, {term2} is ",
+            "In contrast, {term2} is ",
+            "Meanwhile, {term2} is ",
+            "Comparatively, {term2} is ",
+            "By contrast, {term2} is ",
+            "Whereas {term1} focuses on this, {term2} is ",
+            "Unlike {term1}, {term2} is ",
+        ]
+        
+        # Natural comparison conclusions
+        self.comparison_conclusions = [
+            "These two concepts serve different purposes in finance.",
+            "Both concepts are important but apply in different financial contexts.",
+            "Understanding both gives you a more complete picture of this area of finance.",
+            "These concepts often work together in financial planning and analysis.",
+            "Each has its own role in a comprehensive financial strategy.",
+        ]
+        
+        # Patterns to clean up definitions
+        self.cleanup_patterns = [
+            # Fix redundant phrasings (case insensitive)
+            (r"(?i)refers to\s+it\s+refers\s+to", "refers to"),
+            (r"(?i)is\s+this\s+is", "is"),
+            (r"(?i)means\s+this\s+means", "means"),
+            (r"(?i)represents\s+this\s+represents", "represents"),
+            (r"(?i)involves\s+this\s+involves", "involves"),
+            (r"(?i)includes\s+this\s+includes", "includes"),
+            (r"(?i)encompasses\s+this\s+encompasses", "encompasses"),
+            # Replace formal language with conversational
+            (r"(?i)is defined as", "is"),
+            (r"(?i)may be defined as", "can be"),
+            (r"(?i)can be defined as", "is"),
+            (r"(?i)is described as", "is"),
+            (r"(?i)is characterized by", "involves"),
+            (r"(?i)is utilized to", "is used to"),
+            (r"(?i)is employed to", "is used to"),
+            (r"(?i)in nature", ""),
+            # Fix awkward starts
+            (r"(?i)^This refers to", "This is"),
+            (r"(?i)^It refers to", "It's"),
+            (r"(?i)^This is a term that", "This"),
+            (r"(?i)^This is a concept that", "This"),
+            (r"(?i)^This means", "This"),
+            (r"(?i)^this represents", "This"),
+            # Fix repeated words
+            (r"(?i)\b(\w+)\s+\1\b", r"\1"),
+        ]
+
     def extract_definitions_from_files(self) -> None:
         """Extract term-definition pairs from all text files in the directory."""
         if not self.definitions_dir.exists() or not self.definitions_dir.is_dir():
@@ -282,6 +346,8 @@ class DefinitionsDatasetGenerator:
         # Don't forget the last term
         if current_term is not None and current_definition:
             definition = ' '.join([l.strip() for l in current_definition if l.strip()])
+            # Clean the definition before adding
+            definition = self.clean_definition_text(definition)
             term_defs.append({
                 "term": current_term.strip(),
                 "definition": definition
@@ -302,6 +368,98 @@ class DefinitionsDatasetGenerator:
         return [def_dict for def_dict in self.definitions 
                 if self.can_use_term(def_dict["term"])]
 
+    def clean_definition_text(self, definition_text: str) -> str:
+        """Clean definition text to make it more conversational and remove redundancies."""
+        # Start with the original text
+        text = definition_text.strip()
+        
+        # Remove common prefixes that cause redundancy when using conversational intros
+        common_prefixes = [
+            r"^this is\s+",
+            r"^this refers to\s+",
+            r"^this means\s+",
+            r"^this represents\s+",
+            r"^this denotes\s+",
+            r"^this involves\s+",
+            r"^this encompasses\s+",
+            r"^this describes\s+",
+            r"^it is\s+",
+            r"^it refers to\s+",
+            r"^it means\s+",
+            r"^it represents\s+",
+            r"^it denotes\s+",
+            r"^it involves\s+",
+            r"^it encompasses\s+",
+            r"^it describes\s+",
+            r"^these are\s+"
+        ]
+        
+        # Apply prefix removal first to avoid issues with sentence start
+        for prefix in common_prefixes:
+            text = re.sub(prefix, "", text, flags=re.IGNORECASE)
+        
+        # Apply cleanup patterns
+        for pattern, replacement in self.cleanup_patterns:
+            text = re.sub(pattern, replacement, text)
+        
+        # Fix capitalization after cleaning
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        for i in range(len(sentences)):
+            if sentences[i] and not sentences[i][0].isupper():
+                sentences[i] = sentences[i][0].upper() + sentences[i][1:]
+        
+        # Rejoin sentences
+        text = ' '.join(sentences)
+        
+        # Remove any double spaces created during cleaning
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text
+
+    def format_definition(self, term: str, definition_text: str) -> str:
+        """Format a definition with a conversational intro."""
+        # Clean the definition text first - this removes redundant prefixes
+        cleaned_definition = self.clean_definition_text(definition_text)
+        
+        # Choose a random conversational intro
+        intro_template = random.choice(self.conversational_intros)
+        intro = intro_template.format(term=term)
+        
+        # Make sure the definition flows naturally after the intro
+        # Remove redundant starts if the intro already has similar phrasing
+        if intro.endswith("is "):
+            cleaned_definition = re.sub(r'^is\s+', '', cleaned_definition)
+            cleaned_definition = re.sub(r'^a\s+', '', cleaned_definition)
+            cleaned_definition = re.sub(r'^an\s+', '', cleaned_definition)
+            cleaned_definition = re.sub(r'^the\s+', '', cleaned_definition)
+        elif intro.endswith("means "):
+            cleaned_definition = re.sub(r'^means\s+', '', cleaned_definition)
+            cleaned_definition = re.sub(r'^meaning\s+', '', cleaned_definition)
+        elif intro.endswith("represents "):
+            cleaned_definition = re.sub(r'^represents\s+', '', cleaned_definition)
+            cleaned_definition = re.sub(r'^representing\s+', '', cleaned_definition)
+        
+        # Special case: check for "this is" or similar at the start after cleaning
+        # This is a common issue in the source data
+        cleaned_definition = re.sub(r'^this\s+is\s+', '', cleaned_definition, flags=re.IGNORECASE)
+        cleaned_definition = re.sub(r'^a\s+this\s+is\s+', 'a ', cleaned_definition, flags=re.IGNORECASE)
+        cleaned_definition = re.sub(r'^an\s+this\s+is\s+', 'an ', cleaned_definition, flags=re.IGNORECASE)
+        cleaned_definition = re.sub(r'^the\s+this\s+is\s+', 'the ', cleaned_definition, flags=re.IGNORECASE)
+        
+        # Ensure first letter is lowercase if continuing a sentence
+        if intro.endswith(" ") and cleaned_definition:
+            cleaned_definition = cleaned_definition[0].lower() + cleaned_definition[1:]
+        
+        # Combine intro and definition
+        formatted_definition = intro + cleaned_definition
+        
+        # Final check for common redundancy patterns that might have been missed
+        formatted_definition = re.sub(r'is\s+this\s+is', 'is', formatted_definition, flags=re.IGNORECASE)
+        formatted_definition = re.sub(r'means\s+this\s+means', 'means', formatted_definition, flags=re.IGNORECASE)
+        formatted_definition = re.sub(r'represents\s+this\s+represents', 'represents', formatted_definition, flags=re.IGNORECASE)
+        
+        return formatted_definition
+
     def create_qa_pair(self, definition: Dict[str, str], with_conversation: bool = False) -> Dict[str, Any]:
         """Create a QA pair from a definition."""
         term = definition["term"]
@@ -318,6 +476,9 @@ class DefinitionsDatasetGenerator:
         # Create unique conversation ID
         conv_id = hashlib.sha256(f"{term}_{question}".encode()).hexdigest()
         
+        # Format the definition with a conversational intro
+        response = self.format_definition(term, definition_text)
+        
         # Basic Q&A format (directly to the question)
         if not with_conversation:
             messages = [
@@ -331,7 +492,7 @@ class DefinitionsDatasetGenerator:
                 },
                 {
                     "role": "assistant",
-                    "content": definition_text
+                    "content": response
                 }
             ]
             
@@ -362,7 +523,7 @@ class DefinitionsDatasetGenerator:
                 },
                 {
                     "role": "assistant", 
-                    "content": definition_text
+                    "content": response
                 }
             ]
             
@@ -384,7 +545,7 @@ class DefinitionsDatasetGenerator:
                     base_q = random.choice(self.followup_q_templates)
                     followup_q = f"{base_q.format(term=term)} In particular, how does this relate to financial reporting?"
                 
-                # Generate a contextual follow-up response
+                # Generate a contextual follow-up response with proper formatting
                 followup_response = self.generate_contextual_response(term, followup_q, definition_text)
                 
                 messages.extend([
@@ -522,6 +683,9 @@ class DefinitionsDatasetGenerator:
             # Select a template from the appropriate category
             response = random.choice(templates[primary_category])
         
+        # Clean the response to make it more conversational
+        response = self.clean_definition_text(response)
+        
         return response
 
     def create_comparison_qa_pair(self, term1_def: Dict[str, str], term2_def: Dict[str, str]) -> Dict[str, Any]:
@@ -627,65 +791,69 @@ class DefinitionsDatasetGenerator:
 
     def create_comparison_response(self, term1: str, term2: str, definition1: str, definition2: str) -> str:
         """Create a response comparing two financial terms."""
-        # Strip any existing term references from the definition
-        def clean_term_from_def(term, definition):
-            # Remove phrases like "Term is defined as" or "Term refers to"
-            patterns = [
-                f"^{re.escape(term)}\\s+is\\s+",
-                f"^{re.escape(term)}\\s+refers\\s+to\\s+",
-                f"^{re.escape(term)}\\s+means\\s+",
-                f"^In\\s+finance,\\s+{re.escape(term)}\\s+is\\s+"
-            ]
-            result = definition
-            for pattern in patterns:
-                result = re.sub(pattern, "", result, flags=re.IGNORECASE)
-            return result
+        # First completely clean the definitions to remove redundant phrasing
+        clean_def1 = self.clean_definition_text(definition1)
+        clean_def2 = self.clean_definition_text(definition2)
         
-        cleaned_def1 = clean_term_from_def(term1, definition1)
-        cleaned_def2 = clean_term_from_def(term2, definition2)
+        # Format first term
+        term1_intro = random.choice(self.conversational_intros).format(term=term1)
         
-        # Formats for comparison responses
-        formats = [
-            # Standard comparison format
-            f"Let me explain the difference between {term1} and {term2}.\n\n"
-            f"{cleaned_def1}\n\n"
-            f"On the other hand, {term2} refers to {cleaned_def2}\n\n"
-            f"The key distinction is that {term1} focuses on {random.choice(['specific aspects', 'certain elements', 'particular characteristics'])} "
-            f"of financial {random.choice(['operations', 'concepts', 'principles'])}, while {term2} is more concerned with "
-            f"{random.choice(['different components', 'other factors', 'alternative considerations'])}.",
-            
-            # Table-like format
-            f"The difference between {term1} and {term2} can be understood as follows:\n\n"
-            f"{term1}:\n- {cleaned_def1}\n\n"
-            f"{term2}:\n- {cleaned_def2}\n\n"
-            f"While both are important financial concepts, they serve different purposes in the financial ecosystem.",
-            
-            # Compare and contrast format
-            f"{term1} and {term2} are distinct financial concepts:\n\n"
-            f"{term1}: {cleaned_def1}\n\n"
-            f"{term2}: {cleaned_def2}\n\n"
-            f"Understanding both concepts is important for comprehensive financial knowledge, as they represent different aspects of "
-            f"{random.choice(['financial markets', 'economic principles', 'investment strategies', 'financial analysis'])}.",
-            
-            # Explanation with practical note
-            f"These two terms represent different financial concepts:\n\n"
-            f"{cleaned_def1}\n\n"
-            f"Meanwhile, {term2} is {cleaned_def2}\n\n"
-            f"In practical terms, you might encounter {term1} when dealing with {random.choice(['investment decisions', 'financial planning', 'market analysis', 'economic forecasting'])}, "
-            f"whereas {term2} is more relevant in contexts involving {random.choice(['risk assessment', 'portfolio management', 'financial reporting', 'strategic planning'])}."
-        ]
+        # Extra checks for "this is" pattern that might appear in different forms
+        clean_def1 = re.sub(r'^this\s+is\s+', '', clean_def1, flags=re.IGNORECASE)
+        clean_def1 = re.sub(r'^a\s+this\s+is\s+', 'a ', clean_def1, flags=re.IGNORECASE)
         
-        # Select a format and add a follow-up question sometimes
-        response = random.choice(formats)
+        if term1_intro.endswith("is "):
+            clean_def1 = re.sub(r'^is\s+', '', clean_def1)
+            clean_def1 = re.sub(r'^a\s+', '', clean_def1)
+            clean_def1 = re.sub(r'^an\s+', '', clean_def1)
+            clean_def1 = re.sub(r'^the\s+', '', clean_def1)
         
+        if term1_intro.endswith(" ") and clean_def1:
+            clean_def1 = clean_def1[0].lower() + clean_def1[1:]
+        
+        term1_part = term1_intro + clean_def1
+        
+        # Format second term with transition
+        transition = random.choice(self.comparison_transitions).format(term1=term1, term2=term2)
+        
+        # Extra checks for "this is" pattern
+        clean_def2 = re.sub(r'^this\s+is\s+', '', clean_def2, flags=re.IGNORECASE)
+        clean_def2 = re.sub(r'^a\s+this\s+is\s+', 'a ', clean_def2, flags=re.IGNORECASE)
+        
+        if transition.endswith("is "):
+            clean_def2 = re.sub(r'^is\s+', '', clean_def2)
+            clean_def2 = re.sub(r'^a\s+', '', clean_def2)
+            clean_def2 = re.sub(r'^an\s+', '', clean_def2)
+            clean_def2 = re.sub(r'^the\s+', '', clean_def2)
+        
+        if transition.endswith(" ") and clean_def2:
+            clean_def2 = clean_def2[0].lower() + clean_def2[1:]
+        
+        term2_part = transition + clean_def2
+        
+        # Final check for common redundancy patterns
+        term1_part = re.sub(r'is\s+this\s+is', 'is', term1_part, flags=re.IGNORECASE)
+        term2_part = re.sub(r'is\s+this\s+is', 'is', term2_part, flags=re.IGNORECASE)
+        
+        # Choose a format based on the length of definitions
+        if len(clean_def1) + len(clean_def2) < 300:
+            # Shorter combined format
+            response = (
+                f"Let me explain the difference between {term1} and {term2}.\n\n"
+                f"{term1_part}\n\n"
+                f"{term2_part}"
+            )
+        else:
+            # Bulleted format for longer definitions
+            response = (
+                f"Here's how {term1} and {term2} compare:\n\n"
+                f"• {term1}: {clean_def1}\n\n"
+                f"• {term2}: {clean_def2}"
+            )
+        
+        # Add a conclusion if it makes sense (30% chance to avoid being too wordy)
         if random.random() < 0.3:
-            followup = random.choice([
-                f"Would you like me to elaborate on either {term1} or {term2} in more detail?",
-                f"Is there a specific aspect of either {term1} or {term2} you'd like me to explain further?",
-                f"Do you have any specific questions about how {term1} or {term2} might apply to your financial situation?",
-                f"Is there another financial concept you'd like me to compare with either {term1} or {term2}?"
-            ])
-            response += f"\n\n{followup}"
+            response += f"\n\n{random.choice(self.comparison_conclusions)}"
             
         return response
 
