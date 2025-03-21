@@ -58,9 +58,9 @@ class QLoRAConfig(SFTConfig):
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 1000      
-    save_steps: int = 1000
-    max_steps: int = 3999           #Latest run yielded ~4100 steps, I rounded down for consistency
+    eval_steps: int = 1100      
+    save_steps: int = 1100
+    # max_steps: int = 3999           #Latest run yielded ~4100 steps, I rounded down for consistency
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
@@ -308,11 +308,11 @@ def train():
             "name": "finsight_intro",
             "proportion": 1.0
         },
-        {
-            "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
-            "name": "reddit_finance",
-            "proportion": 1.0
-        },
+        # {
+        #     "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
+        #     "name": "reddit_finance",
+        #     "proportion": 1.0
+        # },
         {
             "path": "/home/zahemen/datasets/sft_datasets/company_conversations.jsonl",
             "name": "finance_qa",

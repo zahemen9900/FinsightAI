@@ -236,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset", 
         type=str, 
-        default="/home/zahemen/datasets/financial_definitions_dataset.jsonl", 
+        default="/home/zahemen/datasets/sft_datasets/financial_definitions_dataset.jsonl", 
         help="Path to the dataset JSONL file"
     )
     args = parser.parse_args()

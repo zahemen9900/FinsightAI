@@ -335,7 +335,7 @@ class DatasetPipeline:
         
         try:
             # First verify the input file exists
-            input_file = self.data_dir / "advanced_finance_questions.txt"
+            input_file = self.data_dir / "advanced_finance_questions_rounded.txt"
             if not input_file.exists():
                 raise FileNotFoundError(f"Advanced finance questions file not found: {input_file}")
             
@@ -704,14 +704,14 @@ def main():
     parser.add_argument(
         "--num-finance-conversations", 
         type=int, 
-        default=2000,
+        default=3000,
         help="Number of finance conversations to generate"
     )
     
     parser.add_argument(
         "--num-advanced-finance-conversations", 
         type=int, 
-        default=4000,
+        default=5000,
         help="Number of advanced finance conversations to generate"
     )
     

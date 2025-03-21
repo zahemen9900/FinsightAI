@@ -193,10 +193,10 @@ class AdvancedFinanceConversationExtractor:
 
         self.diversify_currency = diversify_currency
         self.currency_options = [
-            {"name": "dollars", "symbol": "$", "regex": r'(\$|\bdollars?\b)'},
-            {"name": "pounds", "symbol": "£", "regex": r'(£|\bpounds?\b)'},
-            {"name": "euros", "symbol": "€", "regex": r'(€|\beuros?\b)'},
-            {"name": "cedis", "symbol": "₵", "regex": r'(₵|\bcedis\b)'},
+            {"name": "dollars", "symbol": "$", "abbr": "USD", "regex": r'(\$|\bUSD\b|\bdollars?\b)'},
+            {"name": "pounds", "symbol": "£", "abbr": "GBP", "regex": r'(£|\bGBP\b|\bpounds?\b)'},
+            {"name": "euros", "symbol": "€", "abbr": "EUR", "regex": r'(€|\bEUR\b|\beuros?\b)'},
+            {"name": "cedis", "symbol": "₵", "abbr": "GHS", "regex": r'(₵|\bGHS\b|\bcedis\b)'},
         ]
         self.currency_distribution = {i: 0 for i, _ in enumerate(self.currency_options)}
 
@@ -392,7 +392,7 @@ class AdvancedFinanceConversationExtractor:
         
         return template
 
-    def _convert_currency(self, text: str, from_regex: str, to_symbol: str, to_name: str, use_symbol_in_question: bool) -> str:
+    def _convert_currency(self, text: str, from_regex: str, to_symbol: str, to_name: str, to_abbr: str, use_symbol_in_question: bool) -> str:
         """
         Convert currency references in text from one currency to another.
         With exceptions for "dollar-cost" and company-related questions.
@@ -402,6 +402,7 @@ class AdvancedFinanceConversationExtractor:
             from_regex: Regex pattern to match the original currency
             to_symbol: Target currency symbol
             to_name: Target currency name
+            to_abbr: Target currency abbreviation
             use_symbol_in_question: Whether to use symbol or name in questions
             
         Returns:
@@ -422,7 +423,7 @@ class AdvancedFinanceConversationExtractor:
         is_question = text.strip().endswith('?') or len(text.split()) < 30
         
         # Preserve original text if no currency found (to avoid adding metadata for currency that isn't used)
-        has_currency_reference = bool(re.search(r'(\$|\bdollars?\b)', text))
+        has_currency_reference = bool(re.search(r'(\$|\bUSD\b|\bdollars?\b)', text))
         if not has_currency_reference:
             # Restore "dollar-cost" placeholders before returning
             text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
@@ -430,21 +431,55 @@ class AdvancedFinanceConversationExtractor:
             text = text.replace("DOLLARCOSTPLACEHOLDER_ALLCAP", "DOLLAR-COST")
             return text
         
-        # For questions, use either symbol or name based on parameter
+        # For questions, use either symbol, abbreviation or name based on parameter and random selection
         if is_question:
             # Replace currency symbol/name with appropriate replacement
             if use_symbol_in_question:
-                # Convert all currency references to symbol
-                text = re.sub(from_regex, to_symbol, text)
+                # Decide whether to use symbol or abbreviation
+                use_abbr = random.random() < 0.4  # 40% chance to use abbreviation instead of symbol
+                
+                if use_abbr:
+                    # Convert all currency references to abbreviation (USD)
+                    text = re.sub(r'\$(\d[\d,]*)', to_abbr + r' \1', text)  # $100 -> USD 100
+                    text = re.sub(r'\bUSD\s+(\d[\d,]*)', to_abbr + r' \1', text)  # USD 100 -> EUR 100
+                    text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
+                else:
+                    # Convert all currency references to symbol
+                    text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
+                    text = re.sub(r'\bUSD\s+(\d[\d,]*)', to_symbol + r'\1', text)  # USD 100 -> €100
+                    text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
             else:
-                # Special handling for "$X" format vs "X dollars" format
-                text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
+                # Special handling for "$X" format vs "X dollars" format vs "USD X" format
+                use_abbr = random.random() < 0.3  # 30% chance to use abbreviation
+                
+                if use_abbr:
+                    text = re.sub(r'\$(\d[\d,]*)', to_abbr + r' \1', text)  # $100 -> EUR 100
+                    text = re.sub(r'\bUSD\s+(\d[\d,]*)', to_abbr + r' \1', text)  # USD 100 -> EUR 100
+                else:
+                    text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
+                    text = re.sub(r'\bUSD\s+(\d[\d,]*)', r'\1 ' + to_name, text)  # USD 100 -> 100 euros
+                
                 text = re.sub(r'\b(dollar|dollars)\b', to_name, text)    # dollars -> euros
         else:
-            # For answers, always use symbol - but match the currency from the question!
-            text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
-            text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_symbol + r'\1', text)  # 100 dollars -> €100
+            # For answers, use a mix of symbol, abbreviation, and name formats
+            format_choice = random.random()
+            
+            if format_choice < 0.6:  # 60% chance to use symbol
+                text = re.sub(r'\$(\d[\d,]*)', to_symbol + r'\1', text)  # $100 -> €100
+                text = re.sub(r'\bUSD\s+(\d[\d,]*)', to_symbol + r'\1', text)  # USD 100 -> €100
+                text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_symbol + r'\1', text)  # 100 dollars -> €100
+            elif format_choice < 0.85:  # 25% chance to use abbreviation
+                text = re.sub(r'\$(\d[\d,]*)', to_abbr + r' \1', text)  # $100 -> EUR 100
+                text = re.sub(r'\bUSD\s+(\d[\d,]*)', to_abbr + r' \1', text)  # USD 100 -> EUR 100
+                text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', to_abbr + r' \1', text)  # 100 dollars -> EUR 100
+            else:  # 15% chance to use full name
+                text = re.sub(r'\$(\d[\d,]*)', r'\1 ' + to_name, text)  # $100 -> 100 euros
+                text = re.sub(r'\bUSD\s+(\d[\d,]*)', r'\1 ' + to_name, text)  # USD 100 -> 100 euros
+                text = re.sub(r'(\d[\d,]*)\s+\b(dollar|dollars)\b', r'\1 ' + to_name, text)  # 100 dollars -> 100 euros
+            
+            # Replace standalone currency references
             text = re.sub(r'\b(dollar|dollars)\b', to_name, text)  # dollars -> euros
+            text = re.sub(r'\bUSD\b(?!\s+\d)', to_abbr, text)  # USD (not followed by number) -> EUR
         
         # Restore "dollar-cost" term in all its variations
         text = text.replace("DOLLARCOSTPLACEHOLDER", "dollar-cost")
@@ -477,6 +512,14 @@ class AdvancedFinanceConversationExtractor:
         text = text.replace("cedis-Cost", "Dollar-Cost")
         text = text.replace("pounds-Cost", "Dollar-Cost")
         text = text.replace("euros-Cost", "Dollar-Cost")
+        
+        # Also fix any abbreviation-cost terms
+        text = text.replace("GHS-cost", "dollar-cost")
+        text = text.replace("GBP-cost", "dollar-cost")
+        text = text.replace("EUR-cost", "dollar-cost")
+        text = text.replace("GHS-Cost", "Dollar-Cost")
+        text = text.replace("GBP-Cost", "Dollar-Cost")
+        text = text.replace("EUR-Cost", "Dollar-Cost")
         
         return text
 
@@ -582,7 +625,7 @@ class AdvancedFinanceConversationExtractor:
             # Add currency diversification if enabled
             if self.diversify_currency:
                 # Check if the question actually contains currency references before applying conversion
-                has_currency = bool(re.search(r'(\$|\bdollars?\b)', question))
+                has_currency = bool(re.search(r'(\$|\bUSD\b|\bdollars?\b)', question))
                 
                 if has_currency:
                     # Select least used currency to maintain even distribution
@@ -596,17 +639,19 @@ class AdvancedFinanceConversationExtractor:
                     # Convert currency in question and answer
                     new_question = self._convert_currency(
                         question,  # Use the potentially modified question
-                        r'(\$|\bdollars?\b)', 
+                        r'(\$|\bUSD\b|\bdollars?\b)', 
                         currency["symbol"], 
                         currency["name"],
+                        currency["abbr"],
                         use_symbol
                     )
                     
                     new_answer = self._convert_currency(
                         qa.answer,
-                        r'(\$|\bdollars?\b)',
+                        r'(\$|\bUSD\b|\bdollars?\b)',
                         currency["symbol"],
                         currency["name"],
+                        currency["abbr"],
                         False  # Always use symbols in answers
                     )
                     
@@ -785,7 +830,7 @@ class AdvancedFinanceConversationExtractor:
                 
             # Otherwise continue with regular currency diversification
             for msg in messages:
-                if msg["role"] == "user" and re.search(r'(\$|\bdollars?\b)', msg["content"]):
+                if msg["role"] == "user" and re.search(r'(\$|\bUSD\b|\bdollars?\b)', msg["content"]):
                     has_currency_refs = True
                     break
             
@@ -809,9 +854,10 @@ class AdvancedFinanceConversationExtractor:
                         current_text = msg["content"]  # Already has errors introduced
                         messages[i]["content"] = self._convert_currency(
                             current_text,
-                            r'(\$|\bdollars?\b)',
+                            r'(\$|\bUSD\b|\bdollars?\b)',
                             currency["symbol"],
                             currency["name"],
+                            currency["abbr"],
                             use_symbol
                         )
                         # Apply dollar-cost term fixing
@@ -823,9 +869,10 @@ class AdvancedFinanceConversationExtractor:
                     elif msg["role"] == "assistant":
                         messages[i]["content"] = self._convert_currency(
                             msg["content"],
-                            r'(\$|\bdollars?\b)',
+                            r'(\$|\bUSD\b|\bdollars?\b)',
                             currency["symbol"],
                             currency["name"],
+                            currency["abbr"],
                             False  # Always use symbols in answers
                         )
                         # Apply dollar-cost term fixing
@@ -858,7 +905,7 @@ class AdvancedFinanceConversationExtractor:
         currency_info = None
         
         # Find the currency info based on name
-        for idx, curr in enumerate(self.currency_options):
+        for curr in self.currency_options:
             if curr["name"] == currency_name:
                 currency_info = curr
                 break
@@ -873,6 +920,7 @@ class AdvancedFinanceConversationExtractor:
         for msg in messages:
             if msg["role"] == "user" and (
                 currency_info["symbol"] in msg["content"] or 
+                currency_info["abbr"] in msg["content"] or 
                 currency_info["name"] in msg["content"]
             ):
                 has_user_currency = True
@@ -893,6 +941,22 @@ class AdvancedFinanceConversationExtractor:
                         r'\$(\d[\d,\.]*)', 
                         currency_info["symbol"] + r'\1', 
                         msg["content"]
+                    )
+                
+                # Replace any USD abbreviations with the correct currency abbreviation
+                if "USD" in msg["content"] and currency_info["abbr"] != "USD":
+                    # Replace USD with the correct currency abbreviation
+                    messages[i]["content"] = re.sub(
+                        r'\bUSD\b\s*(\d[\d,\.]*)', 
+                        currency_info["abbr"] + r' \1', 
+                        msg["content"]
+                    )
+                    
+                    # Also replace standalone USD mentions
+                    messages[i]["content"] = re.sub(
+                        r'\bUSD\b(?!\s+\d)', 
+                        currency_info["abbr"], 
+                        messages[i]["content"]
                     )
                     
                 # Replace any "dollars" text with the correct currency name

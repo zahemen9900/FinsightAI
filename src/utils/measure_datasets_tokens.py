@@ -124,10 +124,10 @@ def main():
             "path": "/home/zahemen/datasets/sft_datasets/intro_conversations.jsonl",
             "name": "finsight_intro",
         },
-        {
-            "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
-            "name": "reddit_finance",
-        },
+        # {
+        #     "path": "/home/zahemen/datasets/sft_datasets/reddit_finance_conversations.jsonl",
+        #     "name": "reddit_finance",
+        # },
         {
             "path": "/home/zahemen/datasets/sft_datasets/company_conversations.jsonl",
             "name": "company_specific_qa",
