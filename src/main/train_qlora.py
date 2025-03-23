@@ -42,19 +42,19 @@ console = Console()
 @dataclass 
 class QLoRAConfig(SFTConfig):
     # LoRA specific parameters - optimized for speed
-    lora_r: int = 64
-    lora_alpha: int = 16
-    lora_dropout: float = 0.1
+    lora_r: int = 128
+    lora_alpha: int = 32
+    lora_dropout: float = 0.05
     
     # Training parameters optimized for speed
     num_train_epochs: int = 3
-    learning_rate: float = 7e-6
+    learning_rate: float = 5e-6
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 4    # Reduced for faster updates
     logging_steps: int = 40
-    warmup_ratio: float = 0.15
+    warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
@@ -98,13 +98,13 @@ class QLoRAConfig(SFTConfig):
     # Model settings optimized for speed
     bf16: bool = True
     # fp16: bool = True
-    double_quant: bool = True
+    double_quant: bool = False  #for better quality on larger datasets 
     quant_type: str = "nf4"
     dataset_num_proc: int = 4
     use_cache: bool = True
     
     # Memory optimizations
-    max_grad_norm: float = 0.2
+    max_grad_norm: float = 0.3
     dataloader_num_workers: int = 4
     dataloader_pin_memory: bool = True
     
@@ -113,7 +113,7 @@ class QLoRAConfig(SFTConfig):
     save_safetensors: bool = True  # Better format for saving checkpoints
     
     # Enhanced training parameters for consistency
-    weight_decay: float = 0.05             # Added weight decay
+    weight_decay: float = 0.03             # Added weight decay
     num_cycles: int = 4                    # Number of LR cycles
     
     # Added focused attention params
@@ -124,7 +124,7 @@ class QLoRAConfig(SFTConfig):
     # Memory optimization
     gradient_checkpointing: bool = True
     torch_compile: bool = True             # Use torch.compile for speed
-    optim: str = "paged_adamw_32bit"      # Memory efficient optimizer
+    optim: str = "adamw_8bit"      # Memory efficient optimizer
 
 
 
@@ -183,6 +183,10 @@ def setup_quantized_model(model_args, training_args):
             "mixer_self_attention",  # Added for better attention
             "mixer_cross_attention", # Added for better attention
             "mixer_mlp",            # Added for better feature mixing
+            "norm",
+            "ln_f",
+            "ln_1",
+            "ln_2"
         ],
         init_lora_weights="gaussian",  # Changed from default
     )
