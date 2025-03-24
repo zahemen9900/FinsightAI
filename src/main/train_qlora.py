@@ -55,13 +55,13 @@ class QLoRAConfig(SFTConfig):
     per_device_train_batch_size: int = 2   # Adjusted for memory
     per_device_eval_batch_size: int = 2
     gradient_accumulation_steps: int = 4    # Reduced for faster updates
-    logging_steps: int = 40
+    logging_steps: int = 100
     warmup_ratio: float = 0.03
     logging_dir: str = "logs"
     lr_scheduler_type: str = 'cosine_with_restarts'
     do_eval: bool = True
-    eval_steps: int = 1100      
-    save_steps: int = 1100
+    eval_steps: int = 2500      
+    save_steps: int = 2500
     # max_steps: int = 20          
     eval_strategy: str = "steps"
     save_strategy: str = "steps"

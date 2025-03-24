@@ -74,9 +74,9 @@ class PauseResumeCallback(TrainerCallback):
                 percent_complete = self.pause_intervals[i] * 100
                 
                 self.console.print("")
-                self.console.print("[bold cyan]╔════════════════════════════════════════════════════╗[/bold cyan]")
+                self.console.print("[bold cyan] ╔═════════════════════════════════════════════════════════════╗[/bold cyan]")
                 self.console.print(f"[bold cyan]║   TRAINING PAUSED AT {percent_complete:.1f}% COMPLETION     ║[/bold cyan]")
-                self.console.print("[bold cyan]╚════════════════════════════════════════════════════╝[/bold cyan]")
+                self.console.print("[bold cyan] ╚═════════════════════════════════════════════════════════════╝[/bold cyan]")
                 self.console.print(f"[yellow]Reached step {current_step}. Training will resume after {pause_minutes} minutes.[/yellow]")
                 
                 # Set a flag to save checkpoint in train_qlora.py
@@ -139,9 +139,9 @@ class PauseResumeCallback(TrainerCallback):
                                     self.console.print(f"[yellow] {mins_remaining} minutes remaining until training resumes.[/yellow]")
                 
                 self.console.print("")
-                self.console.print("[bold green]╔══════════════════════════════════════════════╗[/bold green]")
+                self.console.print("[bold green] ╔════════════════════════════════════════════════╗[/bold green]")
                 self.console.print(f"[bold green]║      RESUMING TRAINING AFTER PAUSE {i+1}       ║[/bold green]")
-                self.console.print("[bold green]╚══════════════════════════════════════════════╝[/bold green]")
+                self.console.print("[bold green] ╚════════════════════════════════════════════════╝[/bold green]")
                 
                 # Mark this pause as completed
                 self.completed_pauses.add(pause_step)
