@@ -60,7 +60,7 @@ class QLoRAConfig(SFTConfig):
     do_eval: bool = True
     eval_steps: int = 1100      
     save_steps: int = 1100
-    # max_steps: int = 3999           #Latest run yielded ~4100 steps, I rounded down for consistency
+    max_steps: int = 100          
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
@@ -295,6 +295,14 @@ def train():
         "--pause_minutes", type=int, default=45,
         help="Number of minutes to pause training at halfway point"
     )
+    parser.add_argument(
+        "--pause_intervals", type=str, default="0.25,0.5,0.75",
+        help="Comma-separated list of training percentages to pause at (e.g., '0.25,0.5,0.75')"
+    )
+    parser.add_argument(
+        "--pause_durations", type=str, default="180,240,180",
+        help="Comma-separated list of pause durations in minutes (e.g., '45,240,45')"
+    )
     args, _ = parser.parse_known_args()
     
     if args.resume_from_checkpoint:
@@ -388,26 +396,36 @@ def train():
     # Add gradient checkpointing for memory efficiency
     model.gradient_checkpointing_enable()
     
-    # Initialize trainer with optimized settings and pause-resume callback
-    trainer = SFTTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
-        processing_class=tokenizer,
-        callbacks=[
-            EarlyStoppingCallback(
-                early_stopping_patience=3,
-                early_stopping_threshold=0.05
-            ),
-            PauseResumeCallback(pause_minutes=training_args.pause_minutes)
-        ],
-        data_collator=None,
-    )
-
     # Train
     logger.info("Starting training")
     try:
+        # Process pause settings
+        pause_intervals = [float(x) for x in args.pause_intervals.split(',')]
+        pause_durations = [int(x) for x in args.pause_durations.split(',')]
+        
+        logger.info("=== Training Pause Schedule ===")
+        for i, (interval, duration) in enumerate(zip(pause_intervals, pause_durations)):
+            logger.info(f"Pause {i+1}: At {interval*100:.1f}% completion for {duration} minutes")
+        
+        trainer = SFTTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset["train"],
+            eval_dataset=dataset["test"],
+            processing_class=tokenizer,
+            callbacks=[
+                EarlyStoppingCallback(
+                    early_stopping_patience=3,
+                    early_stopping_threshold=0.05
+                ),
+                PauseResumeCallback(
+                    pause_intervals=pause_intervals,
+                    pause_durations=pause_durations
+                )
+            ],
+            data_collator=None,
+        )
+
         train_result = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
         
         # Log and save metrics

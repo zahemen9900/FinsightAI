@@ -2,3 +2,10 @@
 metrics/
 wandb/
 .qodo
+qlora_output/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
