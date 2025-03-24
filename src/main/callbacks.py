@@ -4,7 +4,7 @@ from rich.progress import Progress, TextColumn, TimeElapsedColumn, TimeRemaining
 import time
 import datetime
 from pathlib import Path
-import numpy as np
+import torch
 
 # Create a custom callback for pausing training with improved logging
 class PauseResumeCallback(TrainerCallback):
@@ -79,11 +79,17 @@ class PauseResumeCallback(TrainerCallback):
                 self.console.print("[bold cyan]╚════════════════════════════════════════════════════╝[/bold cyan]")
                 self.console.print(f"[yellow]Reached step {current_step}. Training will resume after {pause_minutes} minutes.[/yellow]")
                 
-                # Save checkpoint before pausing
-                self.console.print("[green]Saving checkpoint before pause...[/green]")
+                # Set a flag to save checkpoint in train_qlora.py
                 control.should_save = True
+                
+                # Create a special pause checkpoint folder path
                 pause_checkpoint_dir = Path(args.output_dir) / f"pause_checkpoint_{i+1}"
-                pause_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+                
+                # Save the checkpoint dir and pause index in the kwargs
+                kwargs["pause_checkpoint_dir"] = str(pause_checkpoint_dir)
+                kwargs["pause_index"] = i + 1
+                kwargs["pause_minutes"] = pause_minutes
+                kwargs["pause_percent"] = percent_complete
                 
                 # Calculate total seconds for pause
                 total_seconds = pause_minutes * 60
@@ -97,6 +103,10 @@ class PauseResumeCallback(TrainerCallback):
                 self.console.print(f"[yellow]Pause started at: {pause_start_formatted}[/yellow]")
                 self.console.print(f"[green]Training will resume at: {pause_end_formatted}[/green]")
                 
+                # Free up GPU memory during pause
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                
                 # Use rich.progress for a nice countdown
                 with Progress(
                     TextColumn("[progress.description]{task.description}"),
@@ -108,7 +118,8 @@ class PauseResumeCallback(TrainerCallback):
                     
                     elapsed = 0
                     while elapsed < total_seconds:
-                        time.sleep(1)  # Update every second
+                        # Sleep in small increments to be responsive
+                        time.sleep(1)
                         elapsed = time.time() - pause_start_time
                         remaining = total_seconds - elapsed
                         

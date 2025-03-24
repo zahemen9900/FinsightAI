@@ -1,6 +1,8 @@
 import logging
+import os
 import random
 import sys
+import datetime
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, List, Union
@@ -24,7 +26,7 @@ from train import ModelArguments, prepare_dataset
 from rich.logging import RichHandler
 from rich.console import Console
 import wandb
-from transformers.trainer_callback import EarlyStoppingCallback
+from transformers.trainer_callback import EarlyStoppingCallback, TrainerCallback
 import argparse
 from callbacks import PauseResumeCallback
 
@@ -60,14 +62,12 @@ class QLoRAConfig(SFTConfig):
     do_eval: bool = True
     eval_steps: int = 1100      
     save_steps: int = 1100
-    max_steps: int = 100          
+    # max_steps: int = 20          
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 4   # Keep more checkpoints for resuming
     load_best_model_at_end: bool = True
     lower_is_better: bool = True # minimize loss
-    # Pause duration in minutes
-    pause_minutes: int = 30    
     # DeepSpeed configs
     deepspeed = {
         "zero_optimization": {
@@ -104,7 +104,7 @@ class QLoRAConfig(SFTConfig):
     use_cache: bool = True
     
     # Memory optimizations
-    max_grad_norm: float = 0.3
+    max_grad_norm: float = 0.4
     dataloader_num_workers: int = 4
     dataloader_pin_memory: bool = True
     
@@ -285,15 +285,11 @@ def train():
     model_args = ModelArguments()
     training_args = QLoRAConfig()
     
-    # Add argument parsing for resume training and pause duration
+    # Add argument parsing for resume training and pause intervals
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--resume_from_checkpoint", type=str, default=None,
         help="Path to checkpoint directory to resume training from"
-    )
-    parser.add_argument(
-        "--pause_minutes", type=int, default=45,
-        help="Number of minutes to pause training at halfway point"
     )
     parser.add_argument(
         "--pause_intervals", type=str, default="0.25,0.5,0.75",
@@ -301,16 +297,13 @@ def train():
     )
     parser.add_argument(
         "--pause_durations", type=str, default="180,240,180",
-        help="Comma-separated list of pause durations in minutes (e.g., '45,240,45')"
+        help="Comma-separated list of pause durations in minutes (e.g., '180,240,180')"
     )
     args, _ = parser.parse_known_args()
     
     if args.resume_from_checkpoint:
         training_args.resume_from_checkpoint = args.resume_from_checkpoint
         logger.info(f"Resuming training from checkpoint: {args.resume_from_checkpoint}")
-    
-    training_args.pause_minutes = args.pause_minutes
-    logger.info(f"Training will pause for {training_args.pause_minutes} minutes halfway through.")
     
     # Updated dataset paths with names and proportions
     dataset_paths = [
@@ -396,6 +389,62 @@ def train():
     # Add gradient checkpointing for memory efficiency
     model.gradient_checkpointing_enable()
     
+    # Add custom callback function to handle pause checkpoints
+    class CheckpointOnPauseCallback(TrainerCallback):
+        """Saves model checkpoints when pauses are triggered"""
+        
+        def on_save(self, args, state, control, **kwargs):
+            # Check if we're doing a save during a pause
+            if "pause_checkpoint_dir" in kwargs and "pause_index" in kwargs:
+                pause_dir = kwargs["pause_checkpoint_dir"]
+                pause_index = kwargs["pause_index"]
+                pause_minutes = kwargs.get("pause_minutes", 0)
+                pause_percent = kwargs.get("pause_percent", 0)
+                
+                # Get the trainer
+                trainer = kwargs.get("trainer", None)
+                if trainer is None:
+                    logger.error("Could not access trainer object for saving pause checkpoint")
+                    return
+                
+                # Create pause checkpoint directory
+                pause_checkpoint_dir = Path(pause_dir)
+                pause_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+                
+                # Save a marker file with details
+                current_step = state.global_step
+                marker_path = pause_checkpoint_dir / f"pause_marker_step_{current_step}.txt"
+                
+                try:
+                    # Remember current output dir
+                    original_output_dir = trainer.args.output_dir
+                    
+                    # Temporarily switch output dir to our pause checkpoint dir
+                    logger.info(f"Saving pause checkpoint {pause_index} to {pause_checkpoint_dir}")
+                    trainer.args.output_dir = str(pause_checkpoint_dir)
+                    
+                    # Save model and training state
+                    trainer.save_model()
+                    trainer.save_state()
+                    
+                    # Restore original output dir
+                    trainer.args.output_dir = original_output_dir
+                    
+                    # Write marker file
+                    with open(marker_path, "w") as f:
+                        f.write(f"Paused at step {current_step} ({pause_percent:.1f}% complete)\n")
+                        f.write(f"Pause duration: {pause_minutes} minutes\n")
+                        f.write(f"Timestamp: {datetime.datetime.now().isoformat()}\n")
+                        f.write(f"Model checkpoint saved: success\n")
+                    
+                    logger.info("✓ Pause checkpoint saved successfully")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to save pause checkpoint: {e}")
+                    if os.path.exists(marker_path):
+                        with open(marker_path, "a") as f:
+                            f.write(f"Error: {str(e)}\n")
+    
     # Train
     logger.info("Starting training")
     try:
@@ -421,7 +470,8 @@ def train():
                 PauseResumeCallback(
                     pause_intervals=pause_intervals,
                     pause_durations=pause_durations
-                )
+                ),
+                CheckpointOnPauseCallback()  # Add our custom checkpoint callback
             ],
             data_collator=None,
         )
