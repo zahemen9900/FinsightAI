@@ -47,7 +47,7 @@ class QLoRAConfig(SFTConfig):
     lora_dropout: float = 0.05
     
     # Training parameters optimized for speed
-    num_train_epochs: int = 3
+    num_train_epochs: int = 2
     learning_rate: float = 5e-6
     output_dir: str = "qlora_output"
     per_device_train_batch_size: int = 2   # Adjusted for memory
@@ -183,7 +183,6 @@ def setup_quantized_model(model_args, training_args):
             "mixer_self_attention",  # Added for better attention
             "mixer_cross_attention", # Added for better attention
             "mixer_mlp",            # Added for better feature mixing
-            "norm",
             "ln_f",
             "ln_1",
             "ln_2"
@@ -335,6 +334,11 @@ def train():
         {
             "path": "/home/zahemen/datasets/sft_datasets/advanced_finance_conversations.jsonl",
             "name": "advanced_finance_questions",
+            "proportion": 1.0
+        },
+        {
+            "path": "/home/zahemen/datasets/v2/finance_instruct_processed.jsonl",
+            "name": "finance_instruct",
             "proportion": 1.0
         }
         # {
