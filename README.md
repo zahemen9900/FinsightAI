@@ -14,6 +14,27 @@ Your intelligent financial companion, powered by advanced AI.
 </div>
 
 <div align="center">
+<table>
+<tr>
+  <td align="center">
+    <a href="https://github.com/zahemen9900/FinsightAI.git">
+      <img src="https://img.shields.io/badge/Training_Repo-181717?style=for-the-badge&logo=github&logoColor=white" alt="Training Repository"/>
+      <br/>
+      <strong>Project Repository</strong>
+    </a>
+  </td>
+  <td align="center">
+    <a href="https://colab.research.google.com/drive/1vpgADgpnlZ4wIAxOL79HDzAuQHG9RB-X?usp=sharing">
+      <img src="https://img.shields.io/badge/Demo_on_Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white" alt="Colab Demo"/>
+      <br/>
+      <strong>Interactive Demo</strong>
+    </a>
+  </td>
+</tr>
+</table>
+</div>
+
+<div align="center">
   <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/97d7cacfff62e7b6099ef3bb0af9cf3d044a5b35/metrics/model_paper.md" target="_blank">Read Model Paper 📄</a></h4>
 </div>
 
