@@ -14,6 +14,10 @@ Your intelligent financial companion, powered by advanced AI.
 </div>
 
 <div align="center">
+  <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/97d7cacfff62e7b6099ef3bb0af9cf3d044a5b35/metrics/model_paper.md" target="_blank">Read Model Paper 📄</a></h4>
+</div>
+
+<div align="center">
 <table>
 <tr>
   <td align="center">
@@ -33,11 +37,6 @@ Your intelligent financial companion, powered by advanced AI.
 </tr>
 </table>
 </div>
-
-<div align="center">
-  <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/97d7cacfff62e7b6099ef3bb0af9cf3d044a5b35/metrics/model_paper.md" target="_blank">Read Model Paper 📄</a></h4>
-</div>
-
 
 ## 📋 Overview
 
