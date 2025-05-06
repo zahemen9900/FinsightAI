@@ -32,7 +32,7 @@ FinSight AI is a specialized financial advisory assistant built by fine-tuning S
 Our evaluation demonstrates significant performance improvements across all standard NLP metrics **(ROUGE-1 , ROUGE-2, ROUGE-L & BLEU)**, showcasing the effectiveness of our domain-specific training approach. The model exhibits enhanced capabilities with richer financial terminology usage, more precise responses, improved handling of numerical data, and greater technical accuracy - all while maintaining a compact, resource-efficient architecture suitable for deployment on consumer hardware.
 
 <div align="left">
-  <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/97d7cacfff62e7b6099ef3bb0af9cf3d044a5b35/metrics/model_paper.md" target="_blank">Read Model Paper 📄</a></h4>
+  <h4><a href="https://github.com/zahemen9900/Datasets-for-Finsight/blob/main/metrics/Finsight-AI-Research-Paper.pdf" target="_blank">Read Model Paper 📄</a></h4>
 </div>
 
 
