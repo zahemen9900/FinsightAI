@@ -183,6 +183,7 @@ def setup_quantized_model(model_args, training_args):
             "mixer_self_attention",  # Added for better attention
             "mixer_cross_attention", # Added for better attention
             "mixer_mlp",            # Added for better feature mixing
+            # target attention layers in dropout mechanism
             "ln_f",
             "ln_1",
             "ln_2"

@@ -146,12 +146,8 @@ def main():
         },
         {
             "path": "/home/zahemen/datasets/v2/finance_instruct_processed.jsonl",
-            "name": "finance_instruct",
+            "name": "finance_instruct_dataset"
         }
-        # {
-        #     "path": "/home/zahemen/datasets/sft_datasets/finsight_combined_dataset_20250303_210949.jsonl",
-        #     "name": "finsight_combined"
-        # }
     ]
     
     # Load the same tokenizer used in training
