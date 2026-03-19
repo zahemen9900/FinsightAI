@@ -60,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--input-jsonl",
         type=Path,
         required=True,
-        help="Path to reddit-finance Data.jsonl file.",
+        help="Path to Reddit finance data JSONL file.",
     )
     parser.add_argument(
         "--filtered-output-jsonl",
