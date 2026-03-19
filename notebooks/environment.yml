@@ -1,0 +1,7 @@
+name: finsightai-notebooks
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pandas>=2.2,<3

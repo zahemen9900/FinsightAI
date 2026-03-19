@@ -99,6 +99,17 @@ python src/app/streamlit_chat.py
 python src/inference/chat_qlora.py --adapter_path="qlora_output"
 ```
 
+### Notebook Experiment Scripts (Conda)
+
+```bash
+# Create/update the notebook automation environment
+notebooks/setup_conda_env.sh
+
+# Run notebook-equivalent scripts with environment activation handled in runner scripts
+notebooks/run_financial_q_and_a.sh --dataset-path /path/to/Financial-QA-10k.csv
+notebooks/run_reddit_250k_analysis.sh --input-jsonl /path/to/Data.jsonl
+```
+
 ### Training Your Own Model
 
 ```bash
