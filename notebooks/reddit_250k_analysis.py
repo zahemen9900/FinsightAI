@@ -52,7 +52,9 @@ def percentile_filter(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run Reddit finance JSONL analysis without notebook dependencies."
+        description=(
+            "Analyze Reddit finance JSONL data and optionally export percentile-filtered output."
+        )
     )
     parser.add_argument(
         "--input-jsonl",

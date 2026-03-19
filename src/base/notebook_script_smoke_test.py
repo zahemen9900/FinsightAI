@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class NotebookScriptSmokeTests(unittest.TestCase):
-    def test_fina_q_and_a_script_help(self):
+    def test_financial_q_and_a_script_help(self):
         script = REPO_ROOT / "notebooks" / "fina_q_and_a.py"
         result = subprocess.run(
             [sys.executable, str(script), "--help"],
@@ -28,9 +28,9 @@ class NotebookScriptSmokeTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0)
-        self.assertIn("Run Reddit finance JSONL analysis", result.stdout)
+        self.assertIn("Analyze Reddit finance JSONL data", result.stdout)
 
-    def test_fina_q_and_a_script_missing_file_fails_fast(self):
+    def test_financial_q_and_a_script_missing_file_fails_fast(self):
         from notebooks.fina_q_and_a import main
 
         with self.assertRaises(FileNotFoundError):
