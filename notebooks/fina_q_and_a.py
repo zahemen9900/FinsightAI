@@ -12,7 +12,7 @@ def inspect_financial_qa_csv(dataset_path: Path, preview_rows: int = 5) -> Dict[
     """Load CSV and return notebook-equivalent inspection data."""
     import pandas as pd
 
-    dataframe = pd.read_csv(dataset_path, header="infer")
+    dataframe = pd.read_csv(dataset_path)
     return {
         "shape": dataframe.shape,
         "columns": dataframe.columns.tolist(),
