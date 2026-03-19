@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 class NotebookScriptSmokeTests(unittest.TestCase):
     def test_financial_q_and_a_script_help(self):
-        script = REPO_ROOT / "notebooks" / "financial_q_and_a.py"
+        script = REPO_ROOT / "notebooks" / "fina_q_and_a.py"
         result = subprocess.run(
             [sys.executable, str(script), "--help"],
             capture_output=True,
@@ -31,7 +31,7 @@ class NotebookScriptSmokeTests(unittest.TestCase):
         self.assertIn("Analyze Reddit finance JSONL data", result.stdout)
 
     def test_financial_q_and_a_script_missing_file_fails_fast(self):
-        from notebooks.financial_q_and_a import main
+        from notebooks.fina_q_and_a import main
 
         with self.assertRaises(FileNotFoundError):
             main(["--dataset-path", "/tmp/does-not-exist.csv"])
