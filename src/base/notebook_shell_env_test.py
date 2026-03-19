@@ -8,6 +8,7 @@ NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 
 class NotebookShellEnvironmentTests(unittest.TestCase):
     def test_notebook_runners_activate_conda_environment(self):
+        # Keep both runner names covered: canonical + backward-compatible alias.
         shell_runners = [
             NOTEBOOKS_DIR / "run_financial_q_and_a.sh",
             NOTEBOOKS_DIR / "run_fina_q_and_a.sh",
