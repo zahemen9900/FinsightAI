@@ -222,3 +222,37 @@ deepspeed_config = {
    - Better validation metrics
    - Enhanced monitoring
    - Automated quality checks
+
+## 9. Safe Modernization Notes (2026)
+
+These updates are designed to improve maintainability without changing model behavior:
+
+1. **Exception Safety**
+   - Avoid bare `except:` clauses in training scripts.
+   - Use `except Exception` and log debug context for non-critical paths.
+   - This preserves `KeyboardInterrupt`/`SystemExit` behavior and improves diagnosability.
+
+2. **Import Hygiene**
+   - Remove unused and duplicate imports in app/training entrypoints.
+   - Keeps startup paths cleaner and reduces maintenance overhead.
+
+## 10. Recommended Next Experiments (Small/Open Models)
+
+To keep resource usage low while modernizing capability, evaluate these as drop-in research alternatives to the current base model:
+
+1. **Qwen2.5-1.5B-Instruct**
+   - Strong instruction-following at similar scale.
+   - Good candidate for side-by-side QLoRA comparison with existing pipeline.
+
+2. **Llama-3.2-1B-Instruct**
+   - Very small footprint, useful for latency-sensitive deployment tiers.
+   - Best suited for concise finance FAQ and educational guidance tasks.
+
+3. **Phi-3.5-mini-instruct**
+   - Compact model family with strong reasoning-per-parameter characteristics.
+   - Useful as a low-memory fallback model.
+
+Suggested evaluation protocol for any new small model:
+- Keep the existing dataset and metric scripts unchanged.
+- Reuse the same prompt template and generation settings.
+- Compare ROUGE/BLEU plus response consistency on the current benchmark split.

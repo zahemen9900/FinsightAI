@@ -1,5 +1,4 @@
 import re
-from tkinter import FALSE
 import gradio as gr
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
@@ -10,7 +9,6 @@ import logging
 from rich.logging import RichHandler
 from typing import Generator
 import shutil
-from pathlib import Path
 import torch.amp
 
 # Configure logging
