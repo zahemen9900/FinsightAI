@@ -146,6 +146,14 @@ The model offers several configuration options for inference:
 - **Generation Parameters**: Adjustable temperature, top_p, and other parameters for response generation
 - **Deploy Modes**: Options for CPU, GPU, or quantized inference for different hardware capabilities
 
+## 🔄 Modernization Status
+
+This repository keeps training/inference behavior stable while applying low-risk modernization updates:
+
+- Replaced legacy bare exception handlers in the Unsloth training path with explicit `Exception` handling and debug logging
+- Removed unused/duplicate imports in the Gradio app entrypoint to reduce maintenance noise
+- Added a curated shortlist of current small open-source model candidates for future side-by-side training experiments
+
 ## 🚧 Limitations
 
 - Financial data and knowledge is current as of training data cutoff

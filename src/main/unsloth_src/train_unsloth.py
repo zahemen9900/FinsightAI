@@ -289,8 +289,8 @@ def setup_unsloth_model(model_name_or_path: str, training_args: UnslothTrainingA
         if "llama" in config_name.lower() and "SmolLM2" in model_name_or_path:
             logger.warning(f"Loaded model appears to be {config_name}, but requested {model_name_or_path}")
             logger.warning("Training will continue but may not use the expected model!")
-    except:
-        pass
+    except Exception as model_config_error:
+        logger.debug(f"Skipped model identity verification due to: {model_config_error}")
     
     # Apply Unsloth's LoRA optimization
     # Updated API usage for newer Unsloth versions
@@ -369,7 +369,7 @@ def main():
             # List valid arguments for ModelArguments
             try:
                 logger.error(f"Valid arguments for ModelArguments: {list(ModelArguments.__dataclass_fields__.keys())}")
-            except:
+            except Exception:
                 logger.error("Could not list valid model arguments")
                 
             # List valid arguments for UnslothTrainingArguments
@@ -377,7 +377,7 @@ def main():
                 trainer_args = [f for f in UnslothTrainingArguments.__dataclass_fields__.keys() 
                                if not f.startswith("_")]
                 logger.error(f"Valid arguments for UnslothTrainingArguments include: {', '.join(trainer_args[:10])}, ...")
-            except:
+            except Exception:
                 logger.error("Could not list valid training arguments")
                 
             sys.exit(1)
